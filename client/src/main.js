@@ -4,7 +4,8 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router' // <--- Import the router
 import { clerkPlugin } from '@clerk/vue'
-
+import PrimeVue from 'primevue/config';
+import Lara from '@primeuix/themes/lara';
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
@@ -16,5 +17,9 @@ const app = createApp(App)
 
 app.use(router) // <--- Tell the app to use the router
 app.use(clerkPlugin, { publishableKey: PUBLISHABLE_KEY }) // <--- Configure Clerk authentication
-
+app.use(PrimeVue, {
+    theme: {
+        preset: Lara
+    }
+});
 app.mount('#app')
