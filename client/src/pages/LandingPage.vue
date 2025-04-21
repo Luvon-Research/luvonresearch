@@ -1,5 +1,5 @@
 <script setup>
-import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/vue";
+import { SignedIn, SignedOut, SignInButton, UserButton, SignOutButton } from "@clerk/vue";
 import Menubar from "primevue/menubar";
 import Button from "primevue/button"
 import InputText from 'primevue/inputtext';
@@ -39,7 +39,6 @@ const items = ref([
         ]
     }
 ]);
-import { SignedIn, SignedOut, SignInButton, SignOutButton } from '@clerk/vue'
 import { useAuth } from '@clerk/vue'
 import { useRouter } from 'vue-router'
 import { watchEffect } from 'vue'
