@@ -6,40 +6,30 @@ import Badge from "primevue/badge";
 import Avatar from "primevue/avatar";
 
 import { ref } from "vue";
-const items = ref([
-  { label: 'Home', icon: 'pi pi-home' },
-]);
+const items = ref([{ label: "Home", icon: "pi pi-home" }]);
 
-import { SignedIn, SignedOut, SignInButton } from '@clerk/vue';
-import { useAuth } from '@clerk/vue';
-import { useRouter } from 'vue-router';
-import { watchEffect } from 'vue';
+import { SignedIn, SignedOut, SignInButton } from "@clerk/vue";
+import { useAuth } from "@clerk/vue";
+import { useRouter } from "vue-router";
+import { watchEffect } from "vue";
 
 const { isSignedIn } = useAuth();
 const router = useRouter();
 
 watchEffect(() => {
   if (isSignedIn.value) {
-    router.push({ name: 'Dashboard' });
+    router.push({ name: "Dashboard" });
   }
 });
 </script>
 
 <template>
   <div class="landing-container">
-    <Menubar class="menubar" :model="items">
-      <template #start>
-        <!-- your logo SVG -->
-      </template>
-      <template #end>
-        <div class="actions">
-          <SignInButton mode="modal" asChild>
-            <a class="login-signup">Login/Sign Up</a>
-
-          </SignInButton>
-        </div>
-      </template>
-    </Menubar>
+    <div class="d-flex justify-content-end">
+        <SignInButton mode="modal" asChild>
+          <a class="login-signup">Login | Signup</a>
+        </SignInButton>
+    </div>
 
     <div class="landing-page">
       <div class="content">
@@ -48,11 +38,16 @@ watchEffect(() => {
         <p class="subtitle">
           Accelerate your research with
           <span class="highlight">smart tools</span> and
-          <span class="highlight">advanced data entry</span>.
+          <span class="highlight">advanced data entry</span>
+          powered by AI
         </p>
         <div>
           <SignInButton mode="modal" asChild>
-            <Button icon="pi pi-send" class="get-started-btn2" label="Begin my journey" />
+            <Button
+              icon="pi pi-send"
+              class="get-started-btn2"
+              label="Begin my journey"
+            />
           </SignInButton>
         </div>
       </div>
@@ -63,11 +58,20 @@ watchEffect(() => {
 <style scoped>
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Playfair+Display:ital,wght@1,700&display=swap");
 
-.login-signup{
-  margin-right: 1rem;
+.login-signup {
+  margin: 1.4rem;
   font-weight: bold;
   text-decoration: none;
+  color: white;
   cursor: pointer;
+  transition: 0.7s ease-in;
+}
+
+.login-signup:hover {
+  background: linear-gradient(to bottom right, #00c9ff 0%, #92fe9d 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 700;
 }
 /* -------------- Container + Orbs -------------- */
 .landing-container {
@@ -85,7 +89,11 @@ watchEffect(() => {
   left: -15%;
   width: 700px;
   height: 700px;
-  background: radial-gradient(circle at center, rgba(0,201,255,0.6), transparent 70%);
+  background: radial-gradient(
+    circle at center,
+    rgba(0, 201, 255, 0.6),
+    transparent 70%
+  );
   filter: blur(200px);
   z-index: 0;
 }
@@ -96,7 +104,11 @@ watchEffect(() => {
   right: -15%;
   width: 800px;
   height: 800px;
-  background: radial-gradient(circle at center, rgba(146,254,157,0.6), transparent 70%);
+  background: radial-gradient(
+    circle at center,
+    rgba(146, 254, 157, 0.6),
+    transparent 70%
+  );
   filter: blur(200px);
   z-index: 0;
 }
@@ -128,7 +140,7 @@ watchEffect(() => {
 /* -------------- Typography & Badges -------------- */
 .badge {
   display: inline-block;
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
   color: #aaa;
   padding: 0.5rem 1rem;
   border-radius: 9999px;
@@ -143,9 +155,9 @@ h1 {
   margin: 0.5rem 0;
 }
 .subtitle {
-  font-size: 1.25rem;
+  font-size: 1;
   color: #bbb;
-  margin: 1.5rem 0 2rem;
+  margin: 1rem 0 2rem;
   line-height: 1.6;
 }
 .highlight {
@@ -154,7 +166,7 @@ h1 {
 
 /* -------------- Gradient Text -------------- */
 .gradientText {
-  background: linear-gradient(to bottom right, #00C9FF 0%, #92FE9D 100%);
+  background: linear-gradient(to bottom right, #00c9ff 0%, #92fe9d 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   font-family: "Playfair Display", serif;

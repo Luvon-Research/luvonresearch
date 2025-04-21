@@ -6,6 +6,7 @@ import router from './router' // <--- Import the router
 import { clerkPlugin } from '@clerk/vue'
 import PrimeVue from 'primevue/config';
 import Lara from '@primeuix/themes/lara';
+import 'bootstrap/dist/css/bootstrap.min.css'
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
