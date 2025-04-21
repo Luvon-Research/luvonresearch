@@ -1,6 +1,7 @@
 <script setup>
 // You might keep imports for global components like a Navbar or Footer here
 // import TheWelcome from './components/TheWelcome.vue' // Example if you had other components
+
 </script>
 
 <template>

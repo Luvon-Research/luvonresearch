@@ -1,5 +1,6 @@
 <script setup>
-import { ref } from 'vue';
+import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/vue'
+
 </script>
 
 <template>
@@ -11,7 +12,9 @@ import { ref } from 'vue';
       </h1>
       <p class="subtitle">Accelerate your research with <span class="highlight">smart tools</span> and <span class="highlight">advanced data entry</span>.</p>
       <div class="button-group">
-        <button class="btn-primary">Begin my journey</button>
+        <SignInButton asChild>
+          <button class="btn-primary">Begin my journey</button>
+        </SignInButton>
       </div>
     </div>
   </div>
