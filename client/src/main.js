@@ -19,7 +19,10 @@ app.use(router) // <--- Tell the app to use the router
 app.use(clerkPlugin, { publishableKey: PUBLISHABLE_KEY }) // <--- Configure Clerk authentication
 app.use(PrimeVue, {
     theme: {
-        preset: Lara
+        preset: Lara,
+        options: {
+            darkModeSelector: '.light-mode'
+        }
     }
 });
 app.mount('#app')

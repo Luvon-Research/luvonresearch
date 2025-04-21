@@ -1,9 +1,6 @@
 <script setup>
 import Menubar from "primevue/menubar";
 import Button from "primevue/button";
-import InputText from "primevue/InputText";
-import Badge from "primevue/badge";
-import Avatar from "primevue/avatar";
 
 import { ref } from "vue";
 const items = ref([

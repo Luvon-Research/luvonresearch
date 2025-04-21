@@ -1,27 +1,43 @@
 <script setup>
-// You can add logic here later, e.g., fetching user-specific data
+import { useRouter } from 'vue-router';
+import NavBar from '@/components/NavBar.vue';
 import { useUser, SignedIn, SignOutButton } from '@clerk/vue';
 
+const router = useRouter();
 const { user } = useUser();
+
 </script>
 
 <template>
-  <div class="dashboard-page">
-    <h1>Dashboard</h1>
-    <p v-if="user">Welcome back, {{ user.firstName || user.primaryEmailAddress.emailAddress }}!</p>
-    <p>This is your protected dashboard area.</p>
-    <!-- Add your dashboard content here -->
-    <SignedIn>
+  <div class="dashboard-layout">
+    <NavBar />
+
+    <main class="dashboard-content">
+      <h1>Dashboard</h1>
+      <p v-if="user">
+        Welcome back, {{ user.firstName || user.primaryEmailAddress.emailAddress }}!
+      </p>
+      <p>This is your protected dashboard area.</p>
+      <SignedIn>
         <SignOutButton asChild>
-        <button>Sign Out</button>
+          <button class="p-button p-button-secondary">Sign Out</button>
         </SignOutButton>
-     </SignedIn>
+      </SignedIn>
+    </main>
   </div>
 </template>
 
 <style scoped>
-.dashboard-page {
+.dashboard-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.dashboard-content {
+  flex: 1;
   padding: 2rem;
-  text-align: center;
+  background: var(--color-background);
+  margin-top: var(--navbar-height, 64px);
 }
 </style>
