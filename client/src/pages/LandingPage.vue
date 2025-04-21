@@ -39,6 +39,24 @@ const items = ref([
         ]
     }
 ]);
+import { SignedIn, SignedOut, SignInButton, SignOutButton } from '@clerk/vue'
+import { useAuth } from '@clerk/vue'
+import { useRouter } from 'vue-router'
+import { watchEffect } from 'vue'
+
+const { isSignedIn } = useAuth()
+const router = useRouter()
+
+watchEffect(() => {
+  if (isSignedIn.value === true) {
+    console.log('User is signed in, redirecting from Landing to Dashboard...')
+    router.push({ name: 'Dashboard' })
+  } else if (isSignedIn.value === false) {
+    console.log('User is not signed in, staying on Landing page.')
+  } else {
+    console.log('Auth status still loading...')
+  }
+})
 </script>
 
 <template>
@@ -76,7 +94,7 @@ const items = ref([
         <span class="highlight">advanced data entry</span>.
       </p>
       <div class="button-group">
-        <SignInButton asChild>
+        <SignInButton mode="modal" asChild>
           <button class="btn-primary">Begin my journey</button>
         </SignInButton>
       </div>
@@ -143,6 +161,7 @@ h1 {
 .button-group {
   display: flex;
   justify-content: center;
+  gap: 1rem;
 }
 
 .btn-primary {
@@ -161,6 +180,25 @@ h1 {
 
 .btn-primary:hover {
   background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-secondary {
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  background: rgba(100, 100, 100, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 9999px;
+  color: #f2f2f2;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s ease, border-color 0.3s ease;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.3);
   border-color: rgba(255, 255, 255, 0.3);
 }
 </style>
