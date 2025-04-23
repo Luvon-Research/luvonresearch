@@ -1,10 +1,9 @@
 <script setup>
 import { useRouter } from 'vue-router';
 import NavBar from '@/components/NavBar.vue';
-import { useUser, SignedIn, SignOutButton } from '@clerk/vue';
+import CreateSheetButton from '@/components/CreateSheetButton.vue';
 
 const router = useRouter();
-const { user } = useUser();
 
 </script>
 
@@ -13,16 +12,9 @@ const { user } = useUser();
     <NavBar />
 
     <main class="dashboard-content">
-      <h1>Dashboard</h1>
-      <p v-if="user">
-        Welcome back, {{ user.firstName || user.primaryEmailAddress.emailAddress }}!
-      </p>
-      <p>This is your protected dashboard area.</p>
-      <SignedIn>
-        <SignOutButton asChild>
-          <button class="p-button p-button-secondary">Sign Out</button>
-        </SignOutButton>
-      </SignedIn>
+      <div class="create-button-container">
+        <CreateSheetButton />
+      </div>
     </main>
   </div>
 </template>
@@ -39,5 +31,11 @@ const { user } = useUser();
   padding: 2rem;
   background: var(--color-background);
   margin-top: var(--navbar-height, 64px);
+}
+
+.create-button-container {
+  position: absolute;
+  top: calc(var(--navbar-height, 64px) + 2rem);
+  right: 2rem;
 }
 </style>
