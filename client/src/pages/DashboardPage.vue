@@ -23,10 +23,33 @@ function toggleChat() {
       <!-- This wrapper will slide to the right when showChat is true -->
       <div class="dashboard-wrapper" :class="{ shifted: showChat }">
         <div class="button-row">
-          <button class="ai-assistant-btn" @click="toggleChat">
-            <i class="pi pi-sparkles"></i>
-            AI assistant
-          </button>
+          <div class="primary-buttons">
+            <button class="ai-assistant-btn">
+              <i class="pi pi-table"></i>
+              Sheets
+            </button>
+
+            <button class="ai-assistant-btn" @click="toggleChat">
+              <i class="pi pi-sparkles"></i>
+              AI assistant
+            </button>
+
+            <button class="ai-assistant-btn">
+              <i class="pi pi-asterisk"></i>
+              Research Center
+            </button>
+
+            <button class="ai-assistant-btn">
+              <i class="pi pi-chart-scatter"></i>
+              Charts
+            </button>
+
+            <button class="ai-assistant-btn">
+              <i class="pi pi-folder-open"></i>
+              Files
+            </button>
+          </div>
+
           <CreateSheetButton />
         </div>
 
@@ -79,13 +102,16 @@ function toggleChat() {
 }
 
 .button-row {
-  position: absolute;
-  left: 1rem;
-  right: 1rem;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  z-index: 1;
+  /* two items: .primary-buttons (left) and CreateSheetButton (right) */
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+}
+
+.primary-buttons {
+  display: flex;
+  gap: 0.5rem; /* control spacing between your 5 buttons */
 }
 
 .ai-assistant-btn {
