@@ -1,50 +1,128 @@
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
 
-import NavBar from '@/components/NavBar.vue'
-import CreateSheetButton from '@/components/CreateSheetButton.vue'
-import SheetBlock from '@/components/SheetBlock.vue'
-import SheetChat from '@/components/SheetChat.vue'
+import NavBar from "@/components/NavBar.vue";
+import ResearchCenter from "@/components/ResearchCenter.vue";
 
-const router = useRouter()
-const showChat = ref(false)
+import CreateSheetButton from "@/components/CreateSheetButton.vue";
+import SheetBlock from "@/components/SheetBlock.vue";
+import SheetChat from "@/components/SheetChat.vue";
 
+import Popover from "primevue/popover";
+import InputText from "primevue/inputtext";
+import InputGroup from "primevue/inputgroup";
+import InputGroupAddon from "primevue/inputgroupaddon";
+import Button from "primevue/button";
+import ChartsTab from "../components/ChartsTab.vue";
+import FilesTab from "../components/FilesTab.vue";
+
+const router = useRouter();
+const showChat = ref(false);
 function toggleChat() {
-  showChat.value = !showChat.value
+  showChat.value = !showChat.value;
 }
+
+// original sheets array
+const sheets = ref([
+  { name: "Test Sheet" },
+  { name: "Env Data" },
+  // add more as needed
+]);
+
+// Popover reference and toggle
+const op = ref();
+const toggle = (event) => {
+  op.value.toggle(event);
+};
+
+// Search term reactive ref
+const searchTerm = ref("");
+
+const selectedPage = ref("sheets");
+
+function setSelectPage(page) {
+  if (page === "sheets") {
+    toggle();
+  }
+
+  selectedPage.value = page;
+}
+
+// Computed filtered list based on searchTerm
+const filteredSheets = computed(() => {
+  const term = searchTerm.value.trim().toLowerCase();
+  if (!term) {
+    return sheets.value;
+  }
+  return sheets.value.filter((sheet) =>
+    sheet.name.toLowerCase().includes(term)
+  );
+});
 </script>
 
 <template>
   <div class="dashboard-layout">
     <NavBar />
-
     <main class="dashboard-content">
-      <!-- This wrapper will slide to the right when showChat is true -->
       <div class="dashboard-wrapper" :class="{ shifted: showChat }">
         <div class="button-row">
           <div class="primary-buttons">
-            <button class="ai-assistant-btn">
+            <button class="options-tab-btn" @click="toggle">
               <i class="pi pi-table"></i>
               Sheets
             </button>
 
-            <button class="ai-assistant-btn" @click="toggleChat">
+            <Popover ref="op">
+              <div class="flex flex-col gap-4 w-[25rem]">
+                <span class="popover-title">Sheets</span>
+
+                <div class="search-box">
+                  <InputGroup>
+                    <InputText
+                      v-model="searchTerm"
+                      placeholder="Search sheets..."
+                    />
+                    <Button icon="pi pi-search" />
+                  </InputGroup>
+                </div>
+
+                <div style="margin-top: 0.5rem">
+                  <div
+                    v-for="sheet in filteredSheets"
+                    :key="sheet.name"
+                    class="d-flex align-items-center sheet-result"
+                    @click="setSelectPage('sheets')"
+                  >
+                    <i class="pi pi-file sheet-result-icon"></i>
+                    <p class="sheet-result-name">{{ sheet.name }}</p>
+                  </div>
+                  <p v-if="filteredSheets.length === 0" class="no-results">
+                    No sheets found.
+                  </p>
+                </div>
+              </div>
+            </Popover>
+
+            <button class="options-tab-btn" @click="toggleChat">
               <i class="pi pi-sparkles"></i>
               AI assistant
             </button>
 
-            <button class="ai-assistant-btn">
+            <button
+              class="options-tab-btn"
+              @click="setSelectPage('research-center')"
+            >
               <i class="pi pi-asterisk"></i>
               Research Center
             </button>
 
-            <button class="ai-assistant-btn">
+            <button class="options-tab-btn" @click="setSelectPage('charts')">
               <i class="pi pi-chart-scatter"></i>
               Charts
             </button>
 
-            <button class="ai-assistant-btn">
+            <button class="options-tab-btn" @click="setSelectPage('files')">
               <i class="pi pi-folder-open"></i>
               Files
             </button>
@@ -53,12 +131,22 @@ function toggleChat() {
           <CreateSheetButton />
         </div>
 
-        <div class="sheet-container">
-          <SheetBlock />
+        <div class="tab-page-container">
+          <div v-if="selectedPage === 'sheets'">
+            <SheetBlock />
+          </div>
+          <div v-if="selectedPage === 'research-center'">
+            <ResearchCenter />
+          </div>
+          <div v-if="selectedPage === 'charts'">
+            <ChartsTab />
+          </div>
+          <div v-if="selectedPage === 'files'">
+            <FilesTab />
+          </div>
         </div>
       </div>
 
-      <!-- Slide in the chat panel from the left -->
       <transition name="slide">
         <SheetChat
           v-if="showChat"
@@ -71,6 +159,42 @@ function toggleChat() {
 </template>
 
 <style scoped>
+.sheet-result-icon {
+  margin-top: 0.1rem;
+}
+
+.sheet-result-name {
+  margin-left: 0.6rem;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+.sheet-result {
+  padding-inline: 0.5rem;
+  padding-block: 0.5rem;
+  font-weight: bold;
+  background-color: transparent;
+  border-radius: 10px;
+}
+
+.sheet-result:hover {
+  background-color: #f2eff0;
+  cursor: pointer;
+}
+
+.search-box {
+  margin-top: 0.6rem;
+}
+
+.popover-title {
+  font-weight: bold;
+}
+
+.no-results {
+  color: #999;
+  font-style: italic;
+  margin-top: 0.5rem;
+}
+
 .dashboard-layout {
   display: flex;
   flex-direction: column;
@@ -81,12 +205,11 @@ function toggleChat() {
   --chat-width: 400px;
   position: relative;
   flex: 1;
-  overflow: hidden; /* keep container clipped */
+  overflow: hidden;
   background: var(--color-background);
   margin-top: var(--navbar-height, 64px);
 }
 
-/* This inner wrapper contains all your old content */
 .dashboard-wrapper {
   position: absolute;
   top: 0;
@@ -96,7 +219,6 @@ function toggleChat() {
   transition: margin-left 0.3s ease;
 }
 
-/* When chat is open, push the wrapper to the right */
 .dashboard-wrapper.shifted {
   margin-left: var(--chat-width);
 }
@@ -104,17 +226,16 @@ function toggleChat() {
 .button-row {
   display: flex;
   align-items: center;
-  /* two items: .primary-buttons (left) and CreateSheetButton (right) */
   justify-content: space-between;
   padding: 0.5rem 1rem;
 }
 
 .primary-buttons {
   display: flex;
-  gap: 0.5rem; /* control spacing between your 5 buttons */
+  gap: 0.5rem;
 }
 
-.ai-assistant-btn {
+.options-tab-btn {
   background-color: #f0f0f0;
   border: none;
   padding: 0.4rem 0.8rem;
@@ -127,12 +248,16 @@ function toggleChat() {
   align-items: center;
 }
 
-.ai-assistant-btn .pi {
+.options-tab-btn:hover {
+  background-color: #e0dfdf;
+}
+
+.options-tab-btn .pi {
   margin-right: 0.4rem;
   font-size: 1rem;
 }
 
-.sheet-container {
+.tab-page-container {
   position: absolute;
   top: calc(var(--navbar-height, 64px) + 1rem);
   left: 1rem;
@@ -140,14 +265,12 @@ function toggleChat() {
   bottom: 1rem;
   background: white;
   border-radius: 8px;
-
   box-sizing: border-box;
   max-width: calc(100% - 2rem);
   overflow-x: auto;
   overflow-y: auto;
 }
 
-/* NEW: chat-pane styling */
 .sheet-chat {
   position: absolute;
   top: 0;
@@ -160,7 +283,6 @@ function toggleChat() {
   overflow: hidden;
 }
 
-/* Transition for chat sliding in */
 .slide-enter-active,
 .slide-leave-active {
   transition: transform 0.3s ease;
