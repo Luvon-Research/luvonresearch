@@ -13,7 +13,12 @@ const router = useRouter();
     <NavBar />
 
     <main class="dashboard-content">
-      <div class="create-button-container">
+      <div class="button-row">
+        <button class="ai-assistant-btn">
+          <i class="pi pi-sparkles"></i>
+          AI assistant
+        </button>
+
         <CreateSheetButton />
       </div>
       <div class="sheet-container">
@@ -38,15 +43,37 @@ const router = useRouter();
   position: relative;
 }
 
-.create-button-container {
+.button-row {
   position: absolute;
+  left: 1rem;
   right: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   z-index: 1;
+}
+
+.ai-assistant-btn {
+  background-color: #f0f0f0;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.875rem;
+  color: #333;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+
+.ai-assistant-btn .pi {
+  margin-right: 0.4rem;
+  font-size: 1rem;
 }
 
 .sheet-container {
   position: absolute;
-  top: calc(var(--navbar-height, 64px));
+  top: calc(var(--navbar-height, 64px) + 1rem);
   left: 1rem;
   right: 1rem;
   bottom: 1rem;
