@@ -2,7 +2,7 @@
 </script>
 
 <template>
-    <p>Research Center</p>
+    <p>Research Center hello</p>
 </template>
 
 <style scoped>
