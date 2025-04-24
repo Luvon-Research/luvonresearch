@@ -32,6 +32,9 @@ importers:
       jspreadsheet-ce:
         specifier: ^5.0.1
         version: 5.0.1
+      jsuites:
+        specifier: ^5.9.2
+        version: 5.9.2
       primeicons:
         specifier: ^7.0.0
         version: 7.0.0
