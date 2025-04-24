@@ -1,9 +1,14 @@
 <script setup>
+import ProjectSetup from './ProjectSetup.vue';
+
 </script>
 
 <template>
-    <p>Research Center hello</p>
+    <div v-if="true">
+        <ProjectSetup />
+    </div>
 </template>
 
 <style scoped>
+
 </style>

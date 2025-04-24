@@ -1,15 +1,16 @@
 <script setup>
-import { ref, computed } from 'vue';
-import { useFileDialog } from '@vueuse/core';
-import Button from 'primevue/button';
-import Dialog from 'primevue/dialog';
-import InputText from 'primevue/inputtext';
+import { ref, computed } from "vue";
+import { useFileDialog } from "@vueuse/core";
+import Button from "primevue/button";
+import Dialog from "primevue/dialog";
+import InputText from "primevue/inputtext";
+import FloatLabel from "primevue/floatlabel";
 
 const visible = ref(false);
-const sheetName = ref('');
+const sheetName = ref("");
 const selectedFile = ref(null);
 const { open, onChange } = useFileDialog({
-  accept: '.csv' 
+  accept: ".csv",
 });
 
 onChange((files) => {
@@ -21,7 +22,7 @@ onChange((files) => {
 const handleDrop = (e) => {
   e.preventDefault();
   const file = e.dataTransfer.files[0];
-  if (file && file.type === 'text/csv') {
+  if (file && file.type === "text/csv") {
     selectedFile.value = file;
   }
 };
@@ -31,33 +32,38 @@ const handleDragOver = (e) => {
 };
 
 const isCreateEnabled = computed(() => {
-  return sheetName.value.trim() !== '' || selectedFile.value !== null;
+  return sheetName.value.trim() !== "" || selectedFile.value !== null;
 });
 
 const handleCreate = () => {
   // Handle creation/import logic here
-  console.log('Sheet name:', sheetName.value);
+  console.log("Sheet name:", sheetName.value);
   if (selectedFile.value) {
-    console.log('Importing:', selectedFile.value);
+    console.log("Importing:", selectedFile.value);
   }
   visible.value = false;
 };
 </script>
 
 <template>
-  <Button label="Create Sheet" icon="pi pi-plus" @click="visible = true" />
+  <Button label="Create Sheet" icon="pi pi-plus" @click="visible = true" severity="secondary"/>
 
-  <Dialog v-model:visible="visible" modal header="Create New Sheet" :style="{ width: '50vw' }">
+  <Dialog
+    v-model:visible="visible"
+    modal
+    header="Create New Sheet"
+    :style="{ width: '35vw', maxWidth: '30rem' }"
+  >
     <div class="create-sheet-form">
       <div class="sheet-name-section">
-        <h3>Name Your Sheet</h3>
         <div class="input-wrapper">
-          <InputText 
-            id="sheetName" 
-            v-model="sheetName" 
-            placeholder="Enter sheet name..."
-            class="w-full"
-          />
+          <FloatLabel>
+            <InputText
+              id="sheetName"
+              v-model="sheetName"
+            />
+            <label for="sheetName">Sheet Name</label>
+          </FloatLabel>
         </div>
       </div>
 
@@ -67,16 +73,12 @@ const handleCreate = () => {
 
       <div class="import-section">
         <h3>Import from CSV</h3>
-        <div 
-          class="drop-zone" 
-          @drop="handleDrop"
-          @dragover="handleDragOver"
-        >
+        <div class="drop-zone" @drop="handleDrop" @dragover="handleDragOver">
           <i class="pi pi-upload"></i>
           <p>Drag and drop your CSV file here</p>
           <p>or</p>
-          <Button 
-            label="Browse Files" 
+          <Button
+            label="Browse Files"
             @click="open"
             severity="secondary"
             text
@@ -87,9 +89,9 @@ const handleCreate = () => {
         </div>
       </div>
 
-      <Button 
+      <Button
         :disabled="!isCreateEnabled"
-        label="Create Sheet" 
+        label="Create Sheet"
         class="create-button"
         @click="handleCreate"
       />
@@ -101,7 +103,7 @@ const handleCreate = () => {
 .create-sheet-form {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1rem;
   padding: 1.5rem;
 }
 
@@ -137,7 +139,7 @@ const handleCreate = () => {
 }
 
 .divider::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 50%;
@@ -147,7 +149,7 @@ const handleCreate = () => {
 }
 
 .divider::after {
-  content: '';
+  content: "";
   position: absolute;
   right: 0;
   top: 50%;
