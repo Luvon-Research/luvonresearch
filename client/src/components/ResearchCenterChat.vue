@@ -1,90 +1,121 @@
 <script setup>
 import { ref } from "vue";
-
-import ResearchCenterSidebar from "@/components/ResearchCenterSidebar.vue";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import InputText from "primevue/inputtext";
 import Button from "primevue/button";
 import InputGroup from "primevue/inputgroup";
-import PanelMenu from "primevue/panelmenu";
+import ChatSuggestion from "./ChatSuggestion.vue";
 
 const collapsed = ref(true);
+
+const chatInput = ref("");
+
+function inputCommandSuggestion(value){
+  chatInput.value = value;
+  console.log(value)
+}
 </script>
 
 <template>
-    <div class="main-container">
-        <div class="d-flex">
-    <div :class="['sidebar', { collapsed }]">
-      <!-- Menu -->
-      <Panel class="menu" :style="{ display: collapsed ? 'none' : 'block'}">
-        <h4 class="history-label">History</h4>
-        <div class="history-new-chat">
+  <div class="main-container">
+    <div class="d-flex">
+      <div :class="['sidebar', { collapsed }]">
+        <!-- Menu -->
+        <Panel class="menu" :style="{ display: collapsed ? 'none' : 'block' }">
+          <h4 class="history-label">History</h4>
+          <div class="history-new-chat">
             <center>
-                <p class="history-item-text-new-chat">New Chat<i class="pi pi-plus new-chat-icon"></i></p>
+              <p class="history-item-text-new-chat">
+                New Chat<i class="pi pi-plus new-chat-icon"></i>
+              </p>
             </center>
-        </div>
-        <div class="history-item-active">
-            <p class="history-item-text">Research Chat</p>
-        </div>
-        <div class="history-item">
-            <p class="history-item-text">Research Chat</p>
-        </div>
-      </Panel>
-    </div>
-
-    <!-- Toggle Button -->
-    <Button @click="collapsed = !collapsed" class="toggle-btn">
-      <i class="pi pi-table"></i>
-    </Button>
-
-    <div class="chat-section">
-      <div class="empty-section">
-        <center>
-          <h2 class="gradient-text">Hello, Pranav</h2>
-          <p class="subtext">
-            I'm Luvon. Ask me anything about your project and I'm happy to help!
-          </p>
-          <div class="d-flex justify-content-center">
-            <div class="row">
-              <div class="command-card">
-                <p class="command-title"><i class="pi pi-chart-bar command-icon"></i>Generate Graph</p>
-                <p class="command-subtitle">
-                  Generate graphs according to your data
-                </p>
-              </div>
-
-              <div class="command-card">
-                <p class="command-title"><i class="pi pi-sparkles command-icon"></i>Summarize Research</p>
-                <p class="command-subtitle">
-                  Ask questions on whole project-wide context
-                </p>
-              </div>
-
-              <div class="command-card">
-                <p class="command-title"><i class="pi pi-folder-open command-icon"></i>Summarize Data</p>
-                <p class="command-subtitle">
-                  Summarize data that is collected and uploaded
-                </p>
-              </div>
-            </div>
           </div>
-        </center>
+          <div class="history-item-active">
+            <p class="history-item-text">Research Chat</p>
+          </div>
+          <div class="history-item">
+            <p class="history-item-text">Research Chat</p>
+          </div>
+        </Panel>
       </div>
 
-      <div class="d-flex justify-content-center">
-        <InputGroup class="chat-input-group">
-          <InputText
-            v-model="searchTerm"
-            placeholder="Ask anything..."
-            class="chat-input"
-          />
-          <Button icon="pi pi-send" />
-        </InputGroup>
+      <!-- Toggle Button -->
+      <button @click="collapsed = !collapsed" class="toggle-btn">
+        <i :class="'pi pi-chevron-' + (collapsed ? 'right' : 'left')"></i>
+      </button>
+
+      <div class="chat-section">
+        <div class="empty-section">
+          <center>
+            <h2 class="gradient-text">Hello, Pranav</h2>
+            <p class="subtext">
+              I'm Luvon. Ask me anything about your project and I'm happy to
+              help!
+            </p>
+            <div class="container">
+              <div class="row row-cols-2 g-0 justify-content-center">
+                <div class="col-auto d-flex justify-content-center">
+                  <ChatSuggestion
+                    title="Perform Research"
+                    icon="pi-search-plus"
+                    color="rgb(186, 255, 203)"
+                    prompt="Research and bring me and analysis on "
+                    @select="inputCommandSuggestion"
+                  />
+                </div>
+                <div class="col-auto d-flex justify-content-center">
+                  <ChatSuggestion
+                    title="Create Chart"
+                    icon="pi-chart-bar"
+                    color="#ffc9b3"
+                    prompt="Create me a chart for "
+                    @select="inputCommandSuggestion"
+                  />
+                </div>
+                <div class="col-auto d-flex justify-content-center">
+                  <ChatSuggestion
+                    title="Generate Report"
+                    icon="pi-file-check"
+                    color="#c2d6ff"
+                    prompt="Generate me a report for "
+                    @select="inputCommandSuggestion"
+                  />
+                </div>
+                <div class="col-auto d-flex justify-content-center">
+                  <ChatSuggestion
+                    title="AutoML Predict"
+                    icon="pi-microchip-ai"
+                    color="#ffb0b7"
+                    prompt="Use ML to predict "
+                    @select="inputCommandSuggestion"
+                  />
+                </div>
+                <div class="col-auto d-flex justify-content-center">
+                  <ChatSuggestion
+                    title="AutoML Predict"
+                    icon="pi-microchip-ai"
+                    color="#ffb0b7"
+                    prompt="Use ML to predict "
+                    @select="inputCommandSuggestion"
+                  />
+                </div>
+              </div>
+            </div>
+          </center>
+        </div>
+
+        <div class="d-flex justify-content-center">
+          <InputGroup class="chat-input-group">
+            <InputText
+              v-model="chatInput"
+              placeholder="Ask anything..."
+              class="chat-input"
+            />
+            <Button icon="pi pi-send" />
+          </InputGroup>
+        </div>
       </div>
     </div>
   </div>
-    </div>
-
 </template>
 
 <style scoped>
@@ -128,33 +159,6 @@ const collapsed = ref(true);
   font-weight: 700;
 }
 
-.command-card {
-  height: 5rem;
-  max-width: 12rem;
-  width: fit-content;
-  border: 1px solid gray;
-  border-radius: 8px;
-  margin-right: 1rem;
-  transition: background-color 0.2s ease-in;
-}
-
-.command-card:hover {
-  cursor: pointer;
-  background-color: #f1f1f1;
-}
-
-.command-title {
-  color: black;
-  font-weight: bold;
-  margin: 0;
-  padding: 0;
-  text-align: left;
-  font-size: 14px;
-  margin-left: 0.2rem;
-  margin-top: 0.4rem;
-
-}
-
 .command-subtitle {
   margin-top: 0rem;
   padding: 0;
@@ -164,8 +168,14 @@ const collapsed = ref(true);
   margin-left: 0.2rem;
 }
 
-.command-icon{
-    margin-right: 0.4rem;
+.command-icon {
+  margin-right: 10%;
+  background-color: rgb(129, 129, 129);
+  height: 2.2rem;
+  width: 2.2rem;
+  margin-top: 4%;
+  border-radius: 5px;
+  padding-top: 0.5rem;
 }
 
 .sidebar {
@@ -177,7 +187,7 @@ const collapsed = ref(true);
   align-items: flex-start;
   padding-top: 0rem;
   height: 73vh;
-  overflow-y: auto;   
+  overflow-y: auto;
   border-radius: 5px;
 }
 
@@ -199,64 +209,64 @@ const collapsed = ref(true);
   width: 100%;
 }
 
-.history-item-active{
-    height: 3rem;
-    width: 92%;
-    margin-left: 4%;
-    border-radius: 8px;
-    background-color: #e3e3e3;
-    cursor: pointer;
+.history-item-active {
+  height: 3rem;
+  width: 92%;
+  margin-left: 4%;
+  border-radius: 8px;
+  background-color: #e3e3e3;
+  cursor: pointer;
 }
 
-.history-item{
-    height: 3rem;
-    width: 92%;
-    margin-left: 4%;
-    border-radius: 5px;
-    background-color: transparent;
+.history-item {
+  height: 3rem;
+  width: 92%;
+  margin-left: 4%;
+  border-radius: 5px;
+  background-color: transparent;
 }
 
-.history-item:hover{
-    background-color: #f4f3f3;
+.history-item:hover {
+  background-color: #f4f3f3;
 }
 
-.history-item-text{
-    margin-left: 1rem;
-    padding-top: 0.8rem;
-    color: black;
-    font-size: 14px;
+.history-item-text {
+  margin-left: 1rem;
+  padding-top: 0.8rem;
+  color: black;
+  font-size: 14px;
 }
 
-.history-new-chat{
-    height: 2.5rem;
-    border: 1px gray solid;
-    width: 92%;
-    border-radius: 5px;
-    margin-bottom: 0.4rem;
-    margin-left: 4%;
-    cursor: pointer;
+.history-new-chat {
+  height: 2.5rem;
+  border: 1px gray solid;
+  width: 92%;
+  border-radius: 5px;
+  margin-bottom: 0.4rem;
+  margin-left: 4%;
+  cursor: pointer;
 }
 
-.history-new-chat:hover{
-    background-color: #f4f3f3;
+.history-new-chat:hover {
+  background-color: #f4f3f3;
 }
 
-.history-item-text-new-chat{
-    margin-top: 0.5rem;
-    font-size: 13px;
+.history-item-text-new-chat {
+  margin-top: 0.5rem;
+  font-size: 13px;
 }
 
-.new-chat-icon{
-    margin-left: 0.3rem;
-    font-size: 12px;
-    padding-top: 0.2rem;
+.new-chat-icon {
+  margin-left: 0.3rem;
+  font-size: 12px;
+  padding-top: 0.2rem;
 }
 
-.history-label{
-    margin-left: 4%;
-    margin-top: 0.5rem;
-    font-size: 20px;
-    font-weight: bold;
-    margin-bottom: 1rem;
+.history-label {
+  margin-left: 4%;
+  margin-top: 0.5rem;
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 1rem;
 }
 </style>
