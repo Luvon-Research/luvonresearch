@@ -14,19 +14,28 @@
     "@handsontable/vue3": "^15.2.0",
     "@jspreadsheet-ce/vue": "^5.0.1",
     "@primeuix/themes": "^1.0.3",
+    "@tailwindcss/vite": "^4.1.4",
     "@vueuse/core": "^13.1.0",
     "bootstrap": "^5.3.5",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "handsontable": "^15.2.0",
     "jspreadsheet-ce": "^5.0.1",
     "jsuites": "^5.9.2",
+    "lucide-vue-next": "^0.503.0",
     "primeicons": "^7.0.0",
     "primevue": "^4.3.3",
+    "reka-ui": "^2.2.0",
+    "tailwind-merge": "^3.2.0",
+    "tailwindcss": "^4.1.4",
+    "tw-animate-css": "^1.2.8",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.3",
     "concurrently": "^9.1.2",
+    "typescript": "^5.8.3",
     "vite": "^6.2.4",
     "vite-plugin-vue-devtools": "^7.7.2"
   }

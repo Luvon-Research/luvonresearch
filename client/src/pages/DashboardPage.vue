@@ -207,7 +207,7 @@ const filteredSheets = computed(() => {
   flex: 1;
   overflow: hidden;
   background: var(--color-background);
-  margin-top: var(--navbar-height, 64px);
+  margin-top: var(--navbar-height, 30px);
 }
 
 .dashboard-wrapper {
@@ -227,7 +227,7 @@ const filteredSheets = computed(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem 1rem;
+  padding: 0rem 1rem;
 }
 
 .primary-buttons {
