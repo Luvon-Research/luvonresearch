@@ -1,5 +1,23 @@
 {
   "compilerOptions": {
-    "module": "esnext"
-  }
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "jsx": "preserve",
+    "strict": true,
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "lib": ["ESNext", "DOM"],
+
+    // ← add these two
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+
+    // …your other options…
+  },
+  "include": ["src/**/*", "env.d.ts", "src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue"]
 } 

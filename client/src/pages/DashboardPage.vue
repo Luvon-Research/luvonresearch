@@ -207,7 +207,7 @@ const filteredSheets = computed(() => {
   flex: 1;
   overflow: hidden;
   background: var(--color-background);
-  margin-top: var(--navbar-height, 64px);
+  margin-top: var(--navbar-height, 30px);
 }
 
 .dashboard-wrapper {

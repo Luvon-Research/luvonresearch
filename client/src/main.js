@@ -20,16 +20,16 @@ const app = createApp(App)
 const MyPreset = definePreset(Lara, {
     semantic: {
         primary: {
-            50: '{gray.950}',
-            100: '{gray.950}',
-            200: '{gray.950}',
-            300: '{gray.950}',
-            400: '{gray.950}',
-            500: '{gray.950}',
-            600: '{gray.950}',
-            700: '{gray.950}',
-            800: '{gray.950}',
-            900: '{gray.950}',
+            50: '{gray.50}',
+            100: '{gray.100}',
+            200: '{gray.200}',
+            300: '{gray.300}',
+            400: '{gray.400}',
+            500: '{gray.500}',
+            600: '{gray.600}',
+            700: '{gray.700}',
+            800: '{gray.800}',
+            900: '{gray.900}',
             950: '{gray.950}'
         },
         secondary: {
