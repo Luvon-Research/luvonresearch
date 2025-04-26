@@ -11,7 +11,7 @@
 
   <main>
     <!-- RouterView will render the component for the current route -->
-    <RouterView />
+    <RouterView /> 
   </main>
 
 </template>
