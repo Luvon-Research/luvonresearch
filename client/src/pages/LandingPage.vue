@@ -5,7 +5,13 @@ import Button from "primevue/button";
 import { ref } from "vue";
 const items = ref([{ label: "Home", icon: "pi pi-home" }]);
 
-import { SignedIn, SignedOut, SignInButton, useSession, useSignUp } from "@clerk/vue";
+import {
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  useSession,
+  useSignUp,
+} from "@clerk/vue";
 import { useAuth } from "@clerk/vue";
 import { useRouter } from "vue-router";
 import { watchEffect } from "vue";
@@ -13,10 +19,9 @@ import { watch } from "vue";
 
 const { isSignedIn } = useAuth();
 const router = useRouter();
-const { isLoaded, signUp } = useSignUp()
+const { isLoaded, signUp } = useSignUp();
 
-const { session } = useSession()
-
+const { session } = useSession();
 
 // // whenever status switches to "complete", a new user was just created
 // watch(
@@ -40,24 +45,48 @@ const { session } = useSession()
 //   }
 // );
 
-
-watchEffect(() => {
+watchEffect(async () => {
   if (isSignedIn.value) {
-    console.log("SIGNED IN")
+    console.log("SIGNED IN");
     //router.push({ name: "Dashboard" });
 
     // Checks if the user is already in the database or initial signup
-    console.log(session.value.user.id);
-    fetch('http://localhost:8000/api/user', {
-      method: "POST",
-      body: {
-        id: session.value.user.id,
-        firstName: session.value.user.firstName,
-        lastName: session.value.user.lastName,
-        fullname: session.value.user.fullName,
-        pfp: session.value.user.imageUrl
+    // pull user out of the session
+    const user = session.value.user;
+    console.log("Clerk user id:", user.id);
+    console.log("Session id:", session.value.id);
+
+    const payload = {
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      fullName: user.fullName,
+      pfp: user.imageUrl,
+      // Clerk gives you an array; grab the primary address or first one
+      email:
+        user.primaryEmailAddress?.emailAddress ||
+        user.emailAddresses?.[0]?.emailAddress ||
+        "",
+    };
+
+    try {
+      const res = await fetch("http://localhost:8000/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", authorization: `Bearer ${session.value.id}` },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        console.error("Failed to create/check user:", res.status, await res.text());
+      } else {
+        const data = await res.json();
+        console.log("API response:", data);
+        // only navigate once the API has succeeded
+        router.push({ name: "Dashboard" });
       }
-    });
+    } catch (err) {
+      console.error("Network error while creating user:", err);
+    }
   }
 });
 </script>
@@ -65,9 +94,9 @@ watchEffect(() => {
 <template>
   <div class="landing-container">
     <div class="d-flex justify-content-end">
-        <SignInButton mode="modal" asChild>
-          <a class="login-signup">Login | Signup</a>
-        </SignInButton>
+      <SignInButton mode="modal" asChild>
+        <a class="login-signup">Login | Signup</a>
+      </SignInButton>
     </div>
 
     <div class="landing-page">
