@@ -1,5 +1,5 @@
 from supabase import create_client, Client
-from ..config import settings
+from config import settings
 
 class SupabaseService:
     """Service for interacting with Supabase."""
@@ -20,6 +20,21 @@ class SupabaseService:
         return self.supabase
     
     # Example methods for common operations
+    
+    async def fetch_user_by_id(self, table_name: str, id:str):
+        """Fetch data from a table with optional query parameters.
+        
+        Args:
+            table_name: The name of the table to query
+            query: Optional query builder functions to apply
+            
+        Returns:
+            The query results
+        """
+        query_builder = self.supabase.table(table_name).select("*").eq("id", id)
+            
+        response = query_builder.execute()
+        return response.data
     
     async def fetch_data(self, table_name: str, query=None):
         """Fetch data from a table with optional query parameters.

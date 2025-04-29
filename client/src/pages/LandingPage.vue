@@ -5,17 +5,59 @@ import Button from "primevue/button";
 import { ref } from "vue";
 const items = ref([{ label: "Home", icon: "pi pi-home" }]);
 
-import { SignedIn, SignedOut, SignInButton } from "@clerk/vue";
+import { SignedIn, SignedOut, SignInButton, useSession, useSignUp } from "@clerk/vue";
 import { useAuth } from "@clerk/vue";
 import { useRouter } from "vue-router";
 import { watchEffect } from "vue";
+import { watch } from "vue";
 
 const { isSignedIn } = useAuth();
 const router = useRouter();
+const { isLoaded, signUp } = useSignUp()
+
+const { session } = useSession()
+
+
+// // whenever status switches to "complete", a new user was just created
+// watch(
+//   () => signUp.value,
+//   (val) => {
+//     console.log(val)
+//     if (val === "complete") {
+//       console.log("✅ user just signed up!");
+//     }
+//   }
+// );
+
+// watch(
+//   () => isSignedIn.value,
+//   (signedIn) => {
+//     console.log(signedIn)
+
+//     if (signedIn && signUp.value !== "complete") {
+//       console.log("YEs")
+//     }
+//   }
+// );
+
 
 watchEffect(() => {
   if (isSignedIn.value) {
-    router.push({ name: "Dashboard" });
+    console.log("SIGNED IN")
+    //router.push({ name: "Dashboard" });
+
+    // Checks if the user is already in the database or initial signup
+    console.log(session.value.user.id);
+    fetch('http://localhost:8000/api/user', {
+      method: "POST",
+      body: {
+        id: session.value.user.id,
+        firstName: session.value.user.firstName,
+        lastName: session.value.user.lastName,
+        fullname: session.value.user.fullName,
+        pfp: session.value.user.imageUrl
+      }
+    });
   }
 });
 </script>

@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from api.users import router as users_router
 
 app = FastAPI()
+app.include_router(users_router)
 
 # Configure CORS (Cross-Origin Resource Sharing)
 # This allows your Vue app (running on a different port)
@@ -26,6 +28,12 @@ async def read_root():
 
 @app.get("/api/data")
 async def get_data():
+    # Example API endpoint
+    return {"data": "Some data fetched from the server"}
+
+
+@app.post("/api/user")
+async def create_user():
     # Example API endpoint
     return {"data": "Some data fetched from the server"}
 
