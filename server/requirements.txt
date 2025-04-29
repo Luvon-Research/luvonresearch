@@ -1,3 +1,6 @@
 fastapi[all]
 uvicorn
 supabase
+clerk-backend-api
+pyjwt[crypto]
+requests
