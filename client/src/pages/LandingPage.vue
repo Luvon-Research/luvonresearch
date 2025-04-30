@@ -1,21 +1,57 @@
-<script setup>
-import Menubar from "primevue/menubar";
-import Button from "primevue/button";
-
-import { ref } from "vue";
-const items = ref([{ label: "Home", icon: "pi pi-home" }]);
-
-import { SignedIn, SignedOut, SignInButton } from "@clerk/vue";
-import { useAuth } from "@clerk/vue";
-import { useRouter } from "vue-router";
+<script setup lang="ts">
 import { watchEffect } from "vue";
+import { SignInButton, useAuth, useSession } from "@clerk/vue";
+import { useRouter } from "vue-router";
+import { Button } from "primevue";
 
-const { isSignedIn } = useAuth();
+
+// 1️⃣ Grab your env var here:
+const API_URL = import.meta.env.VITE_API_URL as string;
+
+const { isLoaded, isSignedIn } = useAuth();
+const { session } = useSession();
 const router = useRouter();
 
-watchEffect(() => {
-  if (isSignedIn.value) {
-    router.push({ name: "Dashboard" });
+watchEffect(async () => {
+  // wait for Clerk to finish loading and user to be signed in
+  if (!isLoaded.value || !isSignedIn.value) return;
+
+  const user = session.value!.user;
+  const payload = {
+    id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    fullName: user.fullName,
+    pfp: user.imageUrl,
+    email:
+      user.primaryEmailAddress?.emailAddress ||
+      user.emailAddresses?.[0]?.emailAddress ||
+      "",
+  };
+
+  try {
+    const res = await fetch(`${API_URL}/api/users`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.value!.id}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      console.error(
+        "Failed to create/check user:",
+        res.status,
+        await res.text()
+      );
+    } else {
+      const data = await res.json();
+      console.log("API response:", data);
+      router.push({ name: "Dashboard" });
+    }
+  } catch (err) {
+    console.error("Network error while creating user:", err);
   }
 });
 </script>
@@ -23,9 +59,9 @@ watchEffect(() => {
 <template>
   <div class="landing-container">
     <div class="d-flex justify-content-end">
-        <SignInButton mode="modal" asChild>
-          <a class="login-signup">Login | Signup</a>
-        </SignInButton>
+      <SignInButton mode="modal" asChild>
+        <a class="login-signup">Login | Signup</a>
+      </SignInButton>
     </div>
 
     <div class="landing-page">

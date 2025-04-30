@@ -16,6 +16,7 @@ import InputGroupAddon from "primevue/inputgroupaddon";
 import Button from "primevue/button";
 import ChartsTab from "../components/ChartsTab.vue";
 import FilesTab from "../components/FilesTab.vue";
+import { useSession } from "@clerk/vue";
 
 const router = useRouter();
 const showChat = ref(false);
@@ -59,6 +60,7 @@ const filteredSheets = computed(() => {
     sheet.name.toLowerCase().includes(term)
   );
 });
+
 </script>
 
 <template>

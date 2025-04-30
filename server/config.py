@@ -5,6 +5,8 @@ class Settings(BaseSettings):
     """Application settings."""
     SUPABASE_URL: str
     SUPABASE_KEY: str
+    CLERK_API_SECRET_KEY: str
+    CLERK_API_PUBLIC_KEY: str
     
     class Config:
         env_file = ".env"
