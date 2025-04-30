@@ -1,92 +1,57 @@
-<script setup>
-import Menubar from "primevue/menubar";
-import Button from "primevue/button";
-
-import { ref } from "vue";
-const items = ref([{ label: "Home", icon: "pi pi-home" }]);
-
-import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  useSession,
-  useSignUp,
-} from "@clerk/vue";
-import { useAuth } from "@clerk/vue";
-import { useRouter } from "vue-router";
+<script setup lang="ts">
 import { watchEffect } from "vue";
-import { watch } from "vue";
+import { SignInButton, useAuth, useSession } from "@clerk/vue";
+import { useRouter } from "vue-router";
+import { Button } from "primevue";
 
-const { isSignedIn } = useAuth();
-const router = useRouter();
-const { isLoaded, signUp } = useSignUp();
 
+// 1️⃣ Grab your env var here:
+const API_URL = import.meta.env.VITE_API_URL as string;
+
+const { isLoaded, isSignedIn } = useAuth();
 const { session } = useSession();
-
-// // whenever status switches to "complete", a new user was just created
-// watch(
-//   () => signUp.value,
-//   (val) => {
-//     console.log(val)
-//     if (val === "complete") {
-//       console.log("✅ user just signed up!");
-//     }
-//   }
-// );
-
-// watch(
-//   () => isSignedIn.value,
-//   (signedIn) => {
-//     console.log(signedIn)
-
-//     if (signedIn && signUp.value !== "complete") {
-//       console.log("YEs")
-//     }
-//   }
-// );
+const router = useRouter();
 
 watchEffect(async () => {
-  if (isSignedIn.value) {
-    console.log("SIGNED IN");
-    //router.push({ name: "Dashboard" });
+  // wait for Clerk to finish loading and user to be signed in
+  if (!isLoaded.value || !isSignedIn.value) return;
 
-    // Checks if the user is already in the database or initial signup
-    // pull user out of the session
-    const user = session.value.user;
-    console.log("Clerk user id:", user.id);
-    console.log("Session id:", session.value.id);
+  const user = session.value!.user;
+  const payload = {
+    id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    fullName: user.fullName,
+    pfp: user.imageUrl,
+    email:
+      user.primaryEmailAddress?.emailAddress ||
+      user.emailAddresses?.[0]?.emailAddress ||
+      "",
+  };
 
-    const payload = {
-      id: user.id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      fullName: user.fullName,
-      pfp: user.imageUrl,
-      // Clerk gives you an array; grab the primary address or first one
-      email:
-        user.primaryEmailAddress?.emailAddress ||
-        user.emailAddresses?.[0]?.emailAddress ||
-        "",
-    };
+  try {
+    const res = await fetch(`${API_URL}/api/users`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.value!.id}`,
+      },
+      body: JSON.stringify(payload),
+    });
 
-    try {
-      const res = await fetch("http://localhost:8000/api/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", authorization: `Bearer ${session.value.id}` },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        console.error("Failed to create/check user:", res.status, await res.text());
-      } else {
-        const data = await res.json();
-        console.log("API response:", data);
-        // only navigate once the API has succeeded
-        router.push({ name: "Dashboard" });
-      }
-    } catch (err) {
-      console.error("Network error while creating user:", err);
+    if (!res.ok) {
+      console.error(
+        "Failed to create/check user:",
+        res.status,
+        await res.text()
+      );
+    } else {
+      const data = await res.json();
+      console.log("API response:", data);
+      router.push({ name: "Dashboard" });
     }
+  } catch (err) {
+    console.error("Network error while creating user:", err);
   }
 });
 </script>

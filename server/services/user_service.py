@@ -1,26 +1,20 @@
-from typing import List, Optional
-from models.user import UserBase, UserCreated, UserSearchByID
-from fastapi import APIRouter, Depends, HTTPException, status
+from models.user import UserBase, UserCreated
+from fastapi import HTTPException, status
 from services.supabase_service import SupabaseService
 from clerk_backend_api import Clerk
 from config import settings
-import jwt
-from jwt.algorithms import RSAAlgorithm
-import requests
-
 
 class UserService:
     def __init__(self, db: SupabaseService):
         self.db = db
         self.clerk = Clerk(settings.CLERK_API_SECRET_KEY)
 
-
     async def get_by_id(self, id:str):
-        print("GETTING 2", id)
         try:
-            val = await self.db.fetch_user_by_id(table_name='users', id=id)
-            print(val)
-            return val
+            client = await self.db.get_client()
+            query_builder = client.table('users').select("*").eq("id", id)
+            response = query_builder.execute()
+            return response.data
         except Exception as e:
             print(e)
             return e
@@ -48,13 +42,16 @@ class UserService:
         
     async def create(self, data: UserBase) -> UserCreated:
         try:
-            val = await self.db.insert_data(table_name='users', data=data.model_dump())
+            client = self.db.get_client()
+            response = client.table('users').insert(data.model_dump()).execute()
+            val = response.data
             print(val)
             return UserCreated(
                 status = "success",
                 message="User created successfully"
             )
         except Exception as e:
+            print(e)
             if(e.code == '23505'): # Key already exists
                 raise HTTPException(
                     status_code=status.HTTP_200_OK,
