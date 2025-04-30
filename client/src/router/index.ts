@@ -2,12 +2,18 @@ import { createRouter, createWebHistory } from 'vue-router'
 import LandingPage from '../pages/LandingPage.vue'
 // 1. Import the DashboardPage
 import DashboardPage from '../pages/DashboardPage.vue'
+import Test from '../pages/Test.vue'
 
 const routes = [
   {
     path: '/',
     name: 'Landing',
     component: LandingPage
+  },
+  {
+    path: '/test',
+    name: 'Test',
+    component: Test
   },
   // 2. Add the dashboard route
   {
