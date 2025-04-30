@@ -1,17 +1,7 @@
 <template>
   <div class="relative min-h-screen bg-white px-4 pt-6" v-cloak>
     <!-- Upload Files Trigger Button at Top Right -->
-    <div class="flex justify-end mb-4">
-      <button
-        class="flex items-center gap-2 px-5 py-2 bg-green-100 text-black font-bold rounded-full border border-green-300 hover:bg-green-200 transition"
-        @click="showModal = true"
-      >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-        </svg>
-        Upload File
-      </button>
-    </div>
+    
 
     <!-- Blurred Overlay -->
     <div v-if="showModal" class="fixed inset-0 z-40 backdrop-blur-sm bg-green-50/60"></div>
@@ -19,18 +9,31 @@
     <!-- File Manager Table -->
     <div class="relative z-0" :class="{ 'pointer-events-none select-none': showModal }">
       <div class="mt-6 bg-white rounded-lg overflow-hidden shadow-none min-h-[400px]">
-        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+        <div class="flex items-center justify-between px-4 pt-1 pb-2 border-b border-gray-200">
           <div class="flex gap-4 text-sm font-bold text-black">
             <button @click="activeTab = 'all'" :class="{ 'border-b-2 border-green-600 pb-1': activeTab === 'all' }">View all</button>
             <button @click="activeTab = 'your'" :class="{ 'border-b-2 border-green-600 pb-1': activeTab === 'your' }">Your files</button>
             <button @click="activeTab = 'shared'" :class="{ 'border-b-2 border-green-600 pb-1': activeTab === 'shared' }">Shared files</button>
           </div>
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search files..."
-            class="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-green-400 font-bold"
-          />
+          <div class="relative flex items-center gap-2">
+  <svg class="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+  </svg>
+  <input
+    v-model="searchQuery"
+    type="text"
+    placeholder=""
+    class="pl-8 border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-green-400 font-bold"
+  />
+  <button
+    class="flex items-center justify-center w-8 h-8 bg-green-500 hover:bg-green-600 text-white rounded-full"
+    @click="showModal = true"
+  >
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+    </svg>
+  </button>
+</div>
         </div>
         <table class="w-full text-sm text-left">
           <thead class="bg-green-50 text-black font-bold">
