@@ -2,7 +2,7 @@ from models.user import UserBase, UserCreated
 from fastapi import HTTPException, status
 from services.supabase_service import SupabaseService
 from clerk_backend_api import Clerk
-from models.sheet import SheetRowUpdatedResponse,SheetRowUpdates
+from models.sheet import SheetRowUpdated
 from config import settings
 
 class SheetService:
@@ -20,29 +20,19 @@ class SheetService:
             print(e)
             return e
         
-    async def updateRowsBulk(self, data: SheetRowUpdates):
+    async def updateRow(self, data):
         try:
             client = self.db.get_client()
             response = None
             modelJSON = data.model_dump()
             
-            #print(modelJSON)
-            
-            rows = modelJSON['row_data']
-            
-            for row in rows:
-                #print(row)
-                if all(value == "" for value in row['row_data']): # Deletes the row from the db then
-                    response = client.table("sheet_data").delete().eq("row_id", row['row_id']).eq("sheet_id", modelJSON['sheet_id']).execute()
-                else:
-                    insert_data = row
-                    insert_data['sheet_id'] = modelJSON['sheet_id']
-                    
-                    response = client.table('sheet_data').upsert(insert_data).execute()
-                val = response.data
-                #print(val)
-            
-            return SheetRowUpdatedResponse(status="success", message="Updated rows")
+            if all(value == "" for value in data.row_data): # Deletes the row from the db then
+                response = client.table("sheet_data").delete().eq("row_id", data.row_id).eq("sheet_id", data.sheet_id).execute()
+            else:
+                response = client.table('sheet_data').upsert(modelJSON).execute()
+            val = response.data
+            print(val)
+            return SheetRowUpdated(status="success", message="Added row")
             
         except Exception as e:
             print(e)
