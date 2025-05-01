@@ -1,9 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.users_router import router as users_router
+from api.sheet_router import router as sheets_router
 
 app = FastAPI()
 app.include_router(users_router)
+app.include_router(sheets_router)
 
 # Configure CORS (Cross-Origin Resource Sharing)
 # This allows your Vue app (running on a different port)
