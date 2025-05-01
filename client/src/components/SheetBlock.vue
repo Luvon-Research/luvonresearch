@@ -3,49 +3,90 @@
 </template>
 
 <script>
-import { defineComponent } from 'vue';
-import jspreadsheet from 'jspreadsheet-ce';
-import 'jspreadsheet-ce/dist/jspreadsheet.css';
-import * as Y from 'yjs';
-import { WebsocketProvider } from 'y-websocket';
+import { defineComponent } from "vue";
+import jspreadsheet from "jspreadsheet-ce";
+import "jspreadsheet-ce/dist/jspreadsheet.css";
+import * as Y from "yjs";
+import { WebsocketProvider } from "y-websocket";
 
 export default defineComponent({
-  name: 'LiveSpreadsheet',
+  name: "LiveSpreadsheet",
   mounted() {
-    // 1. Yjs setup
+    // 1. Yjs + WebSocket setup
     const ydoc     = new Y.Doc();
-    const provider = new WebsocketProvider('ws://localhost:1234', 'demo-room', ydoc);
-    const yarray   = ydoc.getArray('cells');
+    new WebsocketProvider("ws://localhost:1234", "demo-room", ydoc);
+    const ycells   = ydoc.getMap("cells");
+    let applyingRemote = false;
 
-    // 2. Initial grid data
-    const initial = yarray.length
-      ? yarray.toArray()
-      : Array.from({ length: 10 }, () => Array(10).fill(''));
-
-    // 3. Create a spreadsheet with ONE worksheet
-    const sheets = jspreadsheet(document.getElementById('spreadsheet'), {
-      // common spreadsheet options (toolbar, etc) go here if you like
+    // 2. Create sheet with a 100×100 minimum
+    const defaultCol = { type: "text", title: "", width: 100 };
+    const sheets = jspreadsheet(document.getElementById("spreadsheet"), {
       worksheets: [
         {
-          data: initial,
-          minDimensions: [100, 100],
-          columns: Array(10).fill({ type: 'text', title: '', width: 100 })
+          data: [],               // start empty
+          minDimensions: [100,100]
         }
       ],
-      // this onchange applies to *all* worksheets
-      onchange: (instance) => {
-        const d = instance.getData();
-        yarray.delete(0, yarray.length);
-        yarray.insert(0, d);
-      }
+      onchange: (instance, cell, x, y, newValue, oldValue) => {
+        if (applyingRemote) return;
+        if (newValue !== oldValue) {
+          // wrap in a single transaction so remote peers see a batch if you group sets
+          ydoc.transact(() => {
+            ycells.set(`${x},${y}`, newValue);
+          });
+        }
+      },
     });
-
-    // grab the first (and only) sheet instance
     const sheet = sheets[0];
 
-    // 4. Remote updates -> push into the sheet
-    yarray.observe(() => {
-      sheet.setData(yarray.toArray());
+    // 3. Observe **all** remote changes at once
+    ycells.observe(event => {
+      // ignore our own local writes
+      if (event.transaction.local) return;
+      applyingRemote = true;
+
+      // collect {col,row,val} for every changed key
+      const updates = Array.from(event.keysChanged).map(key => {
+        const [col, row] = key.split(",").map(Number);
+        return { col, row, val: ycells.get(key) };
+      });
+
+      // determine current grid size
+      const data      = sheet.getData();                     
+      let currentW    = data[0].length;
+      let currentH    = data.length;
+
+      // find the furthest-out cell in this batch
+      const maxCol = Math.max(...updates.map(u => u.col), currentW - 1);
+      const maxRow = Math.max(...updates.map(u => u.row), currentH - 1);
+
+      // 4. Expand columns if needed
+      if (maxCol >= currentW) {
+        const addCols = maxCol - currentW + 1;
+        for (let i = 0; i < addCols; i++) {
+          sheet.insertColumn(
+            [],                   // no initial data
+            currentW + i,         // at the end
+            false,                // insert *after* the reference index
+            defaultCol
+          );                     
+        }
+        currentW += addCols;
+      }
+
+      // 5. Expand rows if needed
+      if (maxRow >= currentH) {
+        const addRows = maxRow - currentH + 1;
+        sheet.insertRow(addRows); // adds blank rows at bottom :contentReference[oaicite:2]{index=2}
+        currentH += addRows;
+      }
+
+      // 6. Finally, apply every cell update
+      updates.forEach(({ col, row, val }) => {
+        sheet.setValueFromCoords(col, row, val);
+      });
+
+      applyingRemote = false;
     });
   }
 });
