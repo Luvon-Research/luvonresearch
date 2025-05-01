@@ -1,11 +1,10 @@
 <script setup>
 import { ref, computed } from 'vue';
-import Card from 'primevue/card';
 import InputText from 'primevue/inputtext';
 import Button from 'primevue/button';
-import Skeleton from 'primevue/skeleton';
 import Dialog from 'primevue/dialog';
 import MultiSelect from 'primevue/multiselect';
+import ChartContainer from '@/components/ui/charts/ChartContainer.vue';
 
 // State
 const searchTerm = ref('');
@@ -39,7 +38,10 @@ const openDialog = () => {
 
 // Generate a new chart from prompt
 const generateChart = () => {
-  const nextId = charts.value.length ? Math.max(...charts.value.map(c => c.id)) + 1 : 1;
+  const nextId = charts.value.length
+    ? Math.max(...charts.value.map(c => c.id)) + 1
+    : 1;
+
   charts.value.push({
     id: nextId,
     title: `Chart ${nextId}`,
@@ -71,18 +73,12 @@ const generateChart = () => {
 
     <!-- Charts grid: 2 per row -->
     <div class="chart-grid">
-      <Card
+      <ChartContainer
         v-for="chart in filteredCharts"
         :key="chart.id"
-        class="chart-card"
-      >
-        <template #header>
-          {{ chart.title }}
-        </template>
-        <div class="chart-placeholder">
-          <Skeleton width="100%" height="100%" />
-        </div>
-      </Card>
+        :title="chart.title"
+        :loading="!chart.dataSources"
+      />
       <div v-if="!filteredCharts.length" class="no-results">
         No charts found.
       </div>
@@ -129,11 +125,7 @@ const generateChart = () => {
       </div>
 
       <template #footer>
-        <Button
-          label="Cancel"
-          class="p-button-text"
-          @click="showDialog = false"
-        />
+        <Button label="Cancel" class="p-button-text" @click="showDialog = false" />
         <Button
           label="OK"
           icon="pi pi-check"
@@ -146,43 +138,69 @@ const generateChart = () => {
 </template>
 
 <style scoped>
-.chart-page { padding: 2rem; }
+.chart-page {
+  padding: 2rem;
+}
 .header-bar {
-  display: flex; justify-content: flex-end; align-items: center; gap: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 1rem;
   margin-bottom: 1.5rem;
 }
-.search-input { width: 400px; }
+.search-input {
+  width: 400px;
+}
 .chart-grid {
-  display: grid; grid-template-columns: repeat(2, 1fr); gap: 2rem;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
 }
-.chart-card {
-  position: relative; background: #fff; border-radius: var(--border-radius-md);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05); overflow: hidden; height: 480px;
-}
-.chart-placeholder { flex:1; padding:1rem; background:var(--surface-ground); }
 .no-results {
-  grid-column:1/-1; text-align:center; color:var(--text-color-secondary); padding:2rem;
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--text-color-secondary);
+  padding: 2rem;
 }
 .chart-dialog .p-dialog-header {
-  background: var(--success-color) !important; color:#fff !important;
+  background: var(--success-color) !important;
+  color: #fff !important;
   font-size: 1.25rem;
 }
 .chart-dialog .p-dialog-footer {
-  display:flex; justify-content:flex-end; gap:1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
 }
 .chat-dialog-content {
-  max-width: 500px; margin: 0 auto;
-  display: flex; flex-direction: column; gap: 1.25rem;
+  max-width: 500px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 }
 .chat-prompt p {
-  background: var(--surface-card); color: var(--text-color);
-  padding: 1rem 1.25rem; border-radius: 1rem; font-size: 1rem;
-  text-align: center; margin: 0 auto;
+  background: var(--surface-card);
+  color: var(--text-color);
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  font-size: 1rem;
+  text-align: center;
+  margin: 0 auto;
 }
 .chat-input-area textarea.chat-input {
-  width: 100%; min-height: 80px;
-  border-radius: 0.75rem; padding: 0.75rem; font-size: 0.95rem;
+  width: 100%;
+  min-height: 80px;
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  font-size: 0.95rem;
 }
-.data-field { width: 100%; margin: 0 auto; }
-.data-source-select { width: 100%; font-size: 0.95rem; }
+.data-field {
+  width: 100%;
+  margin: 0 auto;
+}
+.data-source-select {
+  width: 100%;
+  font-size: 0.95rem;
+}
 </style>
