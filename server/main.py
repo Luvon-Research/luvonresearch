@@ -2,10 +2,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.users_router import router as users_router
 from api.sheet_router import router as sheets_router
+from api.project_router import router as projects_router
+from api.webhook_router import router as webhooks_router
 
 app = FastAPI()
+
+# Include routers
 app.include_router(users_router)
 app.include_router(sheets_router)
+app.include_router(projects_router)
+app.include_router(webhooks_router)
 
 # Configure CORS (Cross-Origin Resource Sharing)
 # This allows your Vue app (running on a different port)
@@ -13,6 +19,7 @@ app.include_router(sheets_router)
 origins = [
     "http://localhost:5173",  # Default Vue dev server port
     "http://127.0.0.1:5173",
+    "http://localhost:5174"
     "https://luvonai.com"
     # Add the URL of your deployed Vue app if needed
 ]
