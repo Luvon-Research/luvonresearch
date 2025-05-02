@@ -5,7 +5,7 @@ This is a web-based spreadsheet application with both client and server componen
 ## Prerequisites
 
 - Node.js (v16 or higher)
-- npm or pnpm package manager
+- npm package manager
 - Python 3.11+
 
 ## Getting Started
@@ -48,15 +48,11 @@ This is a web-based spreadsheet application with both client and server componen
 2. Install dependencies:
    ```bash
    npm install
-   # or if using pnpm
-   pnpm install
    ```
 
 3. Run the development server:
    ```bash
    npm run dev
-   # or
-   pnpm run dev
    ```
 
 ### Running the YJS Server
@@ -69,22 +65,4 @@ This is a web-based spreadsheet application with both client and server componen
 2. Install dependencies:
    ```bash
    npm install
-   # or if using pnpm
-   pnpm install
-   ```
-
-3. Run the development server:
-   ```bash
-   npx y-websocket
-   ``` 
-
-### Running Both Together
-
-For convenience, you can run both the client and server simultaneously using a single command from the client directory:
-   ```
-   pnpm dev:all
-
-
-Luvon to the moon
-
    ```
