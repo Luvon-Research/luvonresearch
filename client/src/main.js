@@ -9,9 +9,10 @@ import Lara from '@primeuix/themes/lara';
 import 'bootstrap/dist/css/bootstrap.min.css'
 import { definePreset } from '@primeuix/themes';
 
-const PUBLISHABLE_KEY = process.env.VITE_CLERK_PUBLISHABLE_KEY//import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ?? process.env.VITE_CLERK_PUBLISHABLE_KEY
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ?? process.env.VITE_CLERK_PUBLISHABLE_KEY
 const API_URL  = import.meta.env.VITE_API_URL ?? process.env.VITE_API_URL
 
+console.log(__SYSTEMENV__)
 console.log(API_URL)
 console.log(PUBLISHABLE_KEY)
 if (!PUBLISHABLE_KEY) {
