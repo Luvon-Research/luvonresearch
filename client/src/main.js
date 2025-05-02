@@ -10,7 +10,10 @@ import 'bootstrap/dist/css/bootstrap.min.css'
 import { definePreset } from '@primeuix/themes';
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+const API_URL  = import.meta.env.VITE_API_URL
 
+console.log(API_URL)
+console.log(PUBLISHABLE_KEY)
 if (!PUBLISHABLE_KEY) {
   throw new Error('Add your Clerk Publishable Key to the .env file')
 }
