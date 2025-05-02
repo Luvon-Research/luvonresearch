@@ -6,6 +6,8 @@ RUN npm install
 COPY client/ .
 RUN npm run build
 
+CMD echo ">>> ENV is $VITE_CLERK_PUBLISHABLE_KEY"
+
 # production stage
 FROM nginx:stable-alpine as production-stage
 COPY --from=build-stage /app/dist /usr/share/nginx/html
