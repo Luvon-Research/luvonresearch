@@ -18,12 +18,12 @@ def get_sheet_service() -> SheetService:
 #     return {"status": "Hello there, TODO"}
 
 @router.get("/{sheet_id}")
-async def get_user(sheet_id: str, service: SheetService = Depends(get_sheet_service)):
+async def get_sheet(sheet_id: str, service: SheetService = Depends(get_sheet_service)):
     data = await service.get_sheet_data_by_id(sheet_id)
     return data
 
 @router.post("/rows", response_model=SheetRowUpdatedResponse, status_code=status.HTTP_201_CREATED)
-async def create_user(u: SheetRowUpdates, request: Request, service: SheetService = Depends(get_sheet_service)):
+async def create_sheet_rows(u: SheetRowUpdates, request: Request, service: SheetService = Depends(get_sheet_service)):
     return await service.updateRowsBulk(u)
 
 
