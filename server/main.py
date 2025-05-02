@@ -7,22 +7,8 @@ from api.webhook_router import router as webhooks_router
 
 app = FastAPI()
 
-# Include routers
-app.include_router(users_router)
-app.include_router(sheets_router)
-app.include_router(projects_router)
-app.include_router(webhooks_router)
-
-# Configure CORS (Cross-Origin Resource Sharing)
-# This allows your Vue app (running on a different port)
-# to communicate with the FastAPI server.
-origins = [
-    "http://localhost:5173",  # Default Vue dev server port
-    "http://127.0.0.1:5173",
-    "http://localhost:5174"
-    "https://luvonai.com"
-    # Add the URL of your deployed Vue app if needed
-]
+# Configure CORS
+origins = ["*"]  # Allow all origins
 
 app.add_middleware(
     CORSMiddleware,
@@ -31,6 +17,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include routers
+app.include_router(users_router)
+app.include_router(sheets_router)
+app.include_router(projects_router)
+app.include_router(webhooks_router)
 
 @app.get("/")
 async def read_root():
