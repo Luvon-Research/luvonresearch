@@ -4,7 +4,7 @@ from typing import List
 from fastapi import FastAPI, Request
 
 from services.supabase_service import SupabaseService
-from models.sheet import SheetRow, SheetRowUpdated, SheetData
+from models.sheet import SheetRow, SheetRowUpdatedResponse, SheetRowUpdates
 from services.sheet_service import SheetService
 
 router = APIRouter(prefix="/api/sheets", tags=["sheets"])
@@ -22,9 +22,9 @@ async def get_user(sheet_id: str, service: SheetService = Depends(get_sheet_serv
     data = await service.get_sheet_data_by_id(sheet_id)
     return data
 
-@router.post("/row", response_model=SheetRowUpdated, status_code=status.HTTP_201_CREATED)
-async def create_user(u: SheetRow, request: Request, service: SheetService = Depends(get_sheet_service)):
-    return await service.updateRow(u)
+@router.post("/rows", response_model=SheetRowUpdatedResponse, status_code=status.HTTP_201_CREATED)
+async def create_user(u: SheetRowUpdates, request: Request, service: SheetService = Depends(get_sheet_service)):
+    return await service.updateRowsBulk(u)
 
 
 # # TODO

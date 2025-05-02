@@ -2,16 +2,18 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 
+class SheetRowCellData(BaseModel):
+    col: int
+    val: str
+
 class SheetRow(BaseModel):
     row_id: int
-    sheet_id: str
-    row_data: list[str]
+    row_data: list
     
-    
-class SheetRowUpdated(BaseModel):
+class SheetRowUpdatedResponse(BaseModel):
     status: str
     message: str
 
-class SheetData(BaseModel):
-    sheet_id: int
+class SheetRowUpdates(BaseModel):
+    sheet_id: str
     row_data: list

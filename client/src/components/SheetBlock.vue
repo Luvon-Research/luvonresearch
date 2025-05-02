@@ -1,13 +1,5 @@
 <template>
-  <div class="d-flex justify-content-between saving-indicator">
-    <Button
-      type="button"
-      label="Export Sheet"
-      icon="pi pi-download"
-      :loading="loading"
-      class="export-btn"
-      @click="donwnloadSheet"
-    />
+  <div class="d-flex justify-content-end saving-indicator">
     <p v-if="savingIndicator">
       Saving Document to Cloud
       <ProgressSpinner
@@ -18,15 +10,29 @@
         aria-label="Saving Document"
       />
     </p>
-    <p v-if="!savingIndicator" class="savingIndicator">
-      Last Saved: {{ lastSaved }} <i class="pi pi-cloud-upload"></i>
-    </p>
+    <p v-if="!savingIndicator">Last Saved: {{ lastSaved }}</p>
   </div>
 
   <div class="parent">
-    <div id="spreadsheet"></div>
+    <div id="spreadsheet" class="spreadsheet-section"></div>
   </div>
 </template>
+
+<style scoped>
+.parent {
+  display: flex;
+  height: 68vh;
+}
+
+.saving-indicator {
+  margin-right: 1rem;
+}
+
+.spreadsheet-section {
+  overflow-y: scroll;
+}
+
+</style>
 
 <script setup>
 import { onMounted } from "vue";
@@ -34,13 +40,34 @@ import jspreadsheet from "jspreadsheet-ce";
 import "jspreadsheet-ce/dist/jspreadsheet.css";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
+import { ref } from "vue";
 import ProgressSpinner from "primevue/progressspinner";
-import { HistoryRecord } from "jspreadsheet-ce";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
+const savingIndicator = ref(false);
+const lastSaved = ref(formatDate());
+
+function formatDate(date = new Date()) {
+  const pad = (n) => String(n).padStart(2, "0");
+
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const year = String(date.getFullYear()).slice(-2);
+
+  let hours = date.getHours();
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12 || 12; // 0 → 12
+  const hh = pad(hours);
+
+  const mm = pad(date.getMinutes());
+  const ss = pad(date.getSeconds());
+
+  return `${month}/${day}/${year} ${hh}:${mm}:${ss} ${ampm}`;
+}
+
 onMounted(async () => {
-  // 0. Grab container
+  // Container for
   const container = document.getElementById("spreadsheet");
   if (!container) {
     console.error("#spreadsheet not found");
@@ -48,35 +75,60 @@ onMounted(async () => {
   }
 
   // 1. Yjs + WebSocket
-  const ydoc     = new Y.Doc();
-  const provider = new WebsocketProvider("ws://localhost:1234", "demo-room", ydoc);
-  provider.on("status", s => console.log("Yjs status:", s.status));
+  const ydoc = new Y.Doc();
+  const provider = new WebsocketProvider(
+    "ws://localhost:1234",
+    "demo-room",
+    ydoc
+  );
+  provider.on("status", (s) => console.log("Yjs status:", s.status));
 
-  const ycells        = ydoc.getMap("cells");
-  let applyingRemote  = false;
-  let allowUpdates    = true;
+  const ycells = ydoc.getMap("cells");
+  let applyingRemote = false;
+  let allowUpdates = true;
 
   // 2. Row‐update queue + debounce (200 ms)
-  const updateQueue = new Map();  // rowID → rowData[]
-  let   flushTimer;
+  const updateQueue = new Map();
+  let flushTimer;
   function scheduleFlush() {
     if (!allowUpdates) return;
     clearTimeout(flushTimer);
     flushTimer = setTimeout(flushUpdates, 200);
   }
   async function flushUpdates() {
+    savingIndicator.value = true;
     const batch = Array.from(updateQueue.entries());
+    console.log("SAVING");
     updateQueue.clear();
-    await Promise.all(batch.map(([rowID, row_data]) =>
-      fetch(`${API_URL}/api/sheets/row`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${""}`,
-        },
-        body: JSON.stringify({ row_id: rowID, row_data, sheet_id: "1" }),
+    let allRowsData = [];
+    await Promise.all(
+      batch.map(([rowID, row_data]) => {
+        // Split row data into only filled cells
+        let data = [];
+        for (let i = 0; i < row_data.length; i++) {
+          if (row_data[i] != "") {
+            data.push({ col: i, val: row_data[i] });
+          }
+        }
+
+        //console.log(data);
+        allRowsData.push({ row_id: rowID, row_data: data });
       })
-    ));
+    );
+
+    //console.log({ row_data: allRowsData, sheet_id: "1" })
+
+    fetch(`${API_URL}/api/sheets/rows`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${""}`,
+      },
+      body: JSON.stringify({ row_data: allRowsData, sheet_id: "1" }),
+    }).then(() => {
+      savingIndicator.value = false;
+      lastSaved.value = formatDate();
+    });
   }
 
   // 3. Initialize jspreadsheet
@@ -86,6 +138,7 @@ onMounted(async () => {
     onchange: (instance, cell, x, y, newValue, oldValue) => {
       if (applyingRemote) return;
       if (newValue === oldValue) return;
+      if (!allowUpdates) return;
 
       // 3a) write one cell into Yjs
       ydoc.transact(() => {
@@ -102,10 +155,9 @@ onMounted(async () => {
 
   // 4. Load initial data (disable queue while seeding)
   allowUpdates = false;
-  const initial = await fetch(`${API_URL}/api/sheets/1`)
-    .then(r => r.json());
-  initial.forEach(r => {
-    const rowID   = Number(r.row_id);
+  const initial = await fetch(`${API_URL}/api/sheets/1`).then((r) => r.json());
+  initial.forEach((r) => {
+    const rowID = Number(r.row_id);
     const rowData = r.row_data;
 
     // ensure sheet has at least rowID+1 rows
@@ -114,29 +166,32 @@ onMounted(async () => {
       sheet.insertRow(rowID - snapshotH + 1);
     }
 
-    sheet.setRowData(rowID, rowData);
+    for (let i = 0; i < rowData.length; i++) {
+      sheet.setValueFromCoords(rowData[i].col, rowID, rowData[i].val);
+    }
+    //sheet.setRowData(rowID, rowData);
   });
   allowUpdates = true;
 
   // 5. Observe remote Yjs updates
-  ycells.observe(event => {
+  ycells.observe((event) => {
     if (event.transaction.local) return;
     applyingRemote = true;
 
     // collect all changed cells
-    const updates = Array.from(event.keysChanged).map(key => {
+    const updates = Array.from(event.keysChanged).map((key) => {
       const [col, row] = key.split(",").map(Number);
       return { col, row, val: ycells.get(key) };
     });
 
     // guard against empty grid
-    const data     = sheet.getData() || [];
-    let   currentW = data[0]?.length ?? 0;
-    let   currentH = data.length;
+    const data = sheet.getData() || [];
+    let currentW = data[0]?.length ?? 0;
+    let currentH = data.length;
 
     // find furthest-out cell
-    const maxCol = Math.max(...updates.map(u => u.col), currentW - 1);
-    const maxRow = Math.max(...updates.map(u => u.row), currentH - 1);
+    const maxCol = Math.max(...updates.map((u) => u.col), currentW - 1);
+    const maxRow = Math.max(...updates.map((u) => u.row), currentH - 1);
 
     // expand columns
     if (maxCol >= currentW) {
