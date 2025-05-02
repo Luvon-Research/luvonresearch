@@ -20,6 +20,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "handsontable": "^15.2.0",
+    "jexcel": "^4.6.1",
     "jspreadsheet-ce": "^5.0.1",
     "jsuites": "^5.9.2",
     "lucide-vue-next": "^0.503.0",
@@ -30,7 +31,10 @@
     "tailwindcss": "^4.1.4",
     "tw-animate-css": "^1.2.8",
     "vue": "^3.5.13",
-    "vue-router": "^4.5.0"
+    "vue-router": "^4.5.0",
+    "ws": "^8.18.1",
+    "y-websocket": "^3.0.0",
+    "yjs": "^13.6.26"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.3",
