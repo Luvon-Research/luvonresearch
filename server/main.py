@@ -13,6 +13,7 @@ app.include_router(sheets_router)
 origins = [
     "http://localhost:5173",  # Default Vue dev server port
     "http://127.0.0.1:5173",
+    "https://luvonai.com"
     # Add the URL of your deployed Vue app if needed
 ]
 
