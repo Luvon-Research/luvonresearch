@@ -79,10 +79,10 @@ const items = ref([
 }
 
 :deep(.p-menuitem-link) {
-  padding: 0.75rem 1.5rem; /* Increased horizontal padding for more spacing */
+  padding: 0.75rem 1.5rem;
   color: rgb(101, 0, 0);
   transition: background-color 0.2s, color 0.2s;
-  margin: 0 0.5rem; /* Added margin between menu items */
+  margin: 0 0.5rem;
 }
 
 :deep(.p-menuitem-link:hover) {
@@ -96,16 +96,28 @@ const items = ref([
   color: black;
 }
 
-
-
 .user-button-wrapper {
   display: inline-block;
-  /* padding-top: 4px; */ /* Remove or comment out the padding */
-  transform: translateY(10px); /* Adjust this value to move the button down */
+  transform: translateY(10px);
 }
 
-.navbar :deep(.p-menuitem):has(> div > .cl-organizationSwitcherTrigger):hover > .p-menuitem-content {
-    background-color: transparent; /* Prevent hover background */
+:deep(.cl-organizationSwitcherTrigger:hover) {
+  box-shadow: none !important;
 }
+
+:deep(.cl-userButtonTrigger:focus) {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+:deep(.cl-organizationSwitcherTrigger),
+:deep(.cl-organizationSwitcherTrigger *),
+:deep(.cl-organizationSwitcherTrigger:hover),
+:deep(.cl-organizationSwitcherTrigger *:hover) {
+  box-shadow: none !important;
+  outline: none !important;
+  background: transparent !important;
+}
+
 
 </style>
