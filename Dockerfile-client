@@ -1,6 +1,13 @@
 # build stage
 FROM node:lts-alpine as build-stage
 WORKDIR /app
+
+ARG VITE_CLERK_PUBLISHABLE_KEY
+ARG VITE_API_URL
+ENV VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY}
+ENV VITE_API_URL=${VITE_API_URL}
+
+
 COPY client/package*.json ./
 RUN npm install
 COPY client/ .
