@@ -10,7 +10,6 @@ export default defineConfig({
   plugins: [vue(), vueDevTools(), tailwindcss()],
   define: {
     __SYSTEMENV__: JSON.stringify(process.env),
-    __TEST__: import.meta.env
   },
   resolve: {
     alias: {
