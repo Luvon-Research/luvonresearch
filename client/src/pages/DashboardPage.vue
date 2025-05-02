@@ -60,7 +60,6 @@ const filteredSheets = computed(() => {
     sheet.name.toLowerCase().includes(term)
   );
 });
-
 </script>
 
 <template>
@@ -130,7 +129,9 @@ const filteredSheets = computed(() => {
             </button>
           </div>
 
-          <CreateSheetButton />
+          <div v-if="selectedPage === 'sheets'">
+            <CreateSheetButton />
+          </div>
         </div>
 
         <div class="tab-page-container">

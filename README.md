@@ -59,6 +59,25 @@ This is a web-based spreadsheet application with both client and server componen
    pnpm run dev
    ```
 
+### Running the YJS Server
+
+1. Navigate to the client directory:
+   ```bash
+   cd yjs-server
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   # or if using pnpm
+   pnpm install
+   ```
+
+3. Run the development server:
+   ```bash
+   npx y-websocket
+   ``` 
+
 ### Running Both Together
 
 For convenience, you can run both the client and server simultaneously using a single command from the client directory:
