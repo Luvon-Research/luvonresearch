@@ -1,0 +1,31 @@
+# ─── BUILD STAGE ──────────────────────────────────────────────────────────────
+FROM node:lts-alpine AS build-stage
+
+# where we install dependencies
+WORKDIR /app
+
+# copy only package files & install
+COPY yjs-server/package*.json ./
+RUN npm install --production
+
+# copy your server source
+COPY yjs-server/ .
+
+# ─── PRODUCTION STAGE ─────────────────────────────────────────────────────────
+FROM node:lts-alpine AS production-stage
+
+WORKDIR /app
+
+# copy modules + source from build
+COPY --from=build-stage /app/node_modules ./node_modules
+COPY --from=build-stage /app .
+
+# make the server listen on all interfaces on port 1234
+ENV HOST=0.0.0.0
+ENV PORT=80
+
+# tell Docker (and users) which port the app listens on
+EXPOSE 80
+
+# launch without needing a shell wrapper
+CMD ["npx", "y-websocket"]
