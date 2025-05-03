@@ -26,6 +26,11 @@ async def get_user(sheet_id: str, service: SheetService = Depends(get_sheet_serv
 async def create_user(u: SheetRowUpdates, request: Request, service: SheetService = Depends(get_sheet_service)):
     return await service.updateRowsBulk(u)
 
+@router.get("/export/{sheet_id}")
+async def get_user(sheet_id: str, service: SheetService = Depends(get_sheet_service)):
+    data = await service.get_sheet_data_csv_by_id(sheet_id)
+    return data
+
 
 # # TODO
 # @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

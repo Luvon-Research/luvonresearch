@@ -4,3 +4,4 @@ supabase
 clerk-backend-api
 pyjwt[crypto]
 requests
+numpy
