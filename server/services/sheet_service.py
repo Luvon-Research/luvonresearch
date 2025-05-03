@@ -4,6 +4,10 @@ from services.supabase_service import SupabaseService
 from clerk_backend_api import Clerk
 from models.sheet import SheetRowUpdatedResponse,SheetRowUpdates
 from config import settings
+import csv
+import io
+import numpy as np
+from fastapi.responses import StreamingResponse
 
 class SheetService:
     def __init__(self, db: SupabaseService):
@@ -19,6 +23,55 @@ class SheetService:
         except Exception as e:
             print(e)
             return e
+    
+    async def get_sheet_data_csv_by_id(self, id: str):
+            try:
+                client = self.db.get_client()
+                # 1) Get the data from DB
+                response = client.table("sheet_data") \
+                                    .select("*") \
+                                    .eq("sheet_id", id) \
+                                    .execute()
+
+                data = response.data or []
+
+                # 2) Compute dimensions from the actual indices
+                row_count = max((row["row_id"] for row in data), default=-1) + 1
+                col_count = max(
+                    (cell["col"] for row in data for cell in row["row_data"]),
+                    default=-1,
+                ) + 1
+
+                # 3) Initialize a blank matrix of the right size
+                matrix = [["" for _ in range(col_count)] for _ in range(row_count)]
+
+                # 4) Populate it
+                for row in data:
+                    rid = row["row_id"]
+                    for cell in row["row_data"]:
+                        cell_id = cell["col"]
+                        matrix[rid][cell_id] = cell["val"]
+
+                # 5) Write CSV into an in-memory buffer
+                buffer = io.StringIO()
+                writer = csv.writer(buffer)
+                for row in matrix:
+                    writer.writerow(row)
+                buffer.seek(0)
+
+                # 7) Stream it back with download headers
+                headers = {
+                    "Content-Disposition": 'attachment; filename="sheet.csv"'
+                }
+                return StreamingResponse(buffer, media_type="text/csv", headers=headers)
+
+            except Exception as e:
+                print(e)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=str(e),
+                )
+        
         
     async def updateRowsBulk(self, data: SheetRowUpdates):
         try:
