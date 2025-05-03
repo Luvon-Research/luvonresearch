@@ -12,7 +12,7 @@ ENV VITE_YJS_SERVER_URL=${VITE_YJS_SERVER_URL}
 
 # Install dependencies & build
 COPY client/package*.json ./
-RUN npm install --production
+RUN npm install 
 COPY client/ .
 RUN npm run build
 
