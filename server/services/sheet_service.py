@@ -2,9 +2,9 @@ from models.user import UserBase, UserCreated
 from fastapi import HTTPException, status
 from services.supabase_service import SupabaseService
 from clerk_backend_api import Clerk
-from models.sheet import SheetRowUpdatedResponse,SheetRowUpdates
+from models.sheet import SheetRowUpdatedResponse,SheetRowUpdates, SheetCreate, SheetResponse
 from config import settings
-
+from util.utils import generate_uuid, current_time
 class SheetService:
     def __init__(self, db: SupabaseService):
         self.db = db
@@ -43,6 +43,47 @@ class SheetService:
                 #print(val)
             
             return SheetRowUpdatedResponse(status="success", message="Updated rows")
+            
+        except Exception as e:
+            print(e)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(e),
+            )
+
+    async def create_sheet(self, data: SheetCreate):
+        """
+        Create a new sheet with the given name
+        """
+        try:
+            client = self.db.get_client()
+            
+            # Generate a unique ID for the sheet
+            sheet_id = generate_uuid()
+            
+            # Create the sheet record
+            sheet_data = {
+                "id": sheet_id,
+                "name": data.name,
+                "owner_id": data.owner_id,
+                "organization_id": data.organization_id,
+                "created_at": current_time()
+            }
+            
+            response = client.table("sheets").insert(sheet_data).execute()
+            
+            if response.data:
+                return SheetResponse(
+                    id=sheet_id,
+                    name=data.name,
+                    status="success",
+                    message="Sheet created successfully"
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to create sheet"
+                )
             
         except Exception as e:
             print(e)
