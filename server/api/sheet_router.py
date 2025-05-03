@@ -14,7 +14,7 @@ def get_sheet_service() -> SheetService:
     return SheetService(SupabaseService())
 
 def get_user_service() -> UserService:
-    return UserService()
+    return UserService(SupabaseService())
 
 # TODO
 # @router.get("/",)

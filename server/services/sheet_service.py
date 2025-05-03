@@ -53,26 +53,49 @@ class SheetService:
 
     async def create_sheet(self, data: SheetCreate):
         """
-        Create a new sheet with the given name
+        Create a new sheet with the given name and add an initial empty row.
         """
         try:
             client = self.db.get_client()
-            
+
             # Generate a unique ID for the sheet
             sheet_id = generate_uuid()
-            
+            now = current_time()
+
             # Create the sheet record
             sheet_data = {
                 "id": sheet_id,
                 "name": data.name,
                 "owner_id": data.owner_id,
                 "organization_id": data.organization_id,
-                "created_at": current_time()
+                "created_at": now
             }
-            
+
             response = client.table("sheets").insert(sheet_data).execute()
-            
+
             if response.data:
+                # --- Add an initial empty row to sheet_data ---
+                try:
+                    empty_row_id = 0
+                    empty_row_data = {
+                        "sheet_id": sheet_id,
+                        "row_id": empty_row_id,
+                        "row_data": [],
+                        "created_at": now,
+                    }
+                    # Insert the empty row
+                    row_response = client.table("sheet_data").insert(empty_row_data).execute()
+
+                    # Optional: Check if row insertion failed, though we still return success for the sheet
+                    if not row_response.data:
+                         print(f"Warning: Failed to create initial empty row for sheet {sheet_id}")
+
+                except Exception as row_e:
+                    # Log the error but don't fail the whole sheet creation
+                    print(f"Error creating initial empty row for sheet {sheet_id}: {row_e}")
+                # --- End of adding empty row ---
+
+                # Return success for the sheet creation
                 return SheetResponse(
                     id=sheet_id,
                     name=data.name,
@@ -80,16 +103,20 @@ class SheetService:
                     message="Sheet created successfully"
                 )
             else:
+                # This part handles failure in creating the main sheet record
+                error_detail = "Failed to create sheet"
+                if hasattr(response, 'error') and response.error:
+                    error_detail += f": {response.error.message}"
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to create sheet"
+                    detail=error_detail
                 )
-            
+
         except Exception as e:
-            print(e)
+            print(f"Error in create_sheet: {e}") # Added more specific logging
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=str(e),
+                detail=f"An unexpected error occurred: {str(e)}", # More generic message
             )
         
     async def get_sheets_by_organization_id(self, organization_id: str):
