@@ -47,6 +47,23 @@ async def create_sheet(
     
     return await service.create_sheet(sheet)
 
+@router.get("/organization/{organization_id}")
+async def get_sheets_by_organization(
+    organization_id: str,
+    request: Request,
+    service: SheetService = Depends(get_sheet_service),
+    user_service: UserService = Depends(get_user_service)
+):
+    # # Verify the user is authenticated
+    # try:
+    #     user_id = await user_service.verify_user_token(request)
+    #     # You could add validation here to ensure the user belongs to this organization
+    #     # This would need integration with your auth system (Clerk)
+    # except HTTPException:
+    #     # Continue without user ID if authentication fails
+    #     raise HTTPException(status_code=401, detail="Authentication required")
+    
+    return await service.get_sheets_by_organization_id(organization_id)
 
 # # TODO
 # @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

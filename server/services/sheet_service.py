@@ -91,3 +91,20 @@ class SheetService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(e),
             )
+        
+    async def get_sheets_by_organization_id(self, organization_id: str):
+        """
+        Get all sheets for a specific organization
+        """
+        try:
+            client = self.db.get_client()
+            response = client.table("sheets").select("*").eq("organization_id", organization_id).execute()
+            return response.data or []
+        except Exception as e:
+            print(e)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(e),
+            )
+        
+        

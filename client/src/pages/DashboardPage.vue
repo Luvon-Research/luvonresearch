@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
+import { useSession, useOrganization } from "@clerk/vue";
 
 import NavBar from "@/components/NavBar.vue";
 import ResearchCenter from "@/components/ResearchCenter.vue";
@@ -12,11 +13,9 @@ import SheetChat from "@/components/SheetChat.vue";
 import Popover from "primevue/popover";
 import InputText from "primevue/inputtext";
 import InputGroup from "primevue/inputgroup";
-import InputGroupAddon from "primevue/inputgroupaddon";
 import Button from "primevue/button";
 import ChartsTab from "../components/ChartsTab.vue";
 import FilesTab from "../components/FilesTab.vue";
-import { useSession } from "@clerk/vue";
 
 const router = useRouter();
 const showChat = ref(false);
@@ -24,12 +23,71 @@ function toggleChat() {
   showChat.value = !showChat.value;
 }
 
-// original sheets array
-const sheets = ref([
-  { name: "Test Sheet" },
-  { name: "Env Data" },
-  // add more as needed
-]);
+// Use Clerk hooks
+const { session } = useSession();
+const { organization } = useOrganization();
+
+// API URL from environment
+const API_URL = import.meta.env.VITE_API_URL;
+
+// Initialize sheets as an empty array (will be populated from API)
+const sheets = ref([]);
+
+// Function to fetch sheets from API
+async function fetchSheets() {
+  if (!organization.value?.id) {
+    // Fallback to sample data if no org is selected
+    sheets.value = [
+      { name: "Test Sheet" },
+      { name: "Env Data" },
+    ];
+    return;
+  }
+  
+  try {
+    const response = await fetch(
+      `${API_URL}/api/sheets/organization/${organization.value.id}`, 
+      {
+        headers: {
+          Authorization: `Bearer ${session.value.id}`,
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch sheets");
+    }
+
+    const data = await response.json();
+    sheets.value = data.map(sheet => ({
+      id: sheet.id,
+      name: sheet.name,
+    }));
+    
+    if (sheets.value.length === 0) {
+      // Fallback if no sheets found
+      sheets.value = [
+        { name: "No sheets found" },
+      ];
+    }
+  } catch (err) {
+    console.error("Error fetching sheets:", err);
+    // Fallback to default sheets on error
+    sheets.value = [
+      { name: "Test Sheet" },
+      { name: "Env Data" },
+    ];
+  }
+}
+
+// Fetch sheets when component mounts or organization changes
+onMounted(fetchSheets);
+watch(() => organization.value?.id, fetchSheets);
+
+// Handle sheet created event from CreateSheetButton
+function handleSheetCreated() {
+  fetchSheets();
+}
 
 // Popover reference and toggle
 const op = ref();
@@ -130,7 +188,7 @@ const filteredSheets = computed(() => {
           </div>
 
           <div v-if="selectedPage === 'sheets'">
-            <CreateSheetButton />
+            <CreateSheetButton @sheet-created="handleSheetCreated" />
           </div>
         </div>
 
