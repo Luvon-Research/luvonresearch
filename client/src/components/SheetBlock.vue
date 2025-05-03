@@ -44,6 +44,7 @@ import { ref } from "vue";
 import ProgressSpinner from "primevue/progressspinner";
 
 const API_URL = import.meta.env.VITE_API_URL;
+const YJS_URL = import.meta.env.VITE_YJS_SERVER_URL;
 
 const savingIndicator = ref(false);
 const lastSaved = ref(formatDate());
@@ -77,7 +78,7 @@ onMounted(async () => {
   // 1. Yjs + WebSocket
   const ydoc = new Y.Doc();
   const provider = new WebsocketProvider(
-    "ws://localhost:1234",
+    YJS_URL,
     "demo-room",
     ydoc
   );
@@ -91,7 +92,8 @@ onMounted(async () => {
   const updateQueue = new Map();
   let flushTimer;
   function scheduleFlush() {
-    if (!allowUpdates) return;
+    console.log("YO")
+    //if (!allowUpdates) return;
     clearTimeout(flushTimer);
     flushTimer = setTimeout(flushUpdates, 200);
   }
@@ -116,7 +118,7 @@ onMounted(async () => {
       })
     );
 
-    //console.log({ row_data: allRowsData, sheet_id: "1" })
+    console.log({ row_data: allRowsData, sheet_id: "1" })
 
     fetch(`${API_URL}/api/sheets/rows`, {
       method: "POST",
@@ -139,6 +141,8 @@ onMounted(async () => {
       if (applyingRemote) return;
       if (newValue === oldValue) return;
       if (!allowUpdates) return;
+
+      console.log("HYO")
 
       // 3a) write one cell into Yjs
       ydoc.transact(() => {
