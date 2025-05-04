@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     SUPABASE_KEY: str
     CLERK_API_SECRET_KEY: str
     CLERK_API_PUBLIC_KEY: str
+    CLERK_WEBHOOK_SECRET: str = ""
     
     class Config:
         env_file = ".env"
