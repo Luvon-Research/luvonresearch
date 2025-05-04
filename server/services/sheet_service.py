@@ -1,5 +1,5 @@
 from models.user import UserBase, UserCreated
-from fastapi import HTTPException, status
+from fastapi import UploadFile, HTTPException, status
 from services.supabase_service import SupabaseService
 from clerk_backend_api import Clerk
 from models.sheet import SheetRowUpdatedResponse,SheetRowUpdates
@@ -8,6 +8,10 @@ import csv
 import io
 import numpy as np
 from fastapi.responses import StreamingResponse
+from uuid import uuid4
+import os
+
+
 
 class SheetService:
     def __init__(self, db: SupabaseService):
@@ -103,3 +107,90 @@ class SheetService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(e),
             )
+    
+    
+
+    async def uplaod_file(
+        self,
+        file: UploadFile,
+        project_id: str,
+        org_id: str,
+        uploader_id: str,
+        uploaded_by: str
+    ):
+        """
+        Uploads any file to Supabase Storage and logs metadata.
+        """
+        try:
+            client = self.db.get_client()
+            contents = await file.read()
+
+            extension = os.path.splitext(file.filename)[1]
+            unique_name = f"{uuid4()}{extension}"
+            file_path = f"{project_id}/{unique_name}"
+
+            # ✅ Upload — exceptions will be raised automatically on failure
+            try:
+                client.storage.from_("project-files").upload(
+                    file_path,
+                    contents,
+                    {"content-type": file.content_type}
+                )
+            except Exception as upload_error:
+                print("[Upload Error]", upload_error)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Upload failed: {str(upload_error)}"
+                )
+
+            # ✅ Insert metadata
+            file_record = {
+                "file_name": file.filename,
+                "file_path": file_path,
+                "project_id": project_id,
+                "org_id": org_id,
+                "uploader_id": uploader_id,
+                "uploaded_by": uploaded_by
+            }
+
+            try:
+                insert_response = client.table("files").insert(file_record).execute()
+                print("Insert Raw Response:", insert_response.__dict__)
+                
+                if insert_response.data:
+                    return {
+                        "status": "success",
+                        "file_path": file_path,
+                        "file_name": file.filename,
+                        "record": insert_response.data
+                    }
+                elif insert_response.error:
+                    raise Exception(f"Supabase DB error: {insert_response.error.message}")
+                else:
+                    raise Exception("Insert failed silently: no data and no error.")
+            except Exception as db_error:
+                print("[DB Insert Error]", db_error)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"DB insert failed: {str(db_error)}"
+                )
+
+
+
+            return {
+                "status": "success",
+                "file_path": file_path,
+                "file_name": file.filename
+            }
+
+        except Exception as e:
+            print(f"[uplaod_file ERROR]: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(e)
+            )
+
+
+
+
+
