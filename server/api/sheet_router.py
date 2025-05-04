@@ -64,6 +64,11 @@ async def get_sheets_by_organization(
     #     raise HTTPException(status_code=401, detail="Authentication required")
     
     return await service.get_sheets_by_organization_id(organization_id)
+@router.get("/export/{sheet_id}")
+async def get_user(sheet_id: str, service: SheetService = Depends(get_sheet_service)):
+    data = await service.get_sheet_data_csv_by_id(sheet_id)
+    return data
+
 
 # # TODO
 # @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
