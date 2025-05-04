@@ -50,7 +50,15 @@ const MyPreset = definePreset(Lara, {
 });
 
 app.use(router) // <--- Tell the app to use the router
-app.use(clerkPlugin, { publishableKey: PUBLISHABLE_KEY }) // <--- Configure Clerk authentication
+app.use(clerkPlugin, { 
+  publishableKey: PUBLISHABLE_KEY,
+  appearance: {
+    // your appearance options if any
+  },
+  organizationFeatures: {
+    enabled: true
+  }
+}) // <--- Configure Clerk authentication
 app.use(PrimeVue, {
     theme: {
         preset: MyPreset,

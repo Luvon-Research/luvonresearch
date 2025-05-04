@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
+import { useSession, useOrganization } from "@clerk/vue";
 
 import NavBar from "@/components/NavBar.vue";
 import ResearchCenter from "@/components/ResearchCenter.vue";
@@ -12,11 +13,9 @@ import SheetChat from "@/components/SheetChat.vue";
 import Popover from "primevue/popover";
 import InputText from "primevue/inputtext";
 import InputGroup from "primevue/inputgroup";
-import InputGroupAddon from "primevue/inputgroupaddon";
 import Button from "primevue/button";
 import ChartsTab from "../components/ChartsTab.vue";
 import FilesTab from "../components/FilesTab.vue";
-import { useSession } from "@clerk/vue";
 
 const router = useRouter();
 const showChat = ref(false);
@@ -24,12 +23,96 @@ function toggleChat() {
   showChat.value = !showChat.value;
 }
 
-// original sheets array
-const sheets = ref([
-  { name: "Test Sheet" },
-  { name: "Env Data" },
-  // add more as needed
-]);
+// Use Clerk hooks
+const { session } = useSession();
+const { organization } = useOrganization();
+
+// API URL from environment
+const API_URL = import.meta.env.VITE_API_URL;
+
+// Initialize sheets as an empty array (will be populated from API)
+const sheets = ref([]);
+const selectedSheetId = ref(null);
+
+// Function to fetch sheets from API
+async function fetchSheets() {
+  // Reset selection when fetching new sheets
+  // selectedSheetId.value = null; // Optional: Reset while loading
+
+  if (!organization.value?.id) {
+    sheets.value = []; // Clear sheets if no org
+    selectedSheetId.value = null; // Ensure no sheet is selected
+    console.log("No organization selected, clearing sheets.");
+    return;
+  }
+
+  console.log(`Fetching sheets for org: ${organization.value.id}`);
+  try {
+    const response = await fetch(
+      `${API_URL}/api/sheets/organization/${organization.value.id}`,
+      {
+        headers: {
+          Authorization: `Bearer ${session.value.id}`, // Use actual session token
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch sheets: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    sheets.value = data.map(sheet => ({
+      id: sheet.id,
+      name: sheet.name,
+      // Add created_at if available and you want to sort by it
+      // created_at: sheet.created_at
+    }));
+
+    console.log("Fetched sheets:", sheets.value);
+
+    // --- Set default selection ---
+    if (sheets.value.length > 0) {
+      // Optional: Sort sheets if needed, e.g., by name or created_at
+      // sheets.value.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // Sort newest first
+
+      // Select the first sheet in the (potentially sorted) list
+      selectedSheetId.value = sheets.value[0].id;
+      console.log(`Default sheet selected: ${selectedSheetId.value}`);
+    } else {
+      // No sheets found for the org
+      selectedSheetId.value = null; // Ensure nothing is selected
+      console.log("No sheets found for this organization.");
+      // Optionally add a placeholder message to sheets.value if needed for UI
+      // sheets.value = [{ name: "No sheets found", id: null }];
+    }
+    // --- End default selection ---
+
+  } catch (err) {
+    console.error("Error fetching sheets:", err);
+    sheets.value = []; // Clear sheets on error
+    selectedSheetId.value = null; // Ensure no selection on error
+    // Optionally add placeholder error message to sheets.value
+    // sheets.value = [{ name: "Error loading sheets", id: null }];
+  }
+}
+
+// Fetch sheets when component mounts or organization changes
+onMounted(fetchSheets);
+watch(() => organization.value?.id, (newOrgId, oldOrgId) => {
+  if (newOrgId !== oldOrgId) {
+    fetchSheets();
+  }
+});
+
+// Handle sheet created event from CreateSheetButton
+function handleSheetCreated(newSheet) { // Assuming event passes the new sheet data
+  fetchSheets(); // Refetch the list to include the new one
+  // Optionally, directly select the newly created sheet
+  // if (newSheet && newSheet.id) {
+  //   selectedSheetId.value = newSheet.id;
+  // }
+}
 
 // Popover reference and toggle
 const op = ref();
@@ -42,13 +125,36 @@ const searchTerm = ref("");
 
 const selectedPage = ref("sheets");
 
-function setSelectPage(page) {
-  if (page === "sheets") {
-    toggle();
-  }
+function setSelectPage(page, sheetId = null) {
+  selectedPage.value = page; // Set the page regardless
 
-  selectedPage.value = page;
+  if (page === "sheets") {
+    // Only update selectedSheetId if a specific sheetId is provided (from popover click)
+    // Don't set it to null here if just switching back to the 'sheets' tab
+    if (sheetId !== null) {
+       selectedSheetId.value = sheetId;
+       console.log(`Sheet selected via popover: ${sheetId}`);
+    } else if (!selectedSheetId.value && sheets.value.length > 0) {
+       // If switching back to sheets tab and nothing is selected, select the default (first)
+       selectedSheetId.value = sheets.value[0].id;
+       console.log(`Switched to sheets tab, selecting default: ${selectedSheetId.value}`);
+    }
+    // Hide popover if it was used to select a sheet
+    if (op.value && sheetId !== null) {
+      op.value.hide();
+    }
+  }
+  // If switching away from sheets, selectedSheetId remains unchanged
 }
+
+// Computed property to get the name of the selected sheet for the button
+const selectedSheetName = computed(() => {
+  if (!selectedSheetId.value) {
+    return "Sheets"; // Default text when nothing is selected
+  }
+  const selected = sheets.value.find(s => s.id === selectedSheetId.value);
+  return selected ? selected.name : "Sheets"; // Show name or default if somehow not found
+});
 
 // Computed filtered list based on searchTerm
 const filteredSheets = computed(() => {
@@ -71,7 +177,7 @@ const filteredSheets = computed(() => {
           <div class="primary-buttons">
             <button class="options-tab-btn" @click="toggle">
               <i class="pi pi-table"></i>
-              Sheets
+              {{ selectedSheetName }}
             </button>
 
             <Popover ref="op">
@@ -91,9 +197,9 @@ const filteredSheets = computed(() => {
                 <div style="margin-top: 0.5rem">
                   <div
                     v-for="sheet in filteredSheets"
-                    :key="sheet.name"
+                    :key="sheet.id"
                     class="d-flex align-items-center sheet-result"
-                    @click="setSelectPage('sheets')"
+                    @click="setSelectPage('sheets', sheet.id)"
                   >
                     <i class="pi pi-file sheet-result-icon"></i>
                     <p class="sheet-result-name">{{ sheet.name }}</p>
@@ -130,13 +236,13 @@ const filteredSheets = computed(() => {
           </div>
 
           <div v-if="selectedPage === 'sheets'">
-            <CreateSheetButton />
+            <CreateSheetButton @sheet-created="handleSheetCreated" />
           </div>
         </div>
 
         <div class="tab-page-container">
           <div v-if="selectedPage === 'sheets'">
-            <SheetBlock />
+            <SheetBlock :sheet-id="selectedSheetId" />
           </div>
           <div v-if="selectedPage === 'research-center'">
             <ResearchCenter />
