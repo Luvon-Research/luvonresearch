@@ -1,5 +1,13 @@
 <template>
-  <div class="d-flex justify-content-end saving-indicator">
+  <div class="d-flex justify-content-between saving-indicator">
+    <Button
+      type="button"
+      label="Export Sheet"
+      icon="pi pi-download"
+      :loading="loading"
+      class="export-btn"
+      @click="donwnloadSheet"
+    />
     <p v-if="savingIndicator">
       Saving Document to Cloud
       <ProgressSpinner
@@ -10,11 +18,13 @@
         aria-label="Saving Document"
       />
     </p>
-    <p v-if="!savingIndicator">Last Saved: {{ lastSaved }}</p>
+    <p v-if="!savingIndicator" class="savingIndicator">
+      Last Saved: {{ lastSaved }} <i class="pi pi-cloud-upload"></i>
+    </p>
   </div>
 
   <div class="parent">
-    <div id="spreadsheet" class="spreadsheet-section"></div>
+    <div id="spreadsheet"></div>
   </div>
 </template>
 
@@ -26,15 +36,21 @@
 
 .saving-indicator {
   margin-right: 1rem;
+  color: rgb(165, 165, 165);
 }
 
 .spreadsheet-section {
   overflow-y: scroll;
 }
 
+.export-btn {
+  margin-bottom: 0.5rem;
+  font-size: 13px;
+}
 </style>
 
 <script setup>
+import Button from "primevue/button";
 import { onMounted } from "vue";
 import jspreadsheet from "jspreadsheet-ce";
 import "jspreadsheet-ce/dist/jspreadsheet.css";
@@ -42,12 +58,52 @@ import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { ref } from "vue";
 import ProgressSpinner from "primevue/progressspinner";
+import { HistoryRecord } from "jspreadsheet-ce";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const YJS_URL = import.meta.env.VITE_YJS_SERVER_URL;
 
 const savingIndicator = ref(false);
 const lastSaved = ref(formatDate());
+
+const loading = ref(false);
+
+function donwnloadSheet() {
+  loading.value = true;
+
+  fetch(`${API_URL}/api/sheets/export/1`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${""}`,
+    },
+  }).then(async (res) => {
+    if (!res.ok) {
+      console.log("ERROR");
+      console.log(res);
+    } else {
+      // 1) Pull out the blob
+      const blob = await res.blob();
+
+      // 2) Figure out a filename from headers (optional)
+      const contentDisp = res.headers.get("Content-Disposition") || "";
+      const filenameMatch = /filename="(.+)"/.exec(contentDisp);
+      const filename = filenameMatch ? filenameMatch[1] : "sheet.csv";
+
+      // 3) Create an object URL and click an <a> to download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      // 4) Clean up
+      window.URL.revokeObjectURL(url);
+    }
+    loading.value = false;
+  });
+}
 
 function formatDate(date = new Date()) {
   const pad = (n) => String(n).padStart(2, "0");
@@ -77,11 +133,7 @@ onMounted(async () => {
 
   // 1. Yjs + WebSocket
   const ydoc = new Y.Doc();
-  const provider = new WebsocketProvider(
-    YJS_URL,
-    "demo-room",
-    ydoc
-  );
+  const provider = new WebsocketProvider(YJS_URL, "demo-room", ydoc);
   provider.on("status", (s) => console.log("Yjs status:", s.status));
 
   const ycells = ydoc.getMap("cells");
@@ -92,7 +144,7 @@ onMounted(async () => {
   const updateQueue = new Map();
   let flushTimer;
   function scheduleFlush() {
-    console.log("YO")
+    console.log("YO");
     //if (!allowUpdates) return;
     clearTimeout(flushTimer);
     flushTimer = setTimeout(flushUpdates, 200);
@@ -118,7 +170,7 @@ onMounted(async () => {
       })
     );
 
-    console.log({ row_data: allRowsData, sheet_id: "1" })
+    console.log({ row_data: allRowsData, sheet_id: "1" });
 
     fetch(`${API_URL}/api/sheets/rows`, {
       method: "POST",
@@ -137,12 +189,42 @@ onMounted(async () => {
   const defaultCol = { type: "text", title: "", width: 100 };
   const sheets = jspreadsheet(container, {
     worksheets: [{ data: [], minDimensions: [100, 100] }],
+    onundo: (instance, historyRecord) => {
+      console.log(historyRecord);
+      // nothing to do if it's a remote update, undo stack is empty, or we're seeding
+      if (applyingRemote || !allowUpdates || !historyRecord) return;
+
+      for (let i = 0; i < historyRecord.records.length; i++) {
+        let record = historyRecord.records[i];
+        console.log(record)
+        // pull out the undone cell's coords (inspect historyRecord if these keys differ)
+        const x = record.x;
+        const y = record.y;
+
+        console.log(x, y);
+
+        // grab the reverted value from the sheet
+        const revertedValue = instance.getValueFromCoords(x, y);
+
+        // write it into Yjs
+        ydoc.transact(() => {
+          ycells.set(`${x},${y}`, revertedValue);
+        });
+
+        // enqueue the entire row for a batched save
+        const rowData = instance.getRowData(y);
+        updateQueue.set(y, rowData);
+      }
+
+      // schedule the save
+      scheduleFlush();
+    },
     onchange: (instance, cell, x, y, newValue, oldValue) => {
       if (applyingRemote) return;
       if (newValue === oldValue) return;
       if (!allowUpdates) return;
 
-      console.log("HYO")
+      console.log("HYO");
 
       // 3a) write one cell into Yjs
       ydoc.transact(() => {
