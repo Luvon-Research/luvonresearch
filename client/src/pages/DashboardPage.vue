@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useSession, useOrganization } from "@clerk/vue";
-
+import ProgressSpinner from "primevue/progressspinner";
 import NavBar from "@/components/NavBar.vue";
 import ResearchCenter from "@/components/ResearchCenter.vue";
 
@@ -33,9 +33,11 @@ const API_URL = import.meta.env.VITE_API_URL;
 // Initialize sheets as an empty array (will be populated from API)
 const sheets = ref([]);
 const selectedSheetId = ref(null);
+const loading = ref(true);
 
 // Function to fetch sheets from API
 async function fetchSheets() {
+  loading.value = true;
   // Reset selection when fetching new sheets
   // selectedSheetId.value = null; // Optional: Reset while loading
 
@@ -43,6 +45,7 @@ async function fetchSheets() {
     sheets.value = []; // Clear sheets if no org
     selectedSheetId.value = null; // Ensure no sheet is selected
     console.log("No organization selected, clearing sheets.");
+    loading.value = false;
     return;
   }
 
@@ -53,16 +56,17 @@ async function fetchSheets() {
       {
         headers: {
           Authorization: `Bearer ${session.value.id}`, // Use actual session token
-        }
+        },
       }
     );
 
     if (!response.ok) {
+      loading.value = false;
       throw new Error(`Failed to fetch sheets: ${response.statusText}`);
     }
 
     const data = await response.json();
-    sheets.value = data.map(sheet => ({
+    sheets.value = data.map((sheet) => ({
       id: sheet.id,
       name: sheet.name,
       // Add created_at if available and you want to sort by it
@@ -86,12 +90,14 @@ async function fetchSheets() {
       // Optionally add a placeholder message to sheets.value if needed for UI
       // sheets.value = [{ name: "No sheets found", id: null }];
     }
-    // --- End default selection ---
 
+    loading.value = false;
+    // --- End default selection ---
   } catch (err) {
     console.error("Error fetching sheets:", err);
     sheets.value = []; // Clear sheets on error
     selectedSheetId.value = null; // Ensure no selection on error
+    loading.value = false;
     // Optionally add placeholder error message to sheets.value
     // sheets.value = [{ name: "Error loading sheets", id: null }];
   }
@@ -99,14 +105,18 @@ async function fetchSheets() {
 
 // Fetch sheets when component mounts or organization changes
 onMounted(fetchSheets);
-watch(() => organization.value?.id, (newOrgId, oldOrgId) => {
-  if (newOrgId !== oldOrgId) {
-    fetchSheets();
+watch(
+  () => organization.value?.id,
+  (newOrgId, oldOrgId) => {
+    if (newOrgId !== oldOrgId) {
+      fetchSheets();
+    }
   }
-});
+);
 
 // Handle sheet created event from CreateSheetButton
-function handleSheetCreated(newSheet) { // Assuming event passes the new sheet data
+function handleSheetCreated(newSheet) {
+  // Assuming event passes the new sheet data
   fetchSheets(); // Refetch the list to include the new one
   // Optionally, directly select the newly created sheet
   // if (newSheet && newSheet.id) {
@@ -117,7 +127,11 @@ function handleSheetCreated(newSheet) { // Assuming event passes the new sheet d
 // Popover reference and toggle
 const op = ref();
 const toggle = (event) => {
-  op.value.toggle(event);
+  if(sheets.value.length === 0){
+    selectedPage.value = 'sheets'
+  } else {
+    op.value.toggle(event);
+  }
 };
 
 // Search term reactive ref
@@ -132,12 +146,14 @@ function setSelectPage(page, sheetId = null) {
     // Only update selectedSheetId if a specific sheetId is provided (from popover click)
     // Don't set it to null here if just switching back to the 'sheets' tab
     if (sheetId !== null) {
-       selectedSheetId.value = sheetId;
-       console.log(`Sheet selected via popover: ${sheetId}`);
+      selectedSheetId.value = sheetId;
+      console.log(`Sheet selected via popover: ${sheetId}`);
     } else if (!selectedSheetId.value && sheets.value.length > 0) {
-       // If switching back to sheets tab and nothing is selected, select the default (first)
-       selectedSheetId.value = sheets.value[0].id;
-       console.log(`Switched to sheets tab, selecting default: ${selectedSheetId.value}`);
+      // If switching back to sheets tab and nothing is selected, select the default (first)
+      selectedSheetId.value = sheets.value[0].id;
+      console.log(
+        `Switched to sheets tab, selecting default: ${selectedSheetId.value}`
+      );
     }
     // Hide popover if it was used to select a sheet
     if (op.value && sheetId !== null) {
@@ -152,7 +168,7 @@ const selectedSheetName = computed(() => {
   if (!selectedSheetId.value) {
     return "Sheets"; // Default text when nothing is selected
   }
-  const selected = sheets.value.find(s => s.id === selectedSheetId.value);
+  const selected = sheets.value.find((s) => s.id === selectedSheetId.value);
   return selected ? selected.name : "Sheets"; // Show name or default if somehow not found
 });
 
@@ -241,17 +257,40 @@ const filteredSheets = computed(() => {
         </div>
 
         <div class="tab-page-container">
-          <div v-if="selectedPage === 'sheets'">
-            <SheetBlock :sheet-id="selectedSheetId" />
+          <div v-if="!loading">
+            <div v-if="selectedPage === 'sheets'">
+              <div v-if="sheets.length !== 0">
+                <SheetBlock :sheet-id="selectedSheetId" />
+              </div>
+              <div v-if="sheets.length === 0">
+                <center style="margin-top: 10vh;">
+                  <img src="../assets/void.svg" class="no-sheets-img"/>
+                  <h1 class="no-sheets-title">No Sheets Yet</h1>
+                  <p class="no-sheets-subtitle">Create a sheet to get started by clicking the create sheet button at the top</p>
+                </center>
+              </div>
+            </div>
+            <div v-if="selectedPage === 'research-center'">
+              <ResearchCenter />
+            </div>
+            <div v-if="selectedPage === 'charts'">
+              <ChartsTab />
+            </div>
+            <div v-if="selectedPage === 'files'">
+              <FilesTab />
+            </div>
           </div>
-          <div v-if="selectedPage === 'research-center'">
-            <ResearchCenter />
-          </div>
-          <div v-if="selectedPage === 'charts'">
-            <ChartsTab />
-          </div>
-          <div v-if="selectedPage === 'files'">
-            <FilesTab />
+
+          <div v-if="loading">
+            <center style="margin-top: 30vh">
+              <ProgressSpinner
+                style="width: 40px; height: 40px"
+                strokeWidth="3"
+                fill="transparent"
+                animationDuration=".5s"
+                aria-label="Custom ProgressSpinner"
+              />
+            </center>
           </div>
         </div>
       </div>
@@ -399,5 +438,20 @@ const filteredSheets = computed(() => {
 .slide-enter-from,
 .slide-leave-to {
   transform: translateX(-100%);
+}
+
+.no-sheets-img{
+  margin-top: 10vh;
+  width: 14vw;
+}
+
+.no-sheets-title{
+  margin-top: 1rem;
+  font-size: 28px;
+}
+
+.no-sheets-subtitle{
+  width: 25%;
+  color: gray;
 }
 </style>
