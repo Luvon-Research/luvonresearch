@@ -11,11 +11,7 @@ app.include_router(sheets_router)
 # This allows your Vue app (running on a different port)
 # to communicate with the FastAPI server.
 origins = [
-    "http://localhost:5173",  # Default Vue dev server port
-    "http://127.0.0.1:5173",
-    "https://luvonai.com",
-    "https://luvonresearch-787955908723.us-central1.run.app",
-    "https://luvonresearch-787955908723.us-central1.run.app/"
+    '*'
     # Add the URL of your deployed Vue app if needed
 ]
 

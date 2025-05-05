@@ -10,6 +10,11 @@ import numpy as np
 from fastapi.responses import StreamingResponse
 from uuid import uuid4
 import os
+from fastapi import UploadFile, HTTPException, status, Request
+from uuid import uuid4
+import os
+from clerk_backend_api import Clerk
+from config import settings
 
 
 
@@ -108,87 +113,75 @@ class SheetService:
                 detail=str(e),
             )
     
-    
+    async def verify_user_token(self, request: Request) -> str:
+        auth_header = request.headers.get("authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Missing or invalid token")
 
-    async def uplaod_file(
+        token_value = auth_header.split(" ")[1]
+        clerk = Clerk(settings.CLERK_API_SECRET_KEY)
+        session = clerk.sessions.verify(token_value)
+
+        if not session or "user_id" not in session:
+            raise HTTPException(status_code=401, detail="Invalid Clerk session")
+
+        return session["user_id"]
+    
+    async def upload_file(
         self,
         file: UploadFile,
         project_id: str,
-        org_id: str,
         uploader_id: str,
-        uploaded_by: str
+        request: Request
     ):
-        """
-        Uploads any file to Supabase Storage and logs metadata.
-        """
         try:
-            client = self.db.get_client()
             contents = await file.read()
-
             extension = os.path.splitext(file.filename)[1]
             unique_name = f"{uuid4()}{extension}"
             file_path = f"{project_id}/{unique_name}"
 
-            # ✅ Upload — exceptions will be raised automatically on failure
-            try:
-                client.storage.from_("project-files").upload(
-                    file_path,
-                    contents,
-                    {"content-type": file.content_type}
-                )
-            except Exception as upload_error:
-                print("[Upload Error]", upload_error)
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Upload failed: {str(upload_error)}"
-                )
+            client = self.db.get_client()
 
-            # ✅ Insert metadata
+            # Upload to Supabase Storage
+            client.storage.from_("project-files").upload(
+                file_path,
+                contents,
+                {"content-type": file.content_type}
+            )
+
+            # Log metadata
             file_record = {
                 "file_name": file.filename,
                 "file_path": file_path,
                 "project_id": project_id,
-                "org_id": org_id,
-                "uploader_id": uploader_id,
-                "uploaded_by": uploaded_by
+                "uploader_id": uploader_id
             }
 
-            try:
-                insert_response = client.table("files").insert(file_record).execute()
-                print("Insert Raw Response:", insert_response.__dict__)
-                
-                if insert_response.data:
-                    return {
-                        "status": "success",
-                        "file_path": file_path,
-                        "file_name": file.filename,
-                        "record": insert_response.data
-                    }
-                elif insert_response.error:
-                    raise Exception(f"Supabase DB error: {insert_response.error.message}")
-                else:
-                    raise Exception("Insert failed silently: no data and no error.")
-            except Exception as db_error:
-                print("[DB Insert Error]", db_error)
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"DB insert failed: {str(db_error)}"
-                )
-
-
-
+            insert_response = client.table("files").insert(file_record).execute()
             return {
                 "status": "success",
-                "file_path": file_path,
-                "file_name": file.filename
+                "file_name": file.filename,
+                "project_id": project_id,
+                "file_path": file_path
             }
 
         except Exception as e:
-            print(f"[uplaod_file ERROR]: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=str(e)
-            )
+            print(f"[upload_file ERROR]: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+
+        
+        
+    
+    
+
+
+
+   
+
+
+
 
 
 

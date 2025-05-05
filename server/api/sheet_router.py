@@ -1,5 +1,5 @@
 # app/api/users.py
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Request
 from typing import List
 from fastapi import FastAPI, Request
 
@@ -7,12 +7,14 @@ from services.supabase_service import SupabaseService
 from models.sheet import SheetRow, SheetRowUpdatedResponse, SheetRowUpdates
 from services.sheet_service import SheetService
 from fastapi.responses import JSONResponse
-from fastapi import Form
+from config import settings
 
-from fastapi import APIRouter, Depends, UploadFile, File, Form, Request, status, HTTPException
-from fastapi.responses import JSONResponse
-from services.supabase_service import SupabaseService
-from services.sheet_service import SheetService  # or FileService if it's separate
+from models.sheet import FileUploadResponse
+
+
+
+
+
 
 router = APIRouter(prefix="/api/sheets", tags=["sheets"])
 
@@ -39,27 +41,31 @@ async def get_user(sheet_id: str, service: SheetService = Depends(get_sheet_serv
     return data
 
 
-
 def get_sheet_service() -> SheetService:
     return SheetService(SupabaseService())
 
-# ✅ Upload any file (PDF, image, CSV...) to Supabase + log metadata
-@router.post("/upload", status_code=status.HTTP_201_CREATED)
+@router.post("/upload", response_model=FileUploadResponse, status_code=status.HTTP_201_CREATED)
 async def upload_sheet_file(
+    request: Request,
     file: UploadFile = File(...),
     project_id: str = Form(...),
-    org_id: str = Form(...),
-    uploader_id: str = Form(...),
-    uploaded_by: str = Form(...),
     service: SheetService = Depends(get_sheet_service)
 ):
     """
-    Uploads any file to Supabase Storage and logs metadata in the 'files' table.
-    Accepts file, project_id, org_id, uploader_id, and uploaded_by as form fields.
+    Upload a file to Supabase, storing uploader info via Clerk token.
+    project_id comes from the form.
+    uploader_id is extracted from Clerk JWT.
     """
-    result = await service.uplaod_file(file, project_id, org_id, uploader_id, uploaded_by)
-    return JSONResponse(content=result)
+    user_id = await service.verify_user_token(request)
+    return await service.upload_file(
+        file=file,
+        project_id=project_id,
+        uploader_id=user_id,  # auto-filled by token
+        request=request
+    )
 
+
+# --- List Files by Project ID ---
 
 
 

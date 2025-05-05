@@ -17,3 +17,12 @@ class SheetRowUpdatedResponse(BaseModel):
 class SheetRowUpdates(BaseModel):
     sheet_id: str
     row_data: list
+    
+
+class FileUploadResponse(BaseModel):
+    status: str
+    file_name: str
+    project_id: str
+    file_path: str
+
+

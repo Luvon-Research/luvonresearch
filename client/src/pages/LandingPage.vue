@@ -38,7 +38,7 @@ watchEffect(async () => {
       },
       body: JSON.stringify(payload),
     });
-
+  console.log("session id:", session.value!.id)
     if (!res.ok) {
       console.error(
         "Failed to create/check user:",
