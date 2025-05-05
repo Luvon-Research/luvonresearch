@@ -4,6 +4,7 @@ from api.users_router import router as users_router
 from api.sheet_router import router as sheets_router
 from api.project_router import router as projects_router
 from api.webhook_router import router as webhooks_router
+from api.ai_router import router as ai_router
 
 app = FastAPI()
 
@@ -23,6 +24,7 @@ app.include_router(users_router)
 app.include_router(sheets_router)
 app.include_router(projects_router)
 app.include_router(webhooks_router)
+app.include_router(ai_router)
 
 @app.get("/")
 async def read_root():

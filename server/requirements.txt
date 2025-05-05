@@ -5,3 +5,4 @@ clerk-backend-api
 pyjwt[crypto]
 requests
 numpy
+pydantic-ai-slim[vertexai]
