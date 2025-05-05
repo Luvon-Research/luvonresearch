@@ -7,7 +7,6 @@ class AIResponse(BaseModel):
     
 class GraphAgentResponse(BaseModel):
     status: str = Field(description="'success' or 'failed'")
-    data: str = Field(description="graph data in JSON")
     r_code: str = Field(description="Code in R to recreate this graph")
 
 class AIInput(BaseModel):

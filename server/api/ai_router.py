@@ -23,4 +23,4 @@ async def ai_prompt(
     #project.user_id = user_id
     
     # Store the project metadata
-    return await ai_service.call_main_agent(request.prompt) #project_service.create(project)
+    return await ai_service.call(request.prompt) #project_service.create(project)
