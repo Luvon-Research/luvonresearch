@@ -1,5 +1,5 @@
 <template>
-  <div class="sheet-chat">
+  <div class="sheet-chat" :style="{ width: chatWidth + 'px' }">
     <!-- Header -->
     <header class="chat-header">
       <h3>How can I assist you?</h3>
@@ -38,11 +38,20 @@
       />
       <button class="send-btn" @click="send">Send</button>
     </div>
+
+    <!-- Resizable handle -->
+    <div
+      class="resize-handle"
+      :class="{ active: isResizing }"
+      @mousedown="startResize"
+    >
+      <div class="resize-icon">⋮⋮⋮</div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, nextTick } from 'vue'
+import { ref, reactive, nextTick, onMounted, onBeforeUnmount } from 'vue'
 const emit = defineEmits(['close'])
 
 // hard‑coded suggestion list
@@ -57,6 +66,9 @@ const suggestions = [
 const messages = reactive([])
 const draft = ref('')
 const msgsContainer = ref(null)
+const chatWidth = ref(380) // Initial width in pixels
+const isResizing = ref(false)
+const minWidth = 200 // Minimum width in pixels
 
 function scrollToBottom() {
   nextTick(() => {
@@ -87,6 +99,37 @@ function send() {
 function close() {
   emit('close')
 }
+
+let startX, startWidth
+
+function startResize(event) {
+  startX = event.clientX
+  startWidth = chatWidth.value
+  isResizing.value = true
+  document.documentElement.addEventListener('mousemove', doResize)
+  document.documentElement.addEventListener('mouseup', stopResize)
+}
+
+function doResize(event) {
+  const newWidth = startWidth + (event.clientX - startX)
+  chatWidth.value = Math.max(newWidth, minWidth) // Ensure minimum width
+}
+
+function stopResize() {
+  isResizing.value = false
+  document.documentElement.removeEventListener('mousemove', doResize)
+  document.documentElement.removeEventListener('mouseup', stopResize)
+}
+
+onMounted(() => {
+  // Any additional setup if needed
+})
+
+onBeforeUnmount(() => {
+  // Clean up event listeners if needed
+  document.documentElement.removeEventListener('mousemove', doResize)
+  document.documentElement.removeEventListener('mouseup', stopResize)
+})
 </script>
 
 <style scoped>
@@ -96,10 +139,12 @@ function close() {
   display: flex;
   flex-direction: column;
   height: 100%;
-  width: 38vh;
   background: #ffffff;
   font-family: 'Inter', sans-serif;
   z-index: 1000;
+  position: relative;
+  border: 1px solid #e0e0e0; /* Light grey border */
+  box-shadow: none !important; /* Ensure no shadow */
 }
 
 /* header with title + close */
@@ -199,5 +244,28 @@ function close() {
 }
 .send-btn:hover {
   background: #35449c;
+}
+
+/* Resizable handle */
+.resize-handle {
+  width: 20px;
+  height: 100%; /* Full height of the chat */
+  cursor: ew-resize;
+  position: absolute;
+  top: 0;
+  right: -10px;
+  transition: background-color 0.2s;
+}
+.resize-handle.active {
+  background-color: transparent;
+  border-right: 2px solid #3f51b5; /* Darker blue border */
+}
+.resize-icon {
+  font-size: 1.2rem;
+  color: #666;
+  text-align: center;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
 }
 </style>

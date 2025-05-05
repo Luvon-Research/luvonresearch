@@ -227,7 +227,7 @@ const filteredSheets = computed(() => {
               </div>
             </Popover>
 
-            <button class="options-tab-btn" @click="toggleChat">
+            <button class="options-tab-btn ai-assistant-btn" @click="toggleChat">
               <i class="pi pi-sparkles"></i>
               AI assistant
             </button>
@@ -384,20 +384,26 @@ const filteredSheets = computed(() => {
 }
 
 .options-tab-btn {
-  background-color: #f0f0f0;
-  border: none;
-  padding: 0.4rem 0.8rem;
+  background-color: white; /* White background */
+  border: 1px solid #f0f0f0; /* Lighter border */
+  padding: 0.4rem 0.8rem; /* Adjust padding for size */
   font-size: 0.875rem;
-  color: #333;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  color: #333; /* Dark text color */
+  border-radius: 6px; /* Slightly more rounded corners */
+  box-shadow: none; /* Remove shadow */
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  transition: background-color 0.2s ease, border-color 0.2s ease; /* Smooth transition */
 }
 
 .options-tab-btn:hover {
-  background-color: #e0dfdf;
+  background-color: #f9f9f9; /* Softer light gray on hover */
+  border-color: #e0e0e0; /* Slightly darker border on hover */
+}
+
+.options-tab-btn:active {
+  background-color: #e0e0e0; /* Darker shade when active */
 }
 
 .options-tab-btn .pi {
@@ -438,20 +444,5 @@ const filteredSheets = computed(() => {
 .slide-enter-from,
 .slide-leave-to {
   transform: translateX(-100%);
-}
-
-.no-sheets-img{
-  margin-top: 10vh;
-  width: 14vw;
-}
-
-.no-sheets-title{
-  margin-top: 1rem;
-  font-size: 28px;
-}
-
-.no-sheets-subtitle{
-  width: 25%;
-  color: gray;
 }
 </style>
