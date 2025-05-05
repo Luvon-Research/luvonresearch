@@ -108,7 +108,13 @@ const emit = defineEmits(['sheet-created']);
 </script>
 
 <template>
-  <Button label="Create Sheet" icon="pi pi-plus" @click="visible = true" severity="secondary"/>
+  <Button
+    class="create-sheet-btn"
+    label="Create Sheet"
+    icon="pi pi-plus"
+    @click="visible = true"
+    severity="secondary"
+  />
 
   <Dialog
     v-model:visible="visible"
@@ -287,5 +293,22 @@ const emit = defineEmits(['sheet-created']);
   border-radius: 4px;
   color: #d32f2f;
   margin-bottom: 1rem;
+}
+
+.create-sheet-btn {
+  background-color: #4a56e2; /* Blue background */
+  color: white; /* White text */
+  border: none; /* No border */
+  padding: 0.5rem 1rem; /* Adjust padding for size */
+  font-size: 0.875rem;
+  border-radius: 6px; /* Rounded corners */
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: background-color 0.2s ease; /* Smooth transition */
+}
+
+.create-sheet-btn:hover {
+  background-color: #3b47b3; /* Darker blue on hover */
 }
 </style>
