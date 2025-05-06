@@ -2,10 +2,15 @@ from services.supabase_service import SupabaseService
 from config import settings
 from pydantic_ai import Agent, Tool
 from models.ai import AIResponse, MainAgentResponse, GraphAgentResponse
+from fastapi import HTTPException, status
+from util.utils import generate_uuid, ensure_dir, run_r_script, fetch_sample_lines, strip_code_block
+from services.sheet_service import SheetService
+import os
 
 class AIService:
     def __init__(self, db: SupabaseService):
         self.db = db
+        self.sheet_service = SheetService(self.db)
 
         # Unified system prompt describing available tools
         system_prompt = '''
@@ -20,7 +25,7 @@ You cannot answer personal questions. If a request falls outside these tasks, re
 
         # Define the three tools bound to internal methods
         tools = [
-            Tool(name="graph", description="Generate a graph R code format.", function=self._tool_graph),
+            Tool(name="graph", description="Generate a graph based on the prompt", function=self._tool_graph),
             Tool(name="predict", description="Make data predictions based on the prompt.", function=self._tool_predict),
             Tool(name="analysis", description="Perform data analysis based on the prompt.", function=self._tool_analysis),
         ]
@@ -34,17 +39,72 @@ You cannot answer personal questions. If a request falls outside these tasks, re
         )
 
     async def _tool_graph(self, prompt: str) -> GraphAgentResponse:
+        # Loads the CSV data
+        ensure_dir('temp_files')
+        uuid = generate_uuid()
+        csv_file_name = f"temp_files/{uuid}.csv"
+        run_script_name = f"temp_files/{uuid}.r"
+        csv_absolute = os.path.abspath(csv_file_name)
+        script_absolute = os.path.abspath(run_script_name)
+        csv_escaped  = csv_absolute.replace('\\', '\\\\')
+        output_png = f"temp_files/{uuid}.png"
+        output_png_absolute = os.path.abspath(output_png).replace('\\', '\\\\')
+
+        print("Pulling CSV data")
+        csv_data = await self.sheet_service.get_sheet_data_csv_by_id('870a5153-6235-4db5-a4ce-91a5c3e1fa0e', False)
+        
+        print("Wrote CSV data")
+        with open(csv_file_name, 'w', newline="") as fp:
+            fp.write(csv_data.getvalue())
+            fp.close()
+        
+        sample_data = fetch_sample_lines(csv_file_name, lines=3)
+        print(f"Got sample data {sample_data}")
+
         # Local graph-only agent
         graph_agent = Agent(
             model=settings.AI_MODEL,
-            system_prompt='''
-You are the graph tool. Generate R code under `r_code`.
-If you cannot graph, apologize and list available tools.
-''',
+            system_prompt=f'''
+                You are the graph tool you can create R code for any type of chart that is supported by R. 
+                Generate R code under `r_code` to make this chart. 
+                Your only job is to just create R code for this prompt (USE ggplot2 package), the actually running of this code
+                is done later on.
+                The R code that you generate has to read read a input file called: {csv_escaped},
+                make sure you correctlyf format the file path for windows
+                to make this chart. Then once the chart is created, you have to save the chart as an image
+                to this file name: {output_png_absolute}. DO NOT INCLUDE ANY COMMENTS IN THIS CODE (IMPORTANT)
+                
+                The sample schema for this document is: {sample_data}
+                If you cannot create this type of graph, apologize and list available tools.
+            ''',
             output_type=GraphAgentResponse
         )
         res = await graph_agent.run(prompt)
-        return res.output
+        res = res.output
+        print(res)
+        
+        if(res.status == 'success'):
+            print("code generation success")
+            r_code = strip_code_block(res.r_code)
+            
+            with open(run_script_name, 'w', newline="") as fp:
+                fp.write(r_code)
+                fp.close()
+            
+            print("Wrote the code to R file, running...")
+            print(f"Running {script_absolute}")
+            output = run_r_script(script_absolute)
+            print(output)
+            
+            #os.remove(random_file_name)
+            #os.remove(run_script_name)
+        else:
+            #os.remove(random_file_name)
+            #os.remove(run_script_name)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to generate chart"
+            )
 
     async def _tool_predict(self, prompt: str) -> AIResponse:
         # Local prediction-only agent
