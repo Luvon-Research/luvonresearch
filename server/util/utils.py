@@ -53,6 +53,7 @@ def strip_code_block(text: str) -> str:
     # Strips fencing (``` or """ with optional language tag) and
     # any extraneous leading/trailing quotes from a code block.
     lines = text.splitlines()
+    all_lines = []
 
     # 1) Drop the opening fence if present
     if lines and re.match(r'^\s*(?:```|""")[^\n]*', lines[0]):
@@ -69,5 +70,8 @@ def strip_code_block(text: str) -> str:
     # 4) Strip trailing quotes from last line
     if len(lines) > 1:
         lines[-1] = re.sub(r'\s*"+$', '', lines[-1])
+    
+    for line in lines:
+        all_lines.append(line.replace("`", "'"))
 
-    return "\n".join(lines).strip()
+    return "\n".join(all_lines).strip()

@@ -7,12 +7,12 @@
     </header>
 
     <!-- suggestion buttons -->
-    <div class="suggestions">
+    <div class="suggestions" v-if="messages.length === 0">
       <button
         v-for="(s, i) in suggestions"
         :key="i"
         class="suggestion"
-        @click="applySuggestion(s)"
+        @click="displayText(s)"
       >
         {{ s }}
       </button>
@@ -20,13 +20,23 @@
 
     <!-- messages (plain text, no boxes) -->
     <div class="messages" ref="msgsContainer">
-      <p
+      <div
         v-for="(msg, idx) in messages"
         :key="idx"
         :class="['message', msg.from]"
       >
-        {{ msg.text }}
-      </p>
+        <p v-if="msg.type === 'text'">{{ msg.text }}</p>
+        <div v-if="msg.type === 'skeleton-text'">
+          <Skeleton width="80%" class="mb-2"></Skeleton>
+          <Skeleton width="80%" class="mb-2"></Skeleton>
+          <Skeleton width="80%" class="mb-2"></Skeleton>
+        </div>
+        <div v-if="msg.type === 'skeleton-img'">
+          <Skeleton width="80%" height="5rem"></Skeleton>
+        </div>
+
+        <img :src="msg.text" v-if="msg.type === 'img'" />
+      </div>
     </div>
 
     <!-- input bar -->
@@ -51,96 +61,162 @@
 </template>
 
 <script setup>
-import { ref, reactive, nextTick, onMounted, onBeforeUnmount } from 'vue'
-const emit = defineEmits(['close'])
+import { ref, reactive, nextTick, onMounted, onBeforeUnmount } from "vue";
+const emit = defineEmits(["close"]);
+import Skeleton from "primevue/skeleton";
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 // hard‑coded suggestion list
 const suggestions = [
-  'Create a new column',
-  'Create a new row',
-  'Perform research',
-  'What else can you do?'
-]
+  "Create a new column",
+  "Create a new row",
+  "Perform research",
+  "Create a chart",
+  "What else can you do?",
+];
 
 // chat state
-const messages = reactive([])
-const draft = ref('')
-const msgsContainer = ref(null)
-const chatWidth = ref(380) // Initial width in pixels
-const isResizing = ref(false)
-const minWidth = 200 // Minimum width in pixels
+const messages = reactive([]);
+const draft = ref("");
+const msgsContainer = ref(null);
+const chatWidth = ref(380); // Initial width in pixels
+const isResizing = ref(false);
+const minWidth = 200; // Minimum width in pixels
 
 function scrollToBottom() {
   nextTick(() => {
-    const el = msgsContainer.value
-    if (el) el.scrollTop = el.scrollHeight
-  })
+    const el = msgsContainer.value;
+    if (el) el.scrollTop = el.scrollHeight;
+  });
 }
 
-function applySuggestion(text) {
-  messages.push({ from: 'user', text })
-  scrollToBottom()
-  setTimeout(() => {
-    messages.push({
-      from: 'assistant',
-      text: `🛠 Here's a response for: " ${text} "`
-    })
-    scrollToBottom()
-  }, 500)
+function displayText(text, from, type) {
+  if (from === "user") {
+    messages.push({ from: from, type: "text", text: text });
+    scrollToBottom();
+  } else if (from === "assistant") {
+    setTimeout(() => {
+      messages.push({
+        from: from,
+        type: type,
+        text: `${text}`,
+      });
+      scrollToBottom();
+    }, 100);
+  }
 }
 
-function send() {
-  const txt = draft.value.trim()
-  if (!txt) return
-  applySuggestion(txt)
-  draft.value = ''
+async function send() {
+  const txt = draft.value.trim();
+  if (!txt) return;
+
+  displayText(txt, "user");
+
+  displayText("Loading...", "assistant", "skeleton-text");
+
+  fetch(`${API_URL}/api/ai`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${""}`,
+    },
+    body: JSON.stringify({
+      prompt: txt,
+    }),
+  }).then(async (res) => {
+    messages.pop();
+
+    if (res.ok) {
+      let data = await res.json();
+      console.log(data);
+      displayText(data["answer"], "assistant", "text");
+
+      if (data["img_path"]) {
+        displayText("Loading...", "assistant", "skeleton-img");
+
+        let img_url = await getImage(data["img_path"]);
+        messages.pop();
+        displayText(img_url, "assistant", "img");
+      }
+    } else {
+      displayText("Something went wrong...", "assistant", "text");
+    }
+  });
+  draft.value = "";
+}
+
+async function getImage(filename) {
+  try {
+    const response = await fetch(`${API_URL}/api/files/file/${filename}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${""}`, // Add actual token here
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.log(response);
+      return "Failed to load image";
+    }
+
+    let res_json = await response.json();
+    console.log(res_json);
+    return res_json["url"];
+  } catch (err) {
+    console.error("Error saving updates:", err);
+    error.value = "Failed to save changes.";
+    // Consider re-adding failed updates to the queue or showing a persistent error
+  }
 }
 
 function close() {
-  emit('close')
+  emit("close");
 }
 
-let startX, startWidth
+let startX, startWidth;
 
 function startResize(event) {
-  startX = event.clientX
-  startWidth = chatWidth.value
-  isResizing.value = true
-  document.documentElement.addEventListener('mousemove', doResize)
-  document.documentElement.addEventListener('mouseup', stopResize)
+  startX = event.clientX;
+  startWidth = chatWidth.value;
+  isResizing.value = true;
+  document.documentElement.addEventListener("mousemove", doResize);
+  document.documentElement.addEventListener("mouseup", stopResize);
 }
 
 function doResize(event) {
-  const newWidth = startWidth + (event.clientX - startX)
-  chatWidth.value = Math.max(newWidth, minWidth) // Ensure minimum width
+  const newWidth = startWidth + (event.clientX - startX);
+  chatWidth.value = Math.max(newWidth, minWidth); // Ensure minimum width
 }
 
 function stopResize() {
-  isResizing.value = false
-  document.documentElement.removeEventListener('mousemove', doResize)
-  document.documentElement.removeEventListener('mouseup', stopResize)
+  isResizing.value = false;
+  document.documentElement.removeEventListener("mousemove", doResize);
+  document.documentElement.removeEventListener("mouseup", stopResize);
 }
 
 onMounted(() => {
   // Any additional setup if needed
-})
+});
 
 onBeforeUnmount(() => {
   // Clean up event listeners if needed
-  document.documentElement.removeEventListener('mousemove', doResize)
-  document.documentElement.removeEventListener('mouseup', stopResize)
-})
+  document.documentElement.removeEventListener("mousemove", doResize);
+  document.documentElement.removeEventListener("mouseup", stopResize);
+});
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap");
 
 .sheet-chat {
   display: flex;
   flex-direction: column;
   height: 100%;
   background: #ffffff;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   z-index: 1000;
   position: relative;
   border: 1px solid #e0e0e0; /* Light grey border */
@@ -208,10 +284,17 @@ onBeforeUnmount(() => {
 .message.user {
   text-align: right;
   color: #3f51b5;
+  margin-left: 10%;
+  padding-inline: 1rem;
+  padding-top: 1rem;
+  font-weight: 800;
 }
 .message.assistant {
   text-align: left;
   color: #333;
+  margin-right: 10%;
+  padding-inline: 1rem;
+  padding-top: 1rem;
 }
 
 /* input bar pinned at bottom */

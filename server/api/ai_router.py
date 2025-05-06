@@ -26,5 +26,4 @@ async def ai_prompt(
     # Store the project metadata
     data = await ai_service.call(request.prompt) #project_service.create(project)
     
-    print(data)
-    return FileResponse(data.chart_path, media_type="image/png")
+    return data.model_dump()

@@ -7,17 +7,19 @@ from util.utils import generate_uuid, ensure_dir, run_r_script, fetch_sample_lin
 from services.sheet_service import SheetService
 import os
 from fastapi.responses import FileResponse
+from services.files_service import FilesService
 
 class AIService:
     def __init__(self, db: SupabaseService):
         self.db = db
         self.sheet_service = SheetService(self.db)
+        self.files_service = FilesService(db)
 
         # Unified system prompt describing available tools
         system_prompt = '''
 You are an AI research assistant chatbot. You have three tools at your disposal:
 
-1. graph    - Create graphs based on the user prompt (returns JSON + R code). Set `chart_path` to the image path
+1. graph    - Create graphs based on the user prompt (returns JSON + R code). Set `img_path` to the fileanme. Set `extra_metadata` to include the `r_code` that you get from `_tool_graph`
 2. predict  - Predict data based on the user prompt (returns prediction results).
 3. analysis - Perform data analysis based on the user prompt (returns analysis text).
 
@@ -39,7 +41,7 @@ You cannot answer personal questions. If a request falls outside these tasks, re
             output_type=AIResponse
         )
 
-    async def _tool_graph(self, prompt: str) -> GraphAgentResponse:
+    async def _tool_graph(self, prompt: str):
         # Loads the CSV data
         ensure_dir('temp_files')
         uuid = generate_uuid()
@@ -71,11 +73,12 @@ You cannot answer personal questions. If a request falls outside these tasks, re
                 Your only job is to just create R code for this prompt (USE ggplot2 package), the actually running of this code
                 is done later on.
                 The R code that you generate has to read read a input file called: {csv_escaped},
-                make sure you correctlyf format the file path for windows
-                to make this chart. Then once the chart is created, you have to save the chart as an image
+                make sure you correctly format the file path for windows
+                to make this chart. Also for x and y variable names, make sure you put it as a string in single quotes and 
+                COPY THE VARIABLE NAME EXACTLY AS GIVEN BY THE SAMPLE SCHEMA(IMPORTANT DIRECTIVE),
+                No bugticks! (VERY IMPORTANT).
+                Then once the chart is created, you have to save the chart as an image
                 to this file name: {output_png_absolute}. DO NOT INCLUDE ANY COMMENTS IN THIS CODE (IMPORTANT)
-                Also for x and y variable names, make sure you put it as a string in single quotes, no bugticks! (VERY IMPORTANT)
-                No bugticks should be used at all in the code
                 
                 The sample schema for this document is: {sample_data}
                 If you cannot create this type of graph, apologize and list available tools.
@@ -99,9 +102,15 @@ You cannot answer personal questions. If a request falls outside these tasks, re
             output = run_r_script(script_absolute)
             print(output)
             
+            # Uploads the file
+            # TODO
+            with open(output_png_absolute, 'rb') as fp:
+                data = fp.read()
+                out = await self.files_service.upload_file('test_org', 'test', data, f'{uuid}.png', 'image/png')
+                
             os.remove(csv_absolute)
-            os.remove(script_absolute)
-            return f"Success: img path = {output_png_absolute}"
+            os.remove(script_absolute)        
+            return GraphAgentResponse(r_code=r_code, status='success', filename=f'{uuid}.png').model_dump()
         else:
             os.remove(csv_absolute)
             os.remove(script_absolute)

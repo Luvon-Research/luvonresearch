@@ -3,13 +3,14 @@ from typing import Optional
 
 class AIResponse(BaseModel):
     status: str = Field(description="'success' or 'failed'")
-    answer: str 
-    chart_path: str
+    answer: str
+    img_path: str = Field(description="Only use this feild for chart responses or else leave blank")
+    extra_metadata: str = Field(description="Leave this blank by default unless specified")
     
 class GraphAgentResponse(BaseModel):
     status: str = Field(description="'success' or 'failed'")
     r_code: str = Field(description="Code in R to recreate this graph")
-    chart_path: str = Field(description="The absolute path to the chart image")
+    filename: str = Field(description="The filename of the chart image")
 
 class AIInput(BaseModel):
     prompt: str

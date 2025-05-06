@@ -11,12 +11,12 @@ class FilesService:
     def get_client(self) -> Client:
         return self.db.get_client()
 
-    async def upload_file(self, org_id: str, uploader_id: str, file: bytes, file_name: str):
+    async def upload_file(self, org_id: str, uploader_id: str, file: bytes, file_name: str, file_option="application/pdf"):
         try:
             client = self.get_client()
             
             # Upload file to Supabase storage
-            storage_response = client.storage.from_('files').upload(file_name, file, file_options={"content-type": "application/pdf"})
+            storage_response = client.storage.from_('files').upload(file_name, file, file_options={"content-type": file_option})
             
             if not storage_response:
                 raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to upload file to storage")
@@ -32,6 +32,7 @@ class FilesService:
                 "file_path": file_path
             }
             response = client.table("files_data").insert(file_data).execute()
+            print(response)
 
             if not response.data:
                 raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to store file metadata")
@@ -70,4 +71,20 @@ class FilesService:
             print(e)
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
         
-        
+    async def get_files_by_filename(self, filename: str):
+        try:
+            client = self.get_client()
+
+            signed_url_response = client.storage.from_('files').create_signed_url(
+                filename, 
+                expires_in=31536000 # 1 year
+            )
+            print(f"Signed URL: {signed_url_response['signedURL']}")
+            return signed_url_response['signedURL']
+
+        except Exception as e:
+            print(e)
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+            
+            
+            

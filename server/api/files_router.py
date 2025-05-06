@@ -47,3 +47,21 @@ async def get_files_by_organization(
         raise e
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) 
+    
+
+@router.get("/file/{filename}")
+async def get_files_by_organization(
+    filename: str,
+    service: FilesService = Depends(get_files_service)
+):
+    try:
+        file = await service.get_files_by_filename(filename)
+        
+        if not file:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No files found by this name")
+
+        return {'url': file}
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) 
