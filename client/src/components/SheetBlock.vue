@@ -535,28 +535,4 @@ onUnmounted(() => {
   ycells = null;
   clearTimeout(flushTimer); // Clear any pending save timeouts
 });
-
-onUnmounted(() => {
-  console.log("SheetBlock unmounting. Disconnecting Yjs and destroying sheet.");
-  if (provider) {
-    provider.disconnect();
-  }
-  if (ydoc) {
-    // ydoc.destroy(); // Consider if ydoc should be destroyed or just disconnected
-  }
-  if (sheet && typeof sheet.destroy === 'function') {
-    const container = document.getElementById("spreadsheet");
-    if (container) {
-      // Use the official destroy method if available and the container exists
-      jspreadsheet.destroy(container);
-      console.log("jspreadsheet instance destroyed.");
-    }
-  }
-  // Nullify references
-  sheet = null;
-  ydoc = null;
-  provider = null;
-  ycells = null;
-  clearTimeout(flushTimer); // Clear any pending save timeouts
-});
 </script>

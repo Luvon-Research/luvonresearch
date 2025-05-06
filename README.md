@@ -39,10 +39,17 @@ This is a web-based spreadsheet application with both client and server componen
    ```bash
    npm run dev
    ```
+
 ### Running the YJS Server
+
 1. Navigate to the client directory:
    ```bash
    cd yjs-server
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
    ```
 2. Install dependencies:
    ```bash
