@@ -1,153 +1,299 @@
-<template>
-  <div class="relative min-h-screen bg-white px-4 pt-6" v-cloak>
-    <!-- Upload Files Trigger Button at Top Right -->
-    
-
-    <!-- Blurred Overlay -->
-    <div v-if="showModal" class="fixed inset-0 z-40 backdrop-blur-sm bg-green-50/60"></div>
-
-    <!-- File Manager Table -->
-    <div class="relative z-0" :class="{ 'pointer-events-none select-none': showModal }">
-      <div class="mt-6 bg-white rounded-lg overflow-hidden shadow-none min-h-[400px]">
-        <div class="flex items-center justify-between px-4 pt-1 pb-2 border-b border-gray-200">
-          <div class="flex gap-4 text-sm font-bold text-black">
-            <button @click="activeTab = 'all'" :class="{ 'border-b-2 border-green-600 pb-1': activeTab === 'all' }">View all</button>
-            <button @click="activeTab = 'your'" :class="{ 'border-b-2 border-green-600 pb-1': activeTab === 'your' }">Your files</button>
-            <button @click="activeTab = 'shared'" :class="{ 'border-b-2 border-green-600 pb-1': activeTab === 'shared' }">Shared files</button>
-          </div>
-          <div class="relative flex items-center gap-2">
-  <svg class="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
-  </svg>
-  <input
-    v-model="searchQuery"
-    type="text"
-    placeholder=""
-    class="pl-8 border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-green-400 font-bold"
-  />
-  <button
-    class="flex items-center justify-center w-8 h-8 bg-green-500 hover:bg-green-600 text-white rounded-full"
-    @click="showModal = true"
-  >
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-    </svg>
-  </button>
-</div>
-        </div>
-        <table class="w-full text-sm text-left">
-          <thead class="bg-green-50 text-black font-bold">
-            <tr>
-              <th class="px-6 py-3">File name</th>
-              <th class="px-6 py-3">File size</th>
-              <th class="px-6 py-3">Uploaded</th>
-              <th class="px-6 py-3">Uploaded by</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="file in filteredFiles"
-              :key="file.name + file.date"
-              class="border-t hover:bg-green-50"
-            >
-              <td class="px-6 py-3 text-black font-bold">{{ file.name }}</td>
-              <td class="px-6 py-3 text-black font-bold">{{ file.size }}</td>
-              <td class="px-6 py-3 text-black font-bold">{{ file.date }}</td>
-              <td class="px-6 py-3 text-black font-bold">You</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Upload Modal -->
-    <div
-      v-if="showModal"
-      class="fixed inset-0 z-50 flex items-center justify-center"
-      @click.self="showModal = false"
-    >
-      <!-- Modal Content -->
-      <div class="relative bg-green-50 w-full max-w-lg rounded-lg p-6 border z-10">
-        <h2 class="text-xl font-bold mb-2 text-black">Upload file</h2>
-        <p class="text-sm text-black mb-4 font-bold">Add your files or documents here</p>
-
-        <div
-          class="border-2 border-dashed border-green-400 rounded-md p-6 text-center cursor-pointer hover:bg-green-100"
-          @click="$refs.fileInput.click()"
-        >
-          <input
-            ref="fileInput" multiple
-            type="file"
-            class="hidden"
-            @change="handleUpload"
-          />
-          <div class="flex flex-col items-center">
-            <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-2">
-              <svg class="w-5 h-5 text-black" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12" />
-              </svg>
-            </div>
-            <p class="text-black text-sm font-bold">
-              Drop your files here,
-              <span class="text-black underline">or click to browse</span>
-            </p>
-          </div>
-        </div>
-
-        <div class="text-sm text-black mt-4 flex justify-between font-bold">
-          <span>Supported files: .docx, .png, .webp, .cvs, .txt, .zip</span>
-          <span>Maximum size: 10MB</span>
-        </div>
-
-        <button
-          class="mt-6 w-full bg-green-500 text-white py-2 rounded-md hover:bg-green-600 transition font-bold"
-          @click="submitUpload"
-        >
-          Continue
-        </button>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed } from "vue";
+import { useFileDialog } from "@vueuse/core";
+import Button from "primevue/button";
+import Dialog from "primevue/dialog";
+import InputText from "primevue/inputtext";
+import FloatLabel from "primevue/floatlabel";
 
-const showModal = ref(false);
+const visible = ref(false);
+const sheetName = ref("");
+const selectedFile = ref(null);
 const uploadedFiles = ref([]);
-const activeTab = ref('all');
-const searchQuery = ref('');
+const searchQuery = ref("");
+const loading = ref(false);
+const error = ref(null);
+const fileViewerUrl = ref(null);
+const showPreview = ref(false);
+
+const { open, onChange } = useFileDialog({ accept: "*/*" });
+
+onChange((files) => {
+  if (files?.[0]) selectedFile.value = files[0];
+});
+
+const handleDrop = (e) => {
+  e.preventDefault();
+  const file = e.dataTransfer.files?.[0];
+  if (file) selectedFile.value = file;
+};
+
+const handleDragOver = (e) => e.preventDefault();
+
+const isCreateEnabled = computed(() => {
+  return selectedFile.value !== null && !loading.value;
+});
 
 const filteredFiles = computed(() => {
-  return uploadedFiles.value.filter(file =>
+  return uploadedFiles.value.filter((file) =>
     file.name.toLowerCase().includes(searchQuery.value.toLowerCase())
   );
 });
 
-function formatFileSize(bytes) {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-  if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
-  return (bytes / 1073741824).toFixed(1) + ' GB';
-}
+const handleCreate = () => {
+  if (!selectedFile.value) {
+    error.value = "No file selected.";
+    return;
+  }
 
-function handleUpload(event) {
-  const files = Array.from(event.target.files);
-  files.forEach(file => {
-    uploadedFiles.value.push({
-      name: file.name,
-      size: formatFileSize(file.size),
-      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    });
+  uploadedFiles.value.push({
+    name: selectedFile.value.name,
+    size: formatFileSize(selectedFile.value.size),
+    uploaded_by: "You",
+    date: new Date().toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }),
+    url: URL.createObjectURL(selectedFile.value),
   });
-  showModal.value = false;
-  event.target.value = null;
-}
 
-function submitUpload() {
-  showModal.value = false;
+  sheetName.value = "";
+  selectedFile.value = null;
+  visible.value = false;
+  error.value = null;
+};
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+  if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + " MB";
+  return (bytes / 1073741824).toFixed(1) + " GB";
 }
 </script>
 
+<template>
+  <div v-if="uploadedFiles.length === 0" class="empty-state">
+    <div class="upload-cta-box">
+      <i class="pi pi-folder-open upload-icon"></i>
+      <h2>No files uploaded yet</h2>
+      <p class="upload-hint">Click below to add your first file</p>
+      <Button
+        class="upload-only-btn"
+        label="Upload File"
+        icon="pi pi-upload"
+        @click="visible = true"
+      />
+    </div>
+  </div>
+
+  <div v-else>
+    <div class="top-actions">
+      <InputText
+        v-model="searchQuery"
+        placeholder="🔍 Search files..."
+        class="search-input"
+      />
+      <Button
+        class="create-sheet-btn"
+        label="Upload File"
+        icon="pi pi-upload"
+        @click="visible = true"
+      />
+    </div>
+
+    <div class="uploaded-list">
+      <h3 class="table-title">Uploaded Files</h3>
+      <table class="file-table">
+        <thead>
+          <tr>
+            <th>File Name</th>
+            <th>Size</th>
+            <th>Uploaded By</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="file in filteredFiles"
+            :key="file.name + file.date"
+            @click="fileViewerUrl = file.url; showPreview = true"
+            style="cursor: pointer"
+          >
+            <td>{{ file.name }}</td>
+            <td>{{ file.size }}</td>
+            <td>{{ file.uploaded_by }}</td>
+            <td>{{ file.date }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <Dialog v-model:visible="showPreview" modal header="File Preview" :style="{ width: '85vw', height: '90vh' }">
+      <iframe
+        v-if="fileViewerUrl"
+        :src="fileViewerUrl"
+        style="width: 100%; height: 80vh; border: none"
+      />
+    </Dialog>
+  </div>
+
+  <Dialog
+    v-model:visible="visible"
+    modal
+    header="Upload File"
+    :style="{ width: '35vw', maxWidth: '30rem' }"
+  >
+    <div class="create-sheet-form">
+      <div v-if="error" class="error-message">{{ error }}</div>
+
+      <div class="drop-zone" @drop="handleDrop" @dragover="handleDragOver">
+        <i class="pi pi-upload"></i>
+        <p>Drag and drop your file here</p>
+        <p>or</p>
+        <Button
+          label="Browse Files"
+          @click="open"
+          severity="secondary"
+          text
+          :disabled="loading"
+        />
+        <p v-if="selectedFile" class="selected-file">
+          Selected: {{ selectedFile.name }}
+        </p>
+      </div>
+
+      <Button
+        :disabled="!isCreateEnabled"
+        :loading="loading"
+        :label="loading ? 'Uploading...' : 'Upload File'"
+        class="create-button"
+        @click="handleCreate"
+      />
+    </div>
+  </Dialog>
+</template>
+
 <style scoped>
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 80vh;
+  gap: 1rem;
+}
+
+.upload-cta-box {
+  padding: 2rem;
+}
+
+.upload-icon {
+  font-size: 3rem;
+  color: #4a56e2;
+}
+
+.upload-hint {
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.upload-only-btn {
+  background-color: #4a56e2;
+  color: white;
+  border-radius: 6px;
+  font-weight: bold;
+}
+
+.top-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.search-input {
+  flex-grow: 1;
+  max-width: 300px;
+}
+
+.create-sheet-btn {
+  background-color: #4a56e2;
+  color: white;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  font-weight: bold;
+}
+
+.uploaded-list {
+  overflow-x: auto;
+}
+
+.table-title {
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+}
+
+.file-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.file-table th,
+.file-table td {
+  text-align: left;
+  padding: 0.75rem;
+  border-bottom: 1px solid #ddd;
+}
+
+.create-sheet-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem 0;
+}
+
+.drop-zone {
+  border: 2px dashed #cfd4ff;
+  border-radius: 8px;
+  background: #f3f4ff;
+  padding: 2rem;
+  text-align: center;
+}
+
+.drop-zone i {
+  font-size: 2rem;
+  color: #4a56e2;
+  margin-bottom: 0.5rem;
+}
+
+.drop-zone p {
+  margin: 0.3rem 0;
+  color: #4a56e2;
+  font-weight: 500;
+}
+
+.selected-file {
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.create-button {
+  background-color: #4a56e2;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.75rem;
+  font-weight: 600;
+}
+
+.error-message {
+  background-color: #fdecea;
+  color: #b71c1c;
+  padding: 0.75rem;
+  border-radius: 4px;
+}
 </style>
