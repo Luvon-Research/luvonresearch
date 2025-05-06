@@ -19,5 +19,12 @@
 
     // …your other options…
   },
-  "include": ["src/**/*", "env.d.ts", "src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue"]
+  "include": [
+    "src/**/*",
+    "env.d.ts",
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/**/*.vue",
+    "src/shims-vue.d.ts"
+  ]
 } 

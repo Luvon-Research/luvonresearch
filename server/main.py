@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse
 import json
 from sse_starlette import EventSourceResponse
 import time
+from api.files_router import router as files_router
 
 app = FastAPI()
 
@@ -29,6 +30,7 @@ app.include_router(sheets_router)
 app.include_router(projects_router)
 app.include_router(webhooks_router)
 app.include_router(ai_router)
+app.include_router(files_router)
 
 @app.get("/")
 async def read_root():
