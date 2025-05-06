@@ -6,3 +6,4 @@ pyjwt[crypto]
 requests
 numpy
 pydantic-ai-slim[vertexai]
+sse_starlette

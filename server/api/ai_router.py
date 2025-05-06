@@ -5,6 +5,7 @@ from models.project import ProjectBase, ProjectCreated
 from services.project_service import ProjectService
 from services.ai_tools_service import AIService
 from models.ai import AIResponse, AIInput
+from fastapi.responses import FileResponse
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -23,4 +24,7 @@ async def ai_prompt(
     #project.user_id = user_id
     
     # Store the project metadata
-    return await ai_service.call(request.prompt) #project_service.create(project)
+    data = await ai_service.call(request.prompt) #project_service.create(project)
+    
+    print(data)
+    return FileResponse(data.chart_path, media_type="image/png")

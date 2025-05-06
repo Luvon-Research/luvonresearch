@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from util.utils import generate_uuid, ensure_dir, run_r_script, fetch_sample_lines, strip_code_block
 from services.sheet_service import SheetService
 import os
+from fastapi.responses import FileResponse
 
 class AIService:
     def __init__(self, db: SupabaseService):
@@ -16,7 +17,7 @@ class AIService:
         system_prompt = '''
 You are an AI research assistant chatbot. You have three tools at your disposal:
 
-1. graph    - Create graphs based on the user prompt (returns JSON + R code).
+1. graph    - Create graphs based on the user prompt (returns JSON + R code). Set `chart_path` to the image path
 2. predict  - Predict data based on the user prompt (returns prediction results).
 3. analysis - Perform data analysis based on the user prompt (returns analysis text).
 
@@ -51,7 +52,7 @@ You cannot answer personal questions. If a request falls outside these tasks, re
         output_png_absolute = os.path.abspath(output_png).replace('\\', '\\\\')
 
         print("Pulling CSV data")
-        csv_data = await self.sheet_service.get_sheet_data_csv_by_id('870a5153-6235-4db5-a4ce-91a5c3e1fa0e', False)
+        csv_data = await self.sheet_service.get_sheet_data_csv_by_id('a0a7b941-ade5-4f19-a82e-0cc236266424', False)
         
         print("Wrote CSV data")
         with open(csv_file_name, 'w', newline="") as fp:
@@ -73,6 +74,8 @@ You cannot answer personal questions. If a request falls outside these tasks, re
                 make sure you correctlyf format the file path for windows
                 to make this chart. Then once the chart is created, you have to save the chart as an image
                 to this file name: {output_png_absolute}. DO NOT INCLUDE ANY COMMENTS IN THIS CODE (IMPORTANT)
+                Also for x and y variable names, make sure you put it as a string in single quotes, no bugticks! (VERY IMPORTANT)
+                No bugticks should be used at all in the code
                 
                 The sample schema for this document is: {sample_data}
                 If you cannot create this type of graph, apologize and list available tools.
@@ -96,11 +99,12 @@ You cannot answer personal questions. If a request falls outside these tasks, re
             output = run_r_script(script_absolute)
             print(output)
             
-            #os.remove(random_file_name)
-            #os.remove(run_script_name)
+            os.remove(csv_absolute)
+            os.remove(script_absolute)
+            return f"Success: img path = {output_png_absolute}"
         else:
-            #os.remove(random_file_name)
-            #os.remove(run_script_name)
+            os.remove(csv_absolute)
+            os.remove(script_absolute)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to generate chart"
