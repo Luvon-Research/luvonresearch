@@ -29,4 +29,21 @@ async def upload_file(
     except HTTPException as e:
         raise e
     except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+@router.get("/{org_id}")
+async def get_files_by_organization(
+    org_id: str,
+    service: FilesService = Depends(get_files_service)
+):
+    try:
+        files = await service.get_files_by_org_id(org_id)
+        
+        if not files:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No files found for this organization")
+
+        return files
+    except HTTPException as e:
+        raise e
+    except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) 

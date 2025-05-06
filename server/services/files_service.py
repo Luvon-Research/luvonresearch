@@ -16,7 +16,7 @@ class FilesService:
             client = self.get_client()
             
             # Upload file to Supabase storage
-            storage_response = client.storage.from_('files').upload(file_name, file)
+            storage_response = client.storage.from_('files').upload(file_name, file, file_options={"content-type": "application/pdf"})
             
             if not storage_response:
                 raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to upload file to storage")
@@ -41,3 +41,33 @@ class FilesService:
         except Exception as e:
             print(e)
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+    async def get_files_by_org_id(self, org_id: str):
+        try:
+            client = self.get_client()
+            response = client.table("files_data").select("*").eq("org_id", org_id).execute()
+            files = response.data or []
+            print(files)
+            print(org_id)
+
+            # Generate signed URLs for each file
+            for file in files:
+                print(f"Generating signed URL for file path: {file['file_path']}")
+                # Remove "files/" prefix
+                file_path = file["file_path"]
+                if file_path.startswith("files/"):
+                    file_path = file_path[len("files/"):]
+
+                signed_url_response = client.storage.from_('files').create_signed_url(
+                    file_path, 
+                    expires_in=3600
+                )
+                print(f"Signed URL: {signed_url_response['signedURL']}")
+                file["signed_url"] = signed_url_response['signedURL']
+
+            return files
+        except Exception as e:
+            print(e)
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        
+        
