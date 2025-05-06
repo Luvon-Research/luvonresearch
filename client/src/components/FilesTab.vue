@@ -1,10 +1,13 @@
 <script setup>
 import { ref, computed } from "vue";
 import { useFileDialog } from "@vueuse/core";
+import { useOrganization, useSession } from "@clerk/vue";
 import Button from "primevue/button";
 import Dialog from "primevue/dialog";
 import InputText from "primevue/inputtext";
 import FloatLabel from "primevue/floatlabel";
+import IconField from "primevue/iconfield";
+import InputIcon from "primevue/inputicon";
 
 const visible = ref(false);
 const sheetName = ref("");
@@ -88,12 +91,12 @@ function formatFileSize(bytes) {
   </div>
 
   <div v-else>
+    <h3 class="table-title">Uploaded Files</h3>
     <div class="top-actions">
-      <InputText
-        v-model="searchQuery"
-        placeholder="🔍 Search files..."
-        class="search-input"
-      />
+      <IconField iconPosition="left" class="search-input">
+        <InputIcon class="pi pi-search" />
+        <InputText v-model="searchQuery" placeholder="Search files..." />
+      </IconField>
       <Button
         class="create-sheet-btn"
         label="Upload File"
@@ -103,7 +106,6 @@ function formatFileSize(bytes) {
     </div>
 
     <div class="uploaded-list">
-      <h3 class="table-title">Uploaded Files</h3>
       <table class="file-table">
         <thead>
           <tr>
@@ -233,8 +235,10 @@ function formatFileSize(bytes) {
 }
 
 .table-title {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
   font-weight: bold;
+  font-size: 1.1rem;
+  color: #000000;
 }
 
 .file-table {
