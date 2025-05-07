@@ -5,7 +5,7 @@ class AIResponse(BaseModel):
     status: str = Field(description="'success' or 'failed'")
     answer: str
     img_path: str = Field(description="Only use this feild for chart responses or else leave blank")
-    extra_metadata: str = Field(description="Leave this blank by default unless specified")
+    extra_metadata: str = Field(description="Leave this blank by default unless specified, or else include code here")
     
 class GraphAgentResponse(BaseModel):
     status: str = Field(description="'success' or 'failed'")

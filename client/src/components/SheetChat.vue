@@ -65,7 +65,7 @@
           <Skeleton width="80%" height="5rem"></Skeleton>
         </div>
 
-        <img :src="msg.text" v-if="msg.type === 'img'" class="img"/>
+        <img :src="msg.text" v-if="msg.type === 'img'" class="img" />
 
         <p
           v-if="
@@ -75,6 +75,21 @@
           "
           class="generatedTime"
         >
+
+        <div v-if="msg.type === 'code'">
+          <p>Here's the R code used to make this chart</p>
+        <CodeBlock
+        :code="msg.text"
+        :numbered="true"
+        :show-header="true"
+        file-name="chart.R"
+        language="c"
+        theme="vsDark"
+        style="font-size: 12px;"
+        
+      >
+      </CodeBlock>
+      </div>
           <i class="pi pi-sparkles"></i> Generated in {{ msg.generationTime }}s
         </p>
       </div>
@@ -123,6 +138,7 @@ import {
 import Skeleton from "primevue/skeleton";
 import { useSession, useOrganization } from "@clerk/vue";
 import Button from "primevue/button";
+import { CodeBlock } from 'vuejs-code-block';
 
 const { organization } = useOrganization();
 const emit = defineEmits(["close"]);
@@ -269,9 +285,12 @@ async function send() {
         let img_url = await getImage(data["img_path"]);
         messages.pop();
         displayText(img_url, "assistant", "img");
+        displayText(data["extra_metadata"], "assistant", "code");
+
       }
     } else {
-      displayText("Something went wrong...", "assistant", "text");
+      const elapsedSec = (Date.now() - start) / 1000;
+      displayText("Something went wrong...", "assistant", "text", elapsedSec);
     }
 
     loading.value = false;
@@ -382,9 +401,13 @@ onBeforeUnmount(() => {
   gap: 0.5rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid #e0e0e0;
+  max-width: 75vw;
+  margin-left: auto;
+  margin-right: auto;
+  min-width: 380px;
 }
 .suggestion {
-  width: 100%;
+  max-width: 75vw;
   padding: 0.6rem;
   background: #f9f9f9;
   border: 1px solid #e0e0e0;
@@ -541,7 +564,7 @@ onBeforeUnmount(() => {
   margin-top: 0.4rem;
 }
 
-.img{
+.img {
   width: 100%;
   max-width: 40vw;
 }

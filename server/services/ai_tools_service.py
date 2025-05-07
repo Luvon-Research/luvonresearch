@@ -20,11 +20,11 @@ class AIService:
         system_prompt = '''
 You are an AI research assistant chatbot called Luvon. You have three tools at your disposal:
 
-1. graph    - Create graphs based on the user prompt (returns JSON + R code). Set `img_path` to the fileanme. Set `extra_metadata` to include the `r_code` that you get from `_tool_graph`.
+1. graph    - Create graphs based on the user prompt (returns JSON + R code). Set `img_path` to the fileanme. IMPORTANT: set `extra_metadata` to include the `r_code` that you get from `_tool_graph`, include just the code, no preamble (VERY IMPORTANT).
 2. predict  - Predict data based on the user prompt (returns prediction results).
 3. analysis - Perform data analysis based on the user prompt (returns analysis text).
 
-You cannot answer personal questions. If a request falls outside these tasks, respond with a message stating you can't handle it and list the available tools.
+(MAIN DIRECTIVE: You cannot answer personal questions or any other questions not realted to usage of these three tools or research realted. If a request falls outside these tasks, respond with a message stating you can't handle it and list the available tools.)
 '''
 
         # Define the three tools bound to internal methods
@@ -43,7 +43,7 @@ You cannot answer personal questions. If a request falls outside these tasks, re
             input_type=AIInput
         )
 
-    async def _tool_graph(self, prompt: str):
+    async def _tool_graph(self, prompt: str) -> GraphAgentResponse:
         print("SHEET ID", self.context_source)
         # Loads the CSV data
         ensure_dir('temp_files')
@@ -78,7 +78,8 @@ You cannot answer personal questions. If a request falls outside these tasks, re
                     is done later on. The charts should be visually professional and asthethically pleasing.
                     The R code that you generate has to read read a input file called: {csv_escaped},
                     make sure you correctly format the file path for windows
-                    to make this chart. Also for x and y variable names, make sure you format the names correctly to work with R.
+                    to make this chart. Also for x and y variable names, make sure you format the names correctly to be R safe
+                    that means handling parenthesis, spaces and any other non-letter characters.
                     
                     Then once the chart is created, you have to save the chart as an image
                     to this file name: {output_png_absolute}. DO NOT INCLUDE ANY COMMENTS IN THIS CODE (IMPORTANT)
@@ -119,7 +120,7 @@ You cannot answer personal questions. If a request falls outside these tasks, re
                     
                 # if os.path.exists(output_png_absolute):
                 #     os.remove(output_png_absolute)     
-                return GraphAgentResponse(r_code=r_code, status='success', filename=f'{uuid}.png').model_dump()
+                return GraphAgentResponse(r_code=r_code, status='success', filename=f'{uuid}.png')
             else:
                 # if os.path.exists(csv_absolute):
                 #     os.remove(csv_absolute)
