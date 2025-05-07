@@ -35,7 +35,7 @@ class UserService:
             print(session)
             if not session:
                 raise HTTPException(status_code=401, detail="Invalid session")
-            return None#{'user_id': session.user_id, 'user_org': session.}
+            return session.user_id
         
         except Exception as e:
             raise HTTPException(status_code=401, detail=str(e))

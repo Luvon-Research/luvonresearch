@@ -5,22 +5,34 @@
       <div class="d-flex justify-content-between">
         <h3>How can I assist you?</h3>
         <div class="d-flex">
-          <button class="expand-btn" @click="fullscreen"><i class="pi pi-window-maximize"></i></button>
+          <button class="expand-btn" @click="fullscreenToggle">
+            <i
+              :class="
+                'pi ' +
+                (fullscreen ? 'pi-window-minimize' : 'pi-window-maximize')
+              "
+            ></i>
+          </button>
           <button class="close-btn" @click="close">×</button>
         </div>
       </div>
 
       <div class="d-flex">
         <span class="context-badge">
-          Using Context: 
-        <i v-if="props.contextType === 'sheets'" class="pi pi-table sheet-icon"></i>
-        <img :src="orgImgUrl" v-if="props.contextType !== 'sheets'" class="org-img"/>
-        <p v-if="props.contextType !== 'sheets'">{{ orgName }}</p>
-        <p v-if="props.contextType === 'sheets'">{{ props.contextName }}</p>
-        
-      </span>
+          Using Context:
+          <i
+            v-if="props.contextType === 'sheets'"
+            class="pi pi-table sheet-icon"
+          ></i>
+          <img
+            :src="orgImgUrl"
+            v-if="props.contextType !== 'sheets'"
+            class="org-img"
+          />
+          <p v-if="props.contextType !== 'sheets'">{{ orgName }}</p>
+          <p v-if="props.contextType === 'sheets'">{{ props.contextName }}</p>
+        </span>
       </div>
-
     </header>
 
     <!-- suggestion buttons -->
@@ -53,7 +65,7 @@
           <Skeleton width="80%" height="5rem"></Skeleton>
         </div>
 
-        <img :src="msg.text" v-if="msg.type === 'img'" />
+        <img :src="msg.text" v-if="msg.type === 'img'" class="img"/>
 
         <p
           v-if="
@@ -68,15 +80,24 @@
       </div>
     </div>
 
+    <center>
+      <div class="input-bar">
+        <input
+          v-model="draft"
+          @keyup.enter="send"
+          placeholder="Send a message…"
+        />
+        <Button
+          class="send-btn"
+          @click="send"
+          icon="pi pi-arrow-up"
+          :loading="loading"
+        >
+        </Button>
+      </div>
+    </center>
+
     <!-- input bar -->
-    <div class="input-bar">
-      <input
-        v-model="draft"
-        @keyup.enter="send"
-        placeholder="Send a message…"
-      />
-      <button class="send-btn" @click="send">Send</button>
-    </div>
 
     <!-- Resizable handle -->
     <div
@@ -97,17 +118,19 @@ import {
   onMounted,
   onBeforeUnmount,
   defineProps,
-  unref
+  unref,
 } from "vue";
 import Skeleton from "primevue/skeleton";
 import { useSession, useOrganization } from "@clerk/vue";
-
+import Button from "primevue/button";
 
 const { organization } = useOrganization();
 const emit = defineEmits(["close"]);
 const { session } = useSession();
-const orgImgUrl = ref('')
-const orgName = ref('')
+const orgImgUrl = ref("");
+const orgName = ref("");
+const fullscreen = ref(false);
+const loading = ref(false);
 
 const props = defineProps({
   contextType: {
@@ -127,9 +150,9 @@ const props = defineProps({
 onMounted(() => {
   console.log(session.value.id);
   console.log(props.sheetId);
-  console.log(organization.value.imageUrl)
-  orgImgUrl.value = organization.value.imageUrl
-  orgName.value = organization.value.name
+  console.log(organization.value.imageUrl);
+  orgImgUrl.value = organization.value.imageUrl;
+  orgName.value = organization.value.name;
 });
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -198,8 +221,14 @@ function displayText(text, from, type, generationTime = 0) {
   }
 }
 
-function fullscreen(){
-  
+function fullscreenToggle() {
+  if (fullscreen.value) {
+    // Reverts back to small
+    chatWidth.value = 380;
+  } else {
+    chatWidth.value = window.outerWidth; // Makes it full screen
+  }
+  fullscreen.value = !fullscreen.value;
 }
 async function send() {
   const txt = draft.value.trim();
@@ -210,6 +239,8 @@ async function send() {
   displayText("Loading...", "assistant", "skeleton-text");
 
   const start = Date.now();
+
+  loading.value = true;
 
   fetch(`${API_URL}/api/ai`, {
     method: "POST",
@@ -242,6 +273,8 @@ async function send() {
     } else {
       displayText("Something went wrong...", "assistant", "text");
     }
+
+    loading.value = false;
   });
   draft.value = "";
 }
@@ -372,6 +405,10 @@ onBeforeUnmount(() => {
   flex: 1;
   overflow-y: auto;
   padding: 1rem;
+  max-width: 60vw;
+  min-width: 360px;
+  margin-left: auto;
+  margin-right: auto;
 }
 .message {
   margin: 0.4rem 0;
@@ -400,6 +437,7 @@ onBeforeUnmount(() => {
   gap: 0.5rem;
   padding: 0.75rem 1rem;
   border-top: 1px solid #e0e0e0;
+  max-width: 45vw;
 }
 .input-bar input {
   flex: 1;
@@ -459,7 +497,7 @@ onBeforeUnmount(() => {
   font-size: 12px;
 }
 
-.context-badge{
+.context-badge {
   display: flex;
   gap: 0.4rem;
   width: fit-content;
@@ -476,31 +514,35 @@ onBeforeUnmount(() => {
   transition: background-color 0.2s ease, border-color 0.2s ease; /* Smooth transition */
 }
 
-.context-badge:hover{
+.context-badge:hover {
   cursor: pointer;
   background-color: #f9f9f9; /* Softer light gray on hover */
   border-color: #e0e0e0; /* Slightly darker border on hover */
 }
 
-
-.sheet-icon{
+.sheet-icon {
   color: rgb(3, 161, 3);
   margin-top: 0.1rem;
 }
 
-.context-text{
+.context-text {
   font-size: 13px;
   margin-right: 1rem;
 }
 
-.org-img{
+.org-img {
   height: 1.3rem;
   width: 1.3rem;
   border-radius: 4px;
 }
 
-.expand-btn{
+.expand-btn {
   margin-right: 0.5rem;
   margin-top: 0.4rem;
+}
+
+.img{
+  width: 100%;
+  max-width: 40vw;
 }
 </style>
