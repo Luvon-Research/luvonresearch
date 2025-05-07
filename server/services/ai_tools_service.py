@@ -1,12 +1,11 @@
 from services.supabase_service import SupabaseService
 from config import settings
 from pydantic_ai import Agent, Tool
-from models.ai import AIResponse, MainAgentResponse, GraphAgentResponse, AIInput
+from models.ai import AIResponse, MainAgentResponse, GraphAgentResponse, AIInput, GraphAgentFinalResponse
 from fastapi import HTTPException, status
 from util.utils import generate_uuid, ensure_dir, run_r_script, fetch_sample_lines, strip_code_block
 from services.sheet_service import SheetService
 import os
-from fastapi.responses import FileResponse
 from services.files_service import FilesService
 
 class AIService:
@@ -17,15 +16,42 @@ class AIService:
         self.context_source = None
 
         # Unified system prompt describing available tools
-        system_prompt = '''
-You are an AI research assistant chatbot called Luvon. You have three tools at your disposal:
+        system_prompt = """
+        You are Luvon, an AI research assistant with three tools:
 
-1. graph    - Create graphs based on the user prompt (returns JSON + R code). Set `img_path` to the fileanme. IMPORTANT: set `extra_metadata` to include the `r_code` that you get from `_tool_graph`, include just the code, no preamble (VERY IMPORTANT).
-2. predict  - Predict data based on the user prompt (returns prediction results).
-3. analysis - Perform data analysis based on the user prompt (returns analysis text).
+        1. graph
+        - Call `_tool_graph` tool and obtain `r_code` and `img_url`
+            • Generates raw ggplot2 R code for charts.  
+        • Include a small message on the output
+        • Include the image url `img_url` in your response in `answer`.
+        • Return the R code only (no comments or preamble) in `answer`.  
 
-(MAIN DIRECTIVE: You cannot answer personal questions or any other questions not realted to usage of these three tools or research realted. If a request falls outside these tasks, respond with a message stating you can't handle it and list the available tools.)
-'''
+
+        2. predict  
+        • Produce data predictions.
+
+        3. analysis  
+        • Provide data analysis text.
+
+        Your `answer` must be a JSON array of objects, each with:
+        {
+            "type": "message" | "image" | "code",
+            "value": "<text or URL or code>"
+        }
+
+        - For plain text answers use type "message".  
+        - For charts use type "image" with the URL.  
+        - For R code use type "code" with the raw ggplot2 script.
+
+        If the user asks for anything outside these tools, return:
+        [
+        {
+            "type": "message",
+            "value": "Sorry, I can only handle graph, predict, or analysis requests."
+        }
+        ]
+        """
+
 
         # Define the three tools bound to internal methods
         tools = [
@@ -43,7 +69,7 @@ You are an AI research assistant chatbot called Luvon. You have three tools at y
             input_type=AIInput
         )
 
-    async def _tool_graph(self, prompt: str) -> GraphAgentResponse:
+    async def _tool_graph(self, prompt: str) -> GraphAgentFinalResponse:
         print("SHEET ID", self.context_source)
         # Loads the CSV data
         ensure_dir('temp_files')
@@ -72,20 +98,15 @@ You are an AI research assistant chatbot called Luvon. You have three tools at y
             graph_agent = Agent(
                 model=settings.AI_MODEL,
                 system_prompt=f'''
-                    You are the graph tool you can create R code for any type of chart that is supported by R. 
-                    Generate R code under `r_code` to make this chart. 
-                    Your only job is to just create R code for this prompt (USE ggplot2 package), the actually running of this code
-                    is done later on. The charts should be visually professional and asthethically pleasing.
-                    The R code that you generate has to read read a input file called: {csv_escaped},
-                    make sure you correctly format the file path for windows
-                    to make this chart. Also for x and y variable names, make sure you format the names correctly to be R safe
-                    that means handling parenthesis, spaces and any other non-letter characters.
+                    You are the graph tool. Your sole task is to produce professional, 
+                     aesthetically pleasing ggplot2 R code under `r_code` that:
+                      • Reads the CSV at "{csv_escaped}" (Windows path must be escaped).  
+                      • Uses R-safe variable names (handling spaces, parentheses, and other non-alphanumeric characters), use bugticks.  
+                      • Saves the plot to "{output_png_absolute}".  
+                      • Contains only the R code—no comments or extra text.
                     
-                    Then once the chart is created, you have to save the chart as an image
-                    to this file name: {output_png_absolute}. DO NOT INCLUDE ANY COMMENTS IN THIS CODE (IMPORTANT)
-                    
-                    The sample schema for this document is: {sample_data}
-                    If you cannot create this type of graph, apologize and list available tools.
+                    The sample schema for this dataset is: {sample_data}
+                    If you cannot generate this chart, apologize and list the available tools.
                 ''',
                 output_type=GraphAgentResponse
             )
@@ -106,12 +127,14 @@ You are an AI research assistant chatbot called Luvon. You have three tools at y
                 output = run_r_script(script_absolute)
                 print(output)
                 
+                img_url = None
+                img_filename = f'{uuid}.png'
                 # Uploads the file
                 # TODO fill in the org id and everything
                 with open(output_png_absolute, 'rb') as fp:
                     data = fp.read()
-                    out = await self.files_service.upload_file('test_org', 'test', data, f'{uuid}.png', 'image/png')
-                
+                    out = await self.files_service.upload_file('test_org', 'test', data, img_filename, 'image/png')
+                    img_url = await self.files_service.get_files_by_filename(img_filename)
                 # if os.path.exists(csv_absolute):
                 #     os.remove(csv_absolute)
                     
@@ -120,7 +143,7 @@ You are an AI research assistant chatbot called Luvon. You have three tools at y
                     
                 # if os.path.exists(output_png_absolute):
                 #     os.remove(output_png_absolute)     
-                return GraphAgentResponse(r_code=r_code, status='success', filename=f'{uuid}.png')
+                return GraphAgentFinalResponse(r_code=r_code, status='success', img_url=img_url)
             else:
                 # if os.path.exists(csv_absolute):
                 #     os.remove(csv_absolute)
@@ -174,7 +197,7 @@ You are the analysis tool. Provide detailed analysis in AIResponse format.
         res = await analysis_agent.run(prompt)
         return res.output
 
-    async def call(self, input: AIInput) -> MainAgentResponse:
+    async def call(self, input: AIInput):
         """
         Dispatch the prompt to the appropriate tool via the unified agent.
         Returns a MainAgentResponse with `answer_path` and tool output attached.

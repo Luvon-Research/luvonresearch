@@ -55,7 +55,7 @@
         :class="['message', msg.from]"
       >
         <p class="timestamp">{{ msg.timestamp }}</p>
-        <p v-if="msg.type === 'text'">{{ msg.text }}</p>
+        <p v-if="msg.type === 'message'">{{ msg.text }}</p>
         <div v-if="msg.type === 'skeleton-text'">
           <Skeleton width="80%" class="mb-2"></Skeleton>
           <Skeleton width="80%" class="mb-2"></Skeleton>
@@ -65,13 +65,13 @@
           <Skeleton width="80%" height="5rem"></Skeleton>
         </div>
 
-        <img :src="msg.text" v-if="msg.type === 'img'" class="img" />
+        <img :src="msg.text" v-if="msg.type === 'image'" class="img" />
 
         <p
           v-if="
             msg.from === 'assistant' &&
             msg.type !== 'skeleton-text' &&
-            msg.type !== 'img'
+            msg.type !== 'image'
           "
           class="generatedTime"
         >
@@ -218,7 +218,7 @@ function displayText(text, from, type, generationTime = 0) {
   if (from === "user") {
     messages.push({
       from: from,
-      type: "text",
+      type: "message",
       text: text,
       timestamp: timestamp,
     });
@@ -277,17 +277,11 @@ async function send() {
       console.log(data);
       const elapsedSec = (Date.now() - start) / 1000;
 
-      displayText(data["answer"], "assistant", "text", elapsedSec);
+      let answers = data['answer'];
 
-      if (data["img_path"]) {
-        displayText("Loading...", "assistant", "skeleton-img");
-
-        let img_url = await getImage(data["img_path"]);
-        messages.pop();
-        displayText(img_url, "assistant", "img");
-        displayText(data["extra_metadata"], "assistant", "code");
-
-      }
+      answers.forEach((val) => {
+        displayText(val['value'], "assistant", val['type'], elapsedSec);
+      });
     } else {
       const elapsedSec = (Date.now() - start) / 1000;
       displayText("Something went wrong...", "assistant", "text", elapsedSec);
@@ -296,32 +290,6 @@ async function send() {
     loading.value = false;
   });
   draft.value = "";
-}
-
-async function getImage(filename) {
-  try {
-    const response = await fetch(`${API_URL}/api/files/file/${filename}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${""}`, // Add actual token here
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log(response);
-      return "Failed to load image";
-    }
-
-    let res_json = await response.json();
-    console.log(res_json);
-    return res_json["url"];
-  } catch (err) {
-    console.error("Error saving updates:", err);
-    error.value = "Failed to save changes.";
-    // Consider re-adding failed updates to the queue or showing a persistent error
-  }
 }
 
 function close() {

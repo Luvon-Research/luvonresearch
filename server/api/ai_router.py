@@ -7,6 +7,7 @@ from services.ai_tools_service import AIService
 from services.user_service import UserService
 from models.ai import AIResponse, AIInput
 from fastapi.responses import FileResponse
+import json
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -32,4 +33,10 @@ async def ai_prompt(
     # Store the project metadata
     data = await ai_service.call(body)
     
-    return data.model_dump()
+    data = data.model_dump()
+    
+    print(data)
+    
+    data['answer'] = json.loads(data['answer'])
+    
+    return data
