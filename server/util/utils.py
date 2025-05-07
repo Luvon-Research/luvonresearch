@@ -70,8 +70,5 @@ def strip_code_block(text: str) -> str:
     # 4) Strip trailing quotes from last line
     if len(lines) > 1:
         lines[-1] = re.sub(r'\s*"+$', '', lines[-1])
-    
-    for line in lines:
-        all_lines.append(line.replace("`", "'"))
 
-    return "\n".join(all_lines).strip()
+    return "\n".join(lines).strip()

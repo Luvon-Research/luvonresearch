@@ -14,6 +14,7 @@ class GraphAgentResponse(BaseModel):
 
 class AIInput(BaseModel):
     prompt: str
+    context_source: str
 
 class MainAgentResponse(BaseModel):
     status: str = Field(description="'success' or 'failed'")

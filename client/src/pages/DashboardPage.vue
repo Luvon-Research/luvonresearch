@@ -299,6 +299,9 @@ const filteredSheets = computed(() => {
         <SheetChat
           v-if="showChat"
           class="sheet-chat"
+          :sheet-id="selectedSheetId"
+          :context-name="selectedSheetName"
+          :context-type="selectedPage"
           @close="showChat = false"
         />
       </transition>
@@ -444,5 +447,19 @@ const filteredSheets = computed(() => {
 .slide-enter-from,
 .slide-leave-to {
   transform: translateX(-100%);
+}
+
+.no-sheets-img{
+  margin-top: 20vh;
+  width: 10rem;
+}
+
+.no-sheets-title{
+  font-size: 30px;
+}
+
+.no-sheets-subtitle{
+  color: gray;
+  width: 30%;
 }
 </style>

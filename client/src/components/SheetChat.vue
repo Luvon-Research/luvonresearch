@@ -2,8 +2,25 @@
   <div class="sheet-chat" :style="{ width: chatWidth + 'px' }">
     <!-- Header -->
     <header class="chat-header">
-      <h3>How can I assist you?</h3>
-      <button class="close-btn" @click="close">×</button>
+      <div class="d-flex justify-content-between">
+        <h3>How can I assist you?</h3>
+        <div class="d-flex">
+          <button class="expand-btn" @click="fullscreen"><i class="pi pi-window-maximize"></i></button>
+          <button class="close-btn" @click="close">×</button>
+        </div>
+      </div>
+
+      <div class="d-flex">
+        <span class="context-badge">
+          Using Context: 
+        <i v-if="props.contextType === 'sheets'" class="pi pi-table sheet-icon"></i>
+        <img :src="orgImgUrl" v-if="props.contextType !== 'sheets'" class="org-img"/>
+        <p v-if="props.contextType !== 'sheets'">{{ orgName }}</p>
+        <p v-if="props.contextType === 'sheets'">{{ props.contextName }}</p>
+        
+      </span>
+      </div>
+
     </header>
 
     <!-- suggestion buttons -->
@@ -25,6 +42,7 @@
         :key="idx"
         :class="['message', msg.from]"
       >
+        <p class="timestamp">{{ msg.timestamp }}</p>
         <p v-if="msg.type === 'text'">{{ msg.text }}</p>
         <div v-if="msg.type === 'skeleton-text'">
           <Skeleton width="80%" class="mb-2"></Skeleton>
@@ -36,6 +54,17 @@
         </div>
 
         <img :src="msg.text" v-if="msg.type === 'img'" />
+
+        <p
+          v-if="
+            msg.from === 'assistant' &&
+            msg.type !== 'skeleton-text' &&
+            msg.type !== 'img'
+          "
+          class="generatedTime"
+        >
+          <i class="pi pi-sparkles"></i> Generated in {{ msg.generationTime }}s
+        </p>
       </div>
     </div>
 
@@ -61,9 +90,47 @@
 </template>
 
 <script setup>
-import { ref, reactive, nextTick, onMounted, onBeforeUnmount } from "vue";
-const emit = defineEmits(["close"]);
+import {
+  ref,
+  reactive,
+  nextTick,
+  onMounted,
+  onBeforeUnmount,
+  defineProps,
+  unref
+} from "vue";
 import Skeleton from "primevue/skeleton";
+import { useSession, useOrganization } from "@clerk/vue";
+
+
+const { organization } = useOrganization();
+const emit = defineEmits(["close"]);
+const { session } = useSession();
+const orgImgUrl = ref('')
+const orgName = ref('')
+
+const props = defineProps({
+  contextType: {
+    type: String,
+    default: null,
+  },
+  contextName: {
+    type: String,
+    default: null,
+  },
+  sheetId: {
+    type: String,
+    default: null,
+  },
+});
+
+onMounted(() => {
+  console.log(session.value.id);
+  console.log(props.sheetId);
+  console.log(organization.value.imageUrl)
+  orgImgUrl.value = organization.value.imageUrl
+  orgName.value = organization.value.name
+});
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -84,6 +151,22 @@ const chatWidth = ref(380); // Initial width in pixels
 const isResizing = ref(false);
 const minWidth = 200; // Minimum width in pixels
 
+function formatDateMMDDhhmm(dateInput = new Date()) {
+  const d = new Date(dateInput);
+
+  // Month and day
+  const MM = String(d.getMonth() + 1).padStart(2, "0");
+  const DD = String(d.getDate()).padStart(2, "0");
+
+  // Hours and minutes
+  let hh = d.getHours(); // 0–23
+  const ampm = hh >= 12 ? "PM" : "AM";
+  hh = hh % 12 || 12; // convert 0 → 12, 13 → 1, etc.
+  const mm = String(d.getMinutes()).padStart(2, "0");
+
+  return `${MM}/${DD} ${hh}:${mm} ${ampm}`;
+}
+
 function scrollToBottom() {
   nextTick(() => {
     const el = msgsContainer.value;
@@ -91,9 +174,15 @@ function scrollToBottom() {
   });
 }
 
-function displayText(text, from, type) {
+function displayText(text, from, type, generationTime = 0) {
+  let timestamp = formatDateMMDDhhmm();
   if (from === "user") {
-    messages.push({ from: from, type: "text", text: text });
+    messages.push({
+      from: from,
+      type: "text",
+      text: text,
+      timestamp: timestamp,
+    });
     scrollToBottom();
   } else if (from === "assistant") {
     setTimeout(() => {
@@ -101,12 +190,17 @@ function displayText(text, from, type) {
         from: from,
         type: type,
         text: `${text}`,
+        timestamp: timestamp,
+        generationTime: generationTime,
       });
       scrollToBottom();
     }, 100);
   }
 }
 
+function fullscreen(){
+  
+}
 async function send() {
   const txt = draft.value.trim();
   if (!txt) return;
@@ -115,14 +209,18 @@ async function send() {
 
   displayText("Loading...", "assistant", "skeleton-text");
 
+  const start = Date.now();
+
   fetch(`${API_URL}/api/ai`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${""}`,
+      Authorization: `Bearer ${session.value.id}`,
     },
     body: JSON.stringify({
       prompt: txt,
+      session_id: session.value.id,
+      context_source: unref(props.sheetId),
     }),
   }).then(async (res) => {
     messages.pop();
@@ -130,7 +228,9 @@ async function send() {
     if (res.ok) {
       let data = await res.json();
       console.log(data);
-      displayText(data["answer"], "assistant", "text");
+      const elapsedSec = (Date.now() - start) / 1000;
+
+      displayText(data["answer"], "assistant", "text", elapsedSec);
 
       if (data["img_path"]) {
         displayText("Loading...", "assistant", "skeleton-img");
@@ -225,9 +325,6 @@ onBeforeUnmount(() => {
 
 /* header with title + close */
 .chat-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   padding: 1rem;
   border-bottom: 1px solid #e0e0e0;
 }
@@ -350,5 +447,60 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
+}
+
+.timestamp {
+  color: gray;
+  font-size: 12px;
+}
+
+.generatedTime {
+  color: gray;
+  font-size: 12px;
+}
+
+.context-badge{
+  display: flex;
+  gap: 0.4rem;
+  width: fit-content;
+  height: 2rem;
+  padding-inline: 1rem;
+  padding-block: 0.4rem;
+  border: 1px solid #f0f0f0; /* Lighter border */
+  font-size: 0.875rem;
+  color: #333; /* Dark text color */
+  border-radius: 6px; /* Slightly more rounded corners */
+  box-shadow: none; /* Remove shadow */
+  cursor: pointer;
+  background-color: white; /* White background */
+  transition: background-color 0.2s ease, border-color 0.2s ease; /* Smooth transition */
+}
+
+.context-badge:hover{
+  cursor: pointer;
+  background-color: #f9f9f9; /* Softer light gray on hover */
+  border-color: #e0e0e0; /* Slightly darker border on hover */
+}
+
+
+.sheet-icon{
+  color: rgb(3, 161, 3);
+  margin-top: 0.1rem;
+}
+
+.context-text{
+  font-size: 13px;
+  margin-right: 1rem;
+}
+
+.org-img{
+  height: 1.3rem;
+  width: 1.3rem;
+  border-radius: 4px;
+}
+
+.expand-btn{
+  margin-right: 0.5rem;
+  margin-top: 0.4rem;
 }
 </style>
