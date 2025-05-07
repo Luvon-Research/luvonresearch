@@ -252,6 +252,12 @@ const handleFileSelected = (event) => {
 const startNewChartSession = () => {
   // Implementation of startNewChartSession
 };
+
+const addToChatHandler = (chart) => {
+  // Placeholder for future "Add to chat" functionality
+  console.log('Add to chat clicked for chart:', chart.title);
+  // Prevent openChat from being called if needed, though @click.stop should handle it
+};
 </script>
 
 <template>
@@ -281,6 +287,12 @@ const startNewChartSession = () => {
           class="chart-card"
           @click="openChat(chart)"
         >
+          <Button 
+            icon="pi pi-sparkles" 
+            class="p-button-rounded p-button-sm p-button-text add-to-chat-btn" 
+            v-tooltip.top="'Add to chat'"
+            @click.stop="addToChatHandler(chart)" 
+          />
           <h3>{{ chart.title }}</h3>
           <div class="chart-container-placeholder">
             <span>Chart Preview</span>
@@ -771,6 +783,7 @@ const startNewChartSession = () => {
   display: flex;
   flex-direction: column;
   aspect-ratio: 1 / 1;
+  position: relative;
 }
 .chart-card h3 {
   font-family: 'Poppins', sans-serif;
@@ -930,6 +943,13 @@ const startNewChartSession = () => {
 
 .chat-sidebar.collapsed .advanced-chat-input-area {
   display: none; /* Hide the entire new input area when collapsed */
+}
+
+.add-to-chat-btn {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 1;
 }
 </style>
 
