@@ -23,3 +23,7 @@ class AIInput(BaseModel):
 class MainAgentResponse(BaseModel):
     status: str = Field(description="'success' or 'failed'")
     answer_path: str
+    
+class CodeFixAgent(BaseModel):
+    status: str = Field(description="'success' or 'failed'")
+    r_code: str = Field(description="Code in R to recreate this graph")

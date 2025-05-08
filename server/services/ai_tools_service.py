@@ -1,7 +1,7 @@
 from services.supabase_service import SupabaseService
 from config import settings
 from pydantic_ai import Agent, Tool
-from models.ai import AIResponse, MainAgentResponse, GraphAgentResponse, AIInput, GraphAgentFinalResponse
+from models.ai import AIResponse, MainAgentResponse, GraphAgentResponse, AIInput, GraphAgentFinalResponse, CodeFixAgent
 from fastapi import HTTPException, status
 from util.utils import generate_uuid, ensure_dir, run_r_script, fetch_sample_lines, strip_code_block
 from services.sheet_service import SheetService
@@ -14,12 +14,13 @@ class AIService:
         self.sheet_service = SheetService(self.db)
         self.files_service = FilesService(db)
         self.context_source = None
+        self.retries = 3
 
         # Unified system prompt describing available tools
         system_prompt = """
-        You are Luvon, an AI research assistant with three tools:
+        You are Luvon, an AI research assistant. Always respond in English. You have three tools:
 
-        1. graph
+        1. graph (chart)
         - Call `_tool_graph` tool and obtain `r_code` and `img_url`
             • Generates raw ggplot2 R code for charts.  
         • Include a small message on the output
@@ -33,7 +34,7 @@ class AIService:
         3. analysis  
         • Provide data analysis text.
 
-        Your `answer` must be a JSON array of objects, each with:
+        Your `answer` must be a VALID JSON array of objects, each with:
         {
             "type": "message" | "image" | "code",
             "value": "<text or URL or code>"
@@ -81,6 +82,7 @@ class AIService:
         csv_escaped  = csv_absolute.replace('\\', '\\\\')
         output_png = f"temp_files/{uuid}.png"
         output_png_absolute = os.path.abspath(output_png).replace('\\', '\\\\')
+        img_url = None
 
         try:
             print("Pulling CSV data")
@@ -98,8 +100,10 @@ class AIService:
             graph_agent = Agent(
                 model=settings.AI_MODEL,
                 system_prompt=f'''
-                    You are the graph tool. Your sole task is to produce professional, 
-                     aesthetically pleasing ggplot2 R code under `r_code` that:
+                    You are the graph/chart tool which writes R code for making graphs/charts. 
+                    Only use ggplot2 to make these graphs.
+                    Your sole task is to produce professional, aesthetically pleasing ggplot2 
+                    R code under `r_code` that:
                       • Reads the CSV at "{csv_escaped}" (Windows path must be escaped).  
                       • Uses R-safe variable names (handling spaces, parentheses, and other non-alphanumeric characters), use bugticks.  
                       • Saves the plot to "{output_png_absolute}".  
@@ -108,7 +112,7 @@ class AIService:
                     The sample schema for this dataset is: {sample_data}
                     If you cannot generate this chart, apologize and list the available tools.
                 ''',
-                output_type=GraphAgentResponse
+                output_type=GraphAgentResponse,
             )
             res = await graph_agent.run(prompt)
             res = res.output
@@ -117,32 +121,74 @@ class AIService:
             if(res.status == 'success'):
                 print("code generation success")
                 r_code = strip_code_block(res.r_code)
+                tries = 0
+                success = False
                 
-                with open(run_script_name, 'w', newline="") as fp:
-                    fp.write(r_code)
-                    fp.close()
-                
-                print("Wrote the code to R file, running...")
-                print(f"Running {script_absolute}")
-                output = run_r_script(script_absolute)
-                print(output)
-                
-                img_url = None
-                img_filename = f'{uuid}.png'
-                # Uploads the file
-                # TODO fill in the org id and everything
-                with open(output_png_absolute, 'rb') as fp:
-                    data = fp.read()
-                    out = await self.files_service.upload_file('test_org', 'test', data, img_filename, 'image/png')
-                    img_url = await self.files_service.get_files_by_filename(img_filename)
-                # if os.path.exists(csv_absolute):
-                #     os.remove(csv_absolute)
+                while tries <= self.retries:
+                    print(f"###### Retry: {tries}/{self.retries}")
+                    try:
+                        with open(run_script_name, 'w', newline="") as fp:
+                            fp.write(r_code)
+                            fp.close()
+                        
+                        print("Wrote the code to R file, running...")
+                        print(f"Running {script_absolute}")
+                        output = run_r_script(script_absolute)
+                        print(output)
+                        
+                        img_url = None
+                        img_filename = f'{uuid}.png'
+                        # Uploads the file
+                        # TODO fill in the org id and everything
+                        with open(output_png_absolute, 'rb') as fp:
+                            data = fp.read()
+                            out = await self.files_service.upload_file('test_org', 'test', data, img_filename, 'image/png')
+                            img_url = await self.files_service.get_files_by_filename(img_filename)
+                        
+                        success = True
+                        break
+                    except Exception as e:
+                        tries += 1
+                        print("Code failed, retrying with new code")
                     
-                # if os.path.exists(script_absolute):
-                #     os.remove(script_absolute)
+                        code_fix_agent = Agent(
+                            model=settings.AI_MODEL,
+                            system_prompt = f"""
+                                You are an R code fixer. Given the original R script and its prompt,
+                                correct it to produce the intended ggplot2 chart.
+
+                                Original R code:
+                                {r_code}
+
+                                Original prompt:
+                                {prompt}
+
+                                Sample data schema:
+                                {sample_data}
+
+                                Return only the fixed R code—no explanations.
+                                """,
+                            output_type=CodeFixAgent
+                        )
+                        res = await code_fix_agent.run(prompt)
+                        res = res.output
+                        r_code = strip_code_block(res.r_code)
+                        print(f"RETRY CODE: {res}")
+                
+                if(not success):
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Failed to generate chart"
+                    )
+
+                if os.path.exists(csv_absolute):
+                    os.remove(csv_absolute)
                     
-                # if os.path.exists(output_png_absolute):
-                #     os.remove(output_png_absolute)     
+                if os.path.exists(script_absolute):
+                    os.remove(script_absolute)
+                    
+                if os.path.exists(output_png_absolute):
+                    os.remove(output_png_absolute)     
                 return GraphAgentFinalResponse(r_code=r_code, status='success', img_url=img_url)
             else:
                 # if os.path.exists(csv_absolute):
@@ -156,7 +202,7 @@ class AIService:
 
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to generate chart"
+                    detail=f"Failed to generate chart: {res.r_code}"
                 )
         except Exception as e:
             print(e)
@@ -170,7 +216,7 @@ class AIService:
             #     os.remove(output_png_absolute)    
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to generate chart: " + str(e)
+                detail=str(e)
             )
 
     async def _tool_predict(self, prompt: str) -> AIResponse:

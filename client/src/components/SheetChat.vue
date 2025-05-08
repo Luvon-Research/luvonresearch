@@ -272,6 +272,8 @@ async function send() {
   }).then(async (res) => {
     messages.pop();
 
+    console.log(res)
+
     if (res.ok) {
       let data = await res.json();
       console.log(data);
@@ -284,7 +286,9 @@ async function send() {
       });
     } else {
       const elapsedSec = (Date.now() - start) / 1000;
-      displayText("Something went wrong...", "assistant", "text", elapsedSec);
+      let body = await res.json();
+      let errMsg = body['detail']
+      displayText(errMsg, "assistant", "message", elapsedSec);
     }
 
     loading.value = false;

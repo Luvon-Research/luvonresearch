@@ -8,6 +8,7 @@ from services.user_service import UserService
 from models.ai import AIResponse, AIInput
 from fastapi.responses import FileResponse
 import json
+from json_repair import repair_json
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -37,6 +38,8 @@ async def ai_prompt(
     
     print(data)
     
-    data['answer'] = json.loads(data['answer'])
+    good_json_string = repair_json(data['answer'])
+    
+    data['answer'] = json.loads(good_json_string)
     
     return data
