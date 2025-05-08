@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useFileDialog } from "@vueuse/core";
 import { useOrganization, useSession } from "@clerk/vue";
 import Button from "primevue/button";
@@ -8,6 +8,9 @@ import InputText from "primevue/inputtext";
 import FloatLabel from "primevue/floatlabel";
 import IconField from "primevue/iconfield";
 import InputIcon from "primevue/inputicon";
+import axios from 'axios';
+
+const { organization } = useOrganization();
 
 const visible = ref(false);
 const sheetName = ref("");
@@ -18,6 +21,9 @@ const loading = ref(false);
 const error = ref(null);
 const fileViewerUrl = ref(null);
 const showPreview = ref(false);
+const organizationId = computed(() => organization.value?.id);
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 const { open, onChange } = useFileDialog({ accept: "*/*" });
 
@@ -43,28 +49,32 @@ const filteredFiles = computed(() => {
   );
 });
 
-const handleCreate = () => {
-  if (!selectedFile.value) {
-    error.value = "No file selected.";
+const handleCreate = async () => {
+  if (!selectedFile.value || !organizationId.value) {
+    error.value = "No file selected or organization not found.";
     return;
   }
 
-  uploadedFiles.value.push({
-    name: selectedFile.value.name,
-    size: formatFileSize(selectedFile.value.size),
-    uploaded_by: "You",
-    date: new Date().toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }),
-    url: URL.createObjectURL(selectedFile.value),
-  });
+  const formData = new FormData();
+  formData.append('file', selectedFile.value);
+  formData.append('org_id', organizationId.value);
 
-  sheetName.value = "";
-  selectedFile.value = null;
-  visible.value = false;
-  error.value = null;
+  try {
+    loading.value = true;
+    await axios.post(`${API_URL}/api/files/upload`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    await fetchFiles(); // Refresh the file list
+    visible.value = false;
+    selectedFile.value = null;
+    error.value = null;
+  } catch (err) {
+    error.value = 'Failed to upload file.';
+  } finally {
+    loading.value = false;
+  }
 };
 
 function formatFileSize(bytes) {
@@ -73,6 +83,32 @@ function formatFileSize(bytes) {
   if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + " MB";
   return (bytes / 1073741824).toFixed(1) + " GB";
 }
+
+const fetchFiles = async () => {
+  if (!organizationId.value) return;
+
+  try {
+    loading.value = true;
+    const response = await axios.get(`${API_URL}/api/files/${organizationId.value}`);
+    uploadedFiles.value = response.data.map(file => ({
+      ...file,
+      size: formatFileSize(file.size),
+      date: new Date(file.created_at).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+    }));
+  } catch (err) {
+    error.value = 'Failed to fetch files.';
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchFiles();
+});
 </script>
 
 <template>
