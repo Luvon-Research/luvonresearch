@@ -7,6 +7,9 @@ from util.utils import generate_uuid, ensure_dir, run_r_script, fetch_sample_lin
 from services.sheet_service import SheetService
 import os
 from services.files_service import FilesService
+from pydantic_ai import Agent
+from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.providers.azure import AzureProvider
 
 class AIService:
     def __init__(self, db: SupabaseService):
@@ -97,6 +100,15 @@ class AIService:
             print(f"Got sample data {sample_data}")
 
             # Local graph-only agent
+            model = OpenAIModel(
+                'o3-mini',
+                provider=AzureProvider(
+                    azure_endpoint='https://admin-magg5801-eastus2.openai.azure.com/',
+                    api_version='2024-12-01-preview',
+                    api_key='EVK8DO7H0s7dRsQdTQzbAnDopoCUIDLQukfui89GSkIvlFHbPgbsJQQJ99BEACHYHv6XJ3w3AAAAACOGLFmQ',
+                ),
+            )
+            
             graph_agent = Agent(
                 model=settings.AI_MODEL,
                 system_prompt=f'''
