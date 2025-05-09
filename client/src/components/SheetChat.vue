@@ -36,7 +36,7 @@
     </header>
 
     <!-- suggestion buttons -->
-    <div class="suggestions" v-if="messages.length === 0">
+    <div class="suggestions" v-if="messages.length === 0 && !loadingChats">
       <button
         v-for="(s, i) in suggestions"
         :key="i"
@@ -48,7 +48,7 @@
     </div>
 
     <!-- messages (plain text, no boxes) -->
-    <div class="messages" ref="msgsContainer">
+    <div class="messages" ref="msgsContainer" v-if="!loadingChats">
       <div
         v-for="(msg, idx) in messages"
         :key="idx"
@@ -67,7 +67,7 @@
 
         <img :src="msg.text" v-if="msg.type === 'image'" class="img" />
 
-        <p
+        <div
           v-if="
             msg.from === 'assistant' &&
             msg.type !== 'skeleton-text' &&
@@ -75,27 +75,25 @@
           "
           class="generatedTime"
         >
-
-        <div v-if="msg.type === 'code'">
-          <p>Here's the R code used to make this chart</p>
-        <CodeBlock
-        :code="msg.text"
-        :numbered="true"
-        :show-header="true"
-        file-name="chart.R"
-        language="c"
-        theme="vsDark"
-        style="font-size: 12px;"
-        
-      >
-      </CodeBlock>
-      </div>
+          <div v-if="msg.type === 'code'">
+            <p>Here's the R code used to make this chart</p>
+            <CodeBlock
+              :code="msg.text"
+              :numbered="true"
+              :show-header="true"
+              file-name="chart.R"
+              language="c"
+              theme="vsDark"
+              style="font-size: 12px"
+            >
+            </CodeBlock>
+          </div>
           <i class="pi pi-sparkles"></i> Generated in {{ msg.generationTime }}s
-        </p>
+        </div>
       </div>
     </div>
 
-    <center>
+    <center v-if="!loadingChats">
       <div class="input-bar">
         <input
           v-model="draft"
@@ -112,7 +110,16 @@
       </div>
     </center>
 
-    <!-- input bar -->
+    <div v-if="loadingChats" class="loading-div">
+      <ProgressSpinner
+        style="width: 40px; height: 40px"
+        strokeWidth="3"
+        fill="transparent"
+        animationDuration=".5s"
+        aria-label="Custom ProgressSpinner"
+      />
+      <p class="loading-chats-label">Loading Chats</p>
+    </div>
 
     <!-- Resizable handle -->
     <div
@@ -138,7 +145,8 @@ import {
 import Skeleton from "primevue/skeleton";
 import { useSession, useOrganization } from "@clerk/vue";
 import Button from "primevue/button";
-import { CodeBlock } from 'vuejs-code-block';
+import { CodeBlock } from "vuejs-code-block";
+import { ProgressSpinner } from "primevue";
 
 const { organization } = useOrganization();
 const emit = defineEmits(["close"]);
@@ -147,6 +155,7 @@ const orgImgUrl = ref("");
 const orgName = ref("");
 const fullscreen = ref(false);
 const loading = ref(false);
+const loadingChats = ref(true);
 
 const props = defineProps({
   contextType: {
@@ -163,12 +172,25 @@ const props = defineProps({
   },
 });
 
-onMounted(() => {
+onMounted(async () => {
   console.log(session.value.id);
   console.log(props.sheetId);
   console.log(organization.value.imageUrl);
+  console.log(session.value.user.id);
   orgImgUrl.value = organization.value.imageUrl;
   orgName.value = organization.value.name;
+    // initial load
+    await loadChats(1, false);
+
+    scrollToBottom();
+  // attach listener
+  const el = msgsContainer.value;
+  if (el) el.addEventListener("scroll", onScroll);
+});
+
+onBeforeUnmount(() => {
+  const el = msgsContainer.value;
+  if (el) el.removeEventListener("scroll", onScroll);
 });
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -189,6 +211,9 @@ const msgsContainer = ref(null);
 const chatWidth = ref(380); // Initial width in pixels
 const isResizing = ref(false);
 const minWidth = 200; // Minimum width in pixels
+const currentPage = ref(1);
+const PAGE_SIZE = 6;
+const noMoreChats  = ref(false);
 
 function formatDateMMDDhhmm(dateInput = new Date()) {
   const d = new Date(dateInput);
@@ -213,8 +238,13 @@ function scrollToBottom() {
   });
 }
 
-function displayText(text, from, type, generationTime = 0) {
-  let timestamp = formatDateMMDDhhmm();
+function displayText(
+  text,
+  from,
+  type,
+  generationTime = 0,
+  timestamp = formatDateMMDDhhmm()
+) {
   if (from === "user") {
     messages.push({
       from: from,
@@ -224,18 +254,132 @@ function displayText(text, from, type, generationTime = 0) {
     });
     scrollToBottom();
   } else if (from === "assistant") {
-    setTimeout(() => {
-      messages.push({
-        from: from,
-        type: type,
-        text: `${text}`,
-        timestamp: timestamp,
-        generationTime: generationTime,
+    messages.push({
+      from: from,
+      type: type,
+      text: `${text}`,
+      timestamp: timestamp,
+      generationTime: generationTime,
+    });
+  }
+  scrollToBottom();
+}
+
+// function getChatHistory() {
+//   loadingChats.value = true;
+//   fetch(`${API_URL}/api/chat/${session.value.user.id}/${currentPagenation.value}`, {
+//     method: "GET",
+//     headers: {
+//       "Content-Type": "application/json",
+//       Authorization: `Bearer ${session.value.id}`,
+//     },
+//   }).then(async (res) => {
+//     console.log(res);
+
+//     if (res.ok) {
+//       let data = await res.json();
+//       console.log(data);
+
+//       data.forEach((msgGroup) => {
+//         console.log(msgGroup);
+//         msgGroup["message"].forEach((message) => {
+//           displayText(
+//             message["value"],
+//             msgGroup["from_type"],
+//             message["type"],
+//             msgGroup["generation_time"].toFixed(2),
+//             formatDateMMDDhhmm(new Date(msgGroup["timestamp"]))
+//           );
+//         });
+//       });
+
+//       // answers.forEach((val) => {
+//       //   displayText(val["value"], "assistant", val["type"], elapsedSec);
+//       // });
+//     } else {
+//       displayText(
+//         "Error fetching chats, reload your page and try again",
+//         "assistant",
+//         "message",
+//         0
+//       );
+//     }
+//     loadingChats.value = false;
+//   });
+// }
+
+// — pull‐out the fetch logic —
+async function loadChats(page = 1, prepend = false) {
+  loadingChats.value = true;
+  try {
+    const res = await fetch(
+      `${API_URL}/api/chat/${session.value.user.id}/${page}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.value.id}`,
+        },
+      }
+    );
+    if (!res.ok) throw new Error("Fetch failed");
+    const data = await res.json();
+    if (data.length < PAGE_SIZE) noMoreChats.value = true;
+
+    // build a flat array of message‐objects in chronological order
+    const newMessages = [];
+    data.forEach(group => {
+      const ts = formatDateMMDDhhmm(new Date(group.timestamp));
+      group.message.forEach(msg => {
+        newMessages.push({
+          from:           group.from_type,
+          type:           msg.type,
+          text:           msg.value,
+          timestamp:      ts,
+          generationTime: group.generation_time.toFixed(2),
+        });
       });
-      scrollToBottom();
-    }, 100);
+    });
+
+    // remember scrollHeight before we prepend
+    const el = msgsContainer.value;
+    const prevScrollHeight = el?.scrollHeight || 0;
+
+    if (prepend) {
+      // add older messages at the front
+      messages.unshift(...newMessages);
+    } else {
+      // initial load
+      messages.push(...newMessages);
+    }
+
+    await nextTick();
+
+    // restore scroll so content doesn’t jump
+    if (el && prepend) {
+      const newScrollHeight = el.scrollHeight;
+      el.scrollTop = newScrollHeight - prevScrollHeight;
+    } else if (el) {
+      // initial load: scroll to bottom
+      el.scrollTop = el.scrollHeight;
+    }
+    
+  } catch (err) {
+    console.error("Error loading chats:", err);
+  } finally {
+    loadingChats.value = false;
   }
 }
+
+// — scroll handler to detect “at top” and load the next page —
+function onScroll() {
+  const el = msgsContainer.value;
+  if (!el || loadingChats.value || noMoreChats.value) return;
+  if (el.scrollTop === 0) {
+    currentPage.value += 1;
+    loadChats(currentPage.value, true);
+  }
+}
+
 
 function fullscreenToggle() {
   if (fullscreen.value) {
@@ -246,6 +390,7 @@ function fullscreenToggle() {
   }
   fullscreen.value = !fullscreen.value;
 }
+
 async function send() {
   const txt = draft.value.trim();
   if (!txt) return;
@@ -272,22 +417,22 @@ async function send() {
   }).then(async (res) => {
     messages.pop();
 
-    console.log(res)
+    console.log(res);
 
     if (res.ok) {
       let data = await res.json();
       console.log(data);
       const elapsedSec = (Date.now() - start) / 1000;
 
-      let answers = data['answer'];
+      let answers = data["answer"];
 
       answers.forEach((val) => {
-        displayText(val['value'], "assistant", val['type'], elapsedSec);
+        displayText(val["value"], "assistant", val["type"], elapsedSec);
       });
     } else {
       const elapsedSec = (Date.now() - start) / 1000;
       let body = await res.json();
-      let errMsg = body['detail']
+      let errMsg = body["detail"];
       displayText(errMsg, "assistant", "message", elapsedSec);
     }
 
@@ -364,6 +509,19 @@ onBeforeUnmount(() => {
   font-size: 1.4rem;
   cursor: pointer;
   color: #666;
+}
+
+.loading-div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  max-width: 75vw;
+  margin-left: auto;
+  margin-right: auto;
+  min-width: 380px;
+  position: relative;
+  top: 30%;
 }
 
 /* suggestions row */
@@ -539,5 +697,12 @@ onBeforeUnmount(() => {
 .img {
   width: 100%;
   max-width: 40vw;
+}
+
+.loading-chats-label {
+  margin-top: 0.5rem;
+  color: gray;
+  font-size: 12px;
+  text-align: center;
 }
 </style>

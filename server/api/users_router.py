@@ -8,9 +8,10 @@ from models.user import UserBase, UserCreated
 from services.user_service import UserService
 
 router = APIRouter(prefix="/api/users", tags=["users"])
+supabase = SupabaseService()
 
 def get_user_service() -> UserService:
-    return UserService(SupabaseService())
+    return UserService(supabase)
 
 # TODO
 @router.get("/",)

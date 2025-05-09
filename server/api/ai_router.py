@@ -9,14 +9,22 @@ from models.ai import AIResponse, AIInput
 from fastapi.responses import FileResponse
 import json
 from json_repair import repair_json
+from models.chat_history import ChatHistoryUpload
+from services.chat_history_service import ChatHistoryService
+import time 
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
+supabase = SupabaseService()
+
 def get_ai_service() -> AIService:
-    return AIService(SupabaseService())
+    return AIService(supabase)
 
 def get_user_service() -> UserService:
-    return UserService(SupabaseService())
+    return UserService(supabase)
+
+def get_chat_history_service() -> ChatHistoryService:
+    return ChatHistoryService(supabase)
 
 @router.post("/", status_code=status.HTTP_200_OK) # response_model=AIResponse,
 async def ai_prompt(
@@ -24,13 +32,28 @@ async def ai_prompt(
     body: AIInput, 
     ai_service: AIService = Depends(get_ai_service),
     user_service: UserService = Depends(get_user_service),
+    chat_history_service: ChatHistoryService = Depends(get_chat_history_service)
 ):
     # Verify the user is authenticated
-    user_id = await user_service.verify_user_token(request)
-    print(user_id)
+    user, org = await user_service.verify_user_token(request)
+    print(user, org)
     
     # TODO Verify if the context is available to the org that the user is apart of 
     
+    ### Saves the user message
+    msg = [
+        {"type" : "message", "value" : body.prompt}
+    ]
+    user_chat = ChatHistoryUpload(org_id=org,
+                            user_id=user,
+                            message=msg,
+                            generation_time=0,
+                            from_type='user',
+                            chat_id="TODO")
+    
+    await chat_history_service.save_chat(user_chat)
+    
+    start = time.time()
     # Store the project metadata
     data = await ai_service.call(body)
     
@@ -42,4 +65,15 @@ async def ai_prompt(
     
     data['answer'] = json.loads(good_json_string)
     
+    end = time.time()
+    
+    assistant_chat = ChatHistoryUpload(org_id=org,
+                        user_id=user,
+                        message=data['answer'],
+                        generation_time=end-start,
+                        from_type='assistant',
+                        chat_id="TODO")
+
+    await chat_history_service.save_chat(assistant_chat)
+
     return data

@@ -10,7 +10,7 @@ import json
 from sse_starlette import EventSourceResponse
 import time
 from api.files_router import router as files_router
-
+from api.chat_history_router import router as chat_history_router
 app = FastAPI()
 
 # Configure CORS
@@ -31,6 +31,7 @@ app.include_router(projects_router)
 app.include_router(webhooks_router)
 app.include_router(ai_router)
 app.include_router(files_router)
+app.include_router(chat_history_router)
 
 @app.get("/")
 async def read_root():

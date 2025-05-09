@@ -1,7 +1,7 @@
 from services.supabase_service import SupabaseService
 from config import settings
 from pydantic_ai import Agent, Tool
-from models.ai import AIResponse, MainAgentResponse, GraphAgentResponse, AIInput, GraphAgentFinalResponse, CodeFixAgent
+from models.ai import AIResponse, GraphAgentResponse, AIInput, GraphAgentFinalResponse, CodeFixAgent
 from fastapi import HTTPException, status
 from util.utils import generate_uuid, ensure_dir, run_r_script, fetch_sample_lines, strip_code_block
 from services.sheet_service import SheetService
@@ -44,7 +44,7 @@ class AIService:
         - For charts use type "image" with the URL.  
         - For R code use type "code" with the raw ggplot2 script.
 
-        If the user asks for anything outside these tools, return:
+        If the user asks for anything outside these tools, you MUST return this:
         [
         {
             "type": "message",
