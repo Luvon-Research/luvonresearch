@@ -11,7 +11,7 @@ class FilesService:
     def get_client(self) -> Client:
         return self.db.get_client()
 
-    async def upload_file(self, org_id: str, uploader_id: str, file: bytes, file_name: str):
+    async def upload_file(self, org_id: str, uploader_id: str, file: bytes, file_name: str, is_chart: bool = False):
         try:
             client = self.get_client()
             
@@ -21,8 +21,8 @@ class FilesService:
             if not storage_response:
                 raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to upload file to storage")
 
-            # Construct file path
-            file_path = f"files/{file_name}"
+            # Construct file path based on is_chart parameter
+            file_path = f"charts/{file_name}" if is_chart else f"files/{file_name}"
 
             # Store file metadata in the files_data table
             file_data = {

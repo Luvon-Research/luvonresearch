@@ -16,6 +16,7 @@ async def upload_file(
     request: Request,
     org_id: str = Form(...),
     file: UploadFile = File(...),
+    is_chart: bool = Form(...),
     service: FilesService = Depends(get_files_service),
     user_service: UserService = Depends(get_user_service)
 ):
@@ -24,7 +25,7 @@ async def upload_file(
         uploader_id = await user_service.verify_user_token(request)
 
         file_content = await file.read()
-        return await service.upload_file(org_id, uploader_id, file_content, file.filename)
+        return await service.upload_file(org_id, uploader_id, file_content, file.filename, is_chart)
     except HTTPException as e:
         raise e
     except Exception as e:
