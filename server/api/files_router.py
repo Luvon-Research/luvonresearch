@@ -21,9 +21,8 @@ async def upload_file(
 ):
     try:
         # Get the uploader_id from the authenticated user
-        # uploader_id = await user_service.verify_user_token(request)
-        uploader_id = "123"
-        
+        uploader_id = await user_service.verify_user_token(request)
+
         file_content = await file.read()
         return await service.upload_file(org_id, uploader_id, file_content, file.filename)
     except HTTPException as e:
@@ -47,3 +46,15 @@ async def get_files_by_organization(
         raise e
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) 
+    
+@router.get("/signed-url/{file_path}")
+async def get_signed_url(
+    file_path: str,
+    service: FilesService = Depends(get_files_service)
+):
+    try:
+        return await service.get_signed_url(file_path)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
