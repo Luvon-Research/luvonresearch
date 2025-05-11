@@ -1,6 +1,6 @@
 from services.supabase_service import SupabaseService
 from config import settings
-from pydantic_ai import Agent, Tool
+from pydantic_ai import Agent, Tool, RunContext
 from models.ai import AIResponse, GraphAgentResponse, AIInput, GraphAgentFinalResponse, CodeFixAgent
 from fastapi import HTTPException, status
 from util.utils import generate_uuid, ensure_dir, run_r_script, fetch_sample_lines, strip_code_block
@@ -10,13 +10,19 @@ from services.files_service import FilesService
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.azure import AzureProvider
+from dataclasses import dataclass
 
+@dataclass
+class SupportDependencies:  
+    user_id: str
+    org_id: str
+    context_source: str 
+    
 class AIService:
     def __init__(self, db: SupabaseService):
         self.db = db
         self.sheet_service = SheetService(self.db)
         self.files_service = FilesService(db)
-        self.context_source = None
         self.retries = 3
 
         # Unified system prompt describing available tools
@@ -68,13 +74,14 @@ class AIService:
         self.agent = Agent(
             model=settings.AI_MODEL,
             tools=tools,
+            deps_type=SupportDependencies,
             system_prompt=system_prompt,
             output_type=AIResponse,
             input_type=AIInput
         )
 
-    async def _tool_graph(self, prompt: str) -> GraphAgentFinalResponse:
-        print("SHEET ID", self.context_source)
+    async def _tool_graph(self, ctx: RunContext[str], prompt: str) -> GraphAgentFinalResponse:
+        print("SHEET ID", ctx.deps.context_source)
         # Loads the CSV data
         ensure_dir('temp_files')
         uuid = generate_uuid()
@@ -89,7 +96,7 @@ class AIService:
 
         try:
             print("Pulling CSV data")
-            csv_data = await self.sheet_service.get_sheet_data_csv_by_id(self.context_source, False)
+            csv_data = await self.sheet_service.get_sheet_data_csv_by_id(ctx.deps.context_source, False)
             
             print("Wrote CSV data")
             with open(csv_file_name, 'w', newline="") as fp:
@@ -155,7 +162,7 @@ class AIService:
                         # TODO fill in the org id and everything
                         with open(output_png_absolute, 'rb') as fp:
                             data = fp.read()
-                            out = await self.files_service.upload_file('test_org', 'test', data, img_filename, is_chart=True)
+                            out = await self.files_service.upload_file(ctx.deps.org_id, ctx.deps.user_id, data, img_filename, is_chart=True)
                             img_url = out['file_url']
                             #img_url = await self.files_service.get_files_by_filename(img_filename)
                         
@@ -257,11 +264,17 @@ You are the analysis tool. Provide detailed analysis in AIResponse format.
         res = await analysis_agent.run(prompt)
         return res.output
 
-    async def call(self, input: AIInput):
+    async def call(self, input: AIInput, user_id:str, org_id:str):
         """
         Dispatch the prompt to the appropriate tool via the unified agent.
         Returns a MainAgentResponse with `answer_path` and tool output attached.
         """
-        self.context_source = input.context_source
-        result = await self.agent.run(input.prompt)
+        
+        ctx = SupportDependencies(
+                user_id= user_id,
+                org_id=org_id,
+                context_source=input.context_source,
+        )
+        
+        result = await self.agent.run(input.prompt, deps=ctx)
         return result.output

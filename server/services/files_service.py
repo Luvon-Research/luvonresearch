@@ -69,10 +69,12 @@ class FilesService:
             print(e)
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-    async def get_files_by_org_id(self, org_id: str):
+    async def get_files_by_org_id(self, org_id: str, is_chart=False):
         try:
             client = self.get_client()
-            response = client.table("files_data").select("*").eq("org_id", org_id).execute()
+            table_name = "charts" if is_chart else "files_data"
+            print("Charts....", org_id)
+            response = client.table(table_name).select("*").eq("org_id", org_id).execute()
             files = response.data or []
             return files
         except Exception as e:

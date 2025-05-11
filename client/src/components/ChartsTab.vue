@@ -1,46 +1,59 @@
 <script setup>
-import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
-import InputText from 'primevue/inputtext';
-import Button from 'primevue/button';
-import Dialog from 'primevue/dialog';
-import MultiSelect from 'primevue/multiselect';
-import ChartContainer from '@/components/ui/charts/ChartContainer.vue';
-import Textarea from 'primevue/textarea';
-import Avatar from 'primevue/avatar';
-import ProgressSpinner from 'primevue/progressspinner';
-import Dropdown from 'primevue/dropdown';
-import Divider from 'primevue/divider';
-import Tooltip from 'primevue/tooltip';
+import { ref, computed, nextTick, onMounted, onUnmounted } from "vue";
+import InputText from "primevue/inputtext";
+import Button from "primevue/button";
+import Dialog from "primevue/dialog";
+import MultiSelect from "primevue/multiselect";
+import ChartContainer from "@/components/ui/charts/ChartContainer.vue";
+import Textarea from "primevue/textarea";
+import Avatar from "primevue/avatar";
+import ProgressSpinner from "primevue/progressspinner";
+import Dropdown from "primevue/dropdown";
+import Divider from "primevue/divider";
+import Tooltip from "primevue/tooltip";
+import { useSession, useOrganization } from "@clerk/vue";
+import InputGroup from "primevue/inputgroup";
 
 // State
-const searchTerm = ref('');
+const { organization } = useOrganization();
+const { session } = useSession();
+const searchTerm = ref("");
 const showDialog = ref(false);
-const promptText = ref('');
+const promptText = ref("");
 const selectedDataSources = ref([]);
 const dataSourceOptions = [
-  'Data Source 1',
-  'Data Source 2',
-  'Data Source 3',
-  'Data Source 4',
-  'Data Source 5',
-  'Data Source 6',
-  'Data Source 7',
-  'Data Source 8',
-  'Data Source 9',
-  'Data Source 10'
+  "Data Source 1",
+  "Data Source 2",
+  "Data Source 3",
+  "Data Source 4",
+  "Data Source 5",
+  "Data Source 6",
+  "Data Source 7",
+  "Data Source 8",
+  "Data Source 9",
+  "Data Source 10",
 ];
+const selectedChart = ref(null);
+const chatInput = ref("");
+const messages = ref({});
+const isAiTyping = ref(false);
+const chatWindowRef = ref(null);
+const sidebarWidth = ref(400);
+const isSidebarPinned = ref(true);
+const showSuggestedQuestions = ref(false);
+const selectedChartPoint = ref(null);
+const loadingCharts = ref(true);
+const charts = ref([]);
+const API_URL = import.meta.env.VITE_API_URL;
 
-// Placeholder charts (10 items)
-const charts = ref(
-  Array.from({ length: 10 }, (_, i) => ({ id: i + 1, title: `Chart ${i + 1}` }))
-);
+onMounted(async () => {
+  // Gets charts after mount
+  let org_id = organization.value.id;
+  let session_id = session.value.id;
 
-// Filter charts by search
-const filteredCharts = computed(() =>
-  charts.value.filter(c =>
-    c.title.toLowerCase().includes(searchTerm.value.toLowerCase())
-  )
-);
+  console.log(org_id, session_id);
+  await getCharts();
+});
 
 // Open the generation dialog
 const openDialog = () => {
@@ -50,28 +63,40 @@ const openDialog = () => {
 // Generate a new chart from prompt
 const generateChart = () => {
   const nextId = charts.value.length
-    ? Math.max(...charts.value.map(c => c.id)) + 1
+    ? Math.max(...charts.value.map((c) => c.id)) + 1
     : 1;
 
   charts.value.push({
     id: nextId,
     title: `Chart ${nextId}`,
-    dataSources: [...selectedDataSources.value]
+    dataSources: [...selectedDataSources.value],
   });
-  promptText.value = '';
+  promptText.value = "";
   selectedDataSources.value = [];
   showDialog.value = false;
 };
 
-const selectedChart = ref(null);
-const chatInput = ref('');
-const messages = ref({});
-const isAiTyping = ref(false);
-const chatWindowRef = ref(null);
-const sidebarWidth = ref(400);
-const isSidebarPinned = ref(true);
-const showSuggestedQuestions = ref(false);
-const selectedChartPoint = ref(null);
+async function getCharts() {
+  loadingCharts.value = true;
+  try {
+    const res = await fetch(`${API_URL}/api/files/${organization.value.id}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.value.id}`,
+        is_chart: true,
+      },
+    });
+    if (!res.ok) throw new Error("Fetch failed");
+    const data = await res.json();
+    console.log(data);
+    charts.value = data;
+  } catch (err) {
+    console.error("Error loading chats:", err);
+  } finally {
+    loadingCharts.value = false;
+  }
+}
 
 // Suggested questions
 const suggestedQuestions = [
@@ -80,7 +105,7 @@ const suggestedQuestions = [
   "What are the key insights?",
   "Compare the minimum and maximum values",
   "What patterns do you see in the data?",
-  "Show me year-over-year growth"
+  "Show me year-over-year growth",
 ];
 
 const openChat = (chart) => {
@@ -100,32 +125,38 @@ const sendMessage = async () => {
     const userMessage = {
       id: Date.now(),
       text: chatInput.value,
-      sender: 'user',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      sender: "user",
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
     };
-    
+
     messages.value[selectedChart.value.id].push(userMessage);
-    chatInput.value = '';
-    
+    chatInput.value = "";
+
     // Auto-scroll to bottom
     nextTick(() => {
       scrollToBottom();
     });
-    
+
     // Simulate AI response
     isAiTyping.value = true;
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
     const aiResponse = {
       id: Date.now() + 1,
       text: `I've analyzed your question about "${userMessage.text}". Based on the data in ${selectedChart.value.title}, here's what I found...`,
-      sender: 'ai',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      sender: "ai",
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
     };
-    
+
     messages.value[selectedChart.value.id].push(aiResponse);
     isAiTyping.value = false;
-    
+
     nextTick(() => {
       scrollToBottom();
     });
@@ -149,15 +180,15 @@ const scrollToBottom = () => {
 // Handle keyboard shortcuts
 const handleKeyDown = (e) => {
   // Enter to send message
-  if (e.key === 'Enter' && chatInput.value) {
+  if (e.key === "Enter" && chatInput.value) {
     e.preventDefault();
     sendMessage();
   }
-  
+
   // Press "/" to focus chat input
-  if (e.key === '/' && document.activeElement.tagName !== 'TEXTAREA') {
+  if (e.key === "/" && document.activeElement.tagName !== "TEXTAREA") {
     e.preventDefault();
-    const chatTextarea = document.querySelector('.chat-input-field');
+    const chatTextarea = document.querySelector(".chat-input-field");
     if (chatTextarea) {
       chatTextarea.focus();
     }
@@ -169,19 +200,19 @@ const startResize = (e) => {
   e.preventDefault();
   const startX = e.pageX;
   const startWidth = sidebarWidth.value;
-  
+
   const doDrag = (dragEvent) => {
     const newWidth = startWidth + (startX - dragEvent.pageX);
     sidebarWidth.value = Math.min(Math.max(newWidth, 300), 600);
   };
-  
+
   const stopDrag = () => {
-    document.removeEventListener('mousemove', doDrag);
-    document.removeEventListener('mouseup', stopDrag);
+    document.removeEventListener("mousemove", doDrag);
+    document.removeEventListener("mouseup", stopDrag);
   };
-  
-  document.addEventListener('mousemove', doDrag);
-  document.addEventListener('mouseup', stopDrag);
+
+  document.addEventListener("mousemove", doDrag);
+  document.addEventListener("mouseup", stopDrag);
 };
 
 // Toggle sidebar pin
@@ -202,14 +233,17 @@ const handleChartElementClick = (elementData) => {
     const contextMessage = {
       id: Date.now(),
       text: `User clicked on ${elementData.label}: ${elementData.value}`,
-      sender: 'system',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      context: elementData
+      sender: "system",
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      context: elementData,
     };
-    
+
     messages.value[selectedChart.value.id].push(contextMessage);
     selectedChartPoint.value = elementData;
-    
+
     nextTick(() => {
       scrollToBottom();
     });
@@ -218,11 +252,11 @@ const handleChartElementClick = (elementData) => {
 
 // Lifecycle hooks
 onMounted(() => {
-  document.addEventListener('keydown', handleKeyDown);
+  document.addEventListener("keydown", handleKeyDown);
 });
 
 onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeyDown);
+  document.removeEventListener("keydown", handleKeyDown);
 });
 
 const showDetailDialog = ref(false);
@@ -239,12 +273,12 @@ const triggerFileInput = () => {
 const handleFileSelected = (event) => {
   const file = event.target.files[0];
   if (file) {
-    console.log('Selected file:', file.name);
+    console.log("Selected file:", file.name);
     // Here you would typically handle the file (e.g., upload, display preview)
     // For now, we just log it.
     // Reset the input value so the same file can be selected again if needed
     if (fileInputRef.value) {
-      fileInputRef.value.value = '';
+      fileInputRef.value.value = "";
     }
   }
 };
@@ -255,47 +289,53 @@ const startNewChartSession = () => {
 
 const addToChatHandler = (chart) => {
   // Placeholder for future "Add to chat" functionality
-  console.log('Add to chat clicked for chart:', chart.title);
+  console.log("Add to chat clicked for chart:", chart.title);
   // Prevent openChat from being called if needed, though @click.stop should handle it
 };
 </script>
 
 <template>
-  <div class="chart-page">
+  <div v-if="loadingCharts" class="loading-div">
+    <ProgressSpinner
+      style="width: 40px; height: 40px"
+      strokeWidth="3"
+      fill="transparent"
+      animationDuration=".5s"
+      aria-label="Custom ProgressSpinner"
+    />
+    <p class="loading-chats-label">Loading Charts...</p>
+  </div>
+
+  <div class="chart-page" v-if="!loadingCharts">
     <!-- Header bar with search and create -->
-    <div class="header-bar">
-      <InputText
-        v-model="searchTerm"
-        placeholder="Search charts..."
-        class="search-input p-inputtext-lg"
-      />
-      <Button
-        icon="pi pi-plus"
-        severity="success"
-        class="p-button-lg create-btn"
-        @click="openDialog"
-        aria-label="Add Chart"
-      />
+
+    <div class="d-flex justify-content-end">
+      <div class="search-box">
+        <InputGroup>
+          <InputText v-model="searchTerm" placeholder="Search charts..." />
+          <Button icon="pi pi-search" @click="openDialog" />
+        </InputGroup>
+      </div>
     </div>
 
     <!-- Charts grid: 3 per row -->
     <div class="chart-grid">
-      <template v-if="filteredCharts.length">
+      <template v-if="charts.length">
         <div
-          v-for="chart in filteredCharts"
+          v-for="chart in charts"
           :key="chart.id"
           class="chart-card"
           @click="openChat(chart)"
         >
-          <Button 
-            icon="pi pi-sparkles" 
-            class="p-button-rounded p-button-sm p-button-text add-to-chat-btn" 
+          <Button
+            icon="pi pi-sparkles"
+            class="p-button-rounded p-button-sm p-button-text add-to-chat-btn"
             v-tooltip.top="'Add to chat'"
-            @click.stop="addToChatHandler(chart)" 
+            @click.stop="addToChatHandler(chart)"
           />
-          <h3>{{ chart.title }}</h3>
+          <h3>{{ chart["chart_name"] }}</h3>
           <div class="chart-container-placeholder">
-            <span>Chart Preview</span>
+            <img :src="chart['file_url']" alt="Chart image" />
           </div>
           <!-- Original ChartContainer is commented out or removed for placeholder UI -->
           <!-- 
@@ -306,9 +346,7 @@ const addToChatHandler = (chart) => {
           -->
         </div>
       </template>
-      <div v-else class="no-results">
-        No charts found.
-      </div>
+      <div v-else class="no-results">No charts found.</div>
     </div>
 
     <!-- Generation dialog -->
@@ -316,7 +354,11 @@ const addToChatHandler = (chart) => {
       v-model:visible="showDialog"
       modal
       :style="{ width: '35vw', height: '42vh' }"
-      :contentStyle="{ padding: '1.5rem', height: 'calc(32vh - 3.5rem)', overflowY: 'auto' }"
+      :contentStyle="{
+        padding: '1.5rem',
+        height: 'calc(32vh - 3.5rem)',
+        overflowY: 'auto',
+      }"
       :draggable="false"
       :resizable="false"
       class="chart-dialog"
@@ -355,7 +397,11 @@ const addToChatHandler = (chart) => {
       </div>
 
       <template #footer>
-        <Button label="Cancel" class="p-button-text" @click="showDialog = false" />
+        <Button
+          label="Cancel"
+          class="p-button-text"
+          @click="showDialog = false"
+        />
         <Button
           label="OK"
           icon="pi pi-check"
@@ -377,51 +423,56 @@ const addToChatHandler = (chart) => {
         <div class="chart-display">
           <div class="chart-display-wrapper" v-if="selectedChart">
             <ChartContainer
-              :title="selectedChart.title" 
+              :title="selectedChart.title"
               :loading="!selectedChart.dataSources"
               @elementClick="handleChartElementClick"
               :highlightedPoint="selectedChartPoint"
-              class="detail-chart-instance" />
+              class="detail-chart-instance"
+            />
           </div>
         </div>
-        <div 
-          class="chat-sidebar"
-          :class="{ 'collapsed': !isSidebarPinned }"
-        >
+        <div class="chat-sidebar" :class="{ collapsed: !isSidebarPinned }">
           <!-- Sidebar Header removed -->
           <!-- Chat Window and Input remain below -->
           <div v-if="isSidebarPinned" class="chat-window" ref="chatWindowRef">
-            <div 
-              v-for="msg in messages[selectedChart?.id]" 
+            <div
+              v-for="msg in messages[selectedChart?.id]"
               :key="msg.id"
               class="message-container"
               :class="msg.sender"
             >
-              <Avatar 
-                v-if="msg.sender === 'ai'" 
-                icon="pi pi-robot" 
-                class="message-avatar ai-avatar" 
+              <Avatar
+                v-if="msg.sender === 'ai'"
+                icon="pi pi-robot"
+                class="message-avatar ai-avatar"
                 size="small"
               />
               <div class="message-content">
                 <div class="chat-bubble" :class="msg.sender">
                   {{ msg.text }}
                   <div v-if="msg.context" class="message-context">
-                    <small>📊 {{ msg.context.label }}: {{ msg.context.value }}</small>
+                    <small
+                      >📊 {{ msg.context.label }}:
+                      {{ msg.context.value }}</small
+                    >
                   </div>
                 </div>
                 <div class="message-timestamp">{{ msg.timestamp }}</div>
               </div>
-              <Avatar 
-                v-if="msg.sender === 'user'" 
-                icon="pi pi-user" 
-                class="message-avatar user-avatar" 
+              <Avatar
+                v-if="msg.sender === 'user'"
+                icon="pi pi-user"
+                class="message-avatar user-avatar"
                 size="small"
               />
             </div>
             <!-- AI Typing Indicator -->
             <div v-if="isAiTyping" class="message-container ai">
-              <Avatar icon="pi pi-robot" class="message-avatar ai-avatar" size="small" />
+              <Avatar
+                icon="pi pi-robot"
+                class="message-avatar ai-avatar"
+                size="small"
+              />
               <div class="message-content">
                 <div class="chat-bubble ai typing-indicator">
                   <span></span>
@@ -433,30 +484,42 @@ const addToChatHandler = (chart) => {
           </div>
           <div class="advanced-chat-input-area">
             <div v-if="showSuggestedQuestions" class="suggested-questions-bar">
-              <Button 
-                v-for="question in suggestedQuestions" :key="question"
+              <Button
+                v-for="question in suggestedQuestions"
+                :key="question"
                 :label="question"
                 class="p-button-sm p-button-outlined suggested-question-chip"
                 @click="useSuggestedQuestion(question)"
               />
             </div>
             <div class="main-input-row">
-              <input type="file" ref="fileInputRef" @change="handleFileSelected" style="display: none;" />
-              <Button 
-                icon="pi pi-paperclip" 
-                class="p-button-text p-button-sm" 
-                v-tooltip.top="'Attach file'" 
-                @click="triggerFileInput" 
+              <input
+                type="file"
+                ref="fileInputRef"
+                @change="handleFileSelected"
+                style="display: none"
               />
-              <Button 
-                icon="pi pi-question-circle" 
-                class="p-button-text p-button-sm" 
+              <Button
+                icon="pi pi-paperclip"
+                class="p-button-text p-button-sm"
+                v-tooltip.top="'Attach file'"
+                @click="triggerFileInput"
+              />
+              <Button
+                icon="pi pi-question-circle"
+                class="p-button-text p-button-sm"
                 @click="showSuggestedQuestions = !showSuggestedQuestions"
-                v-tooltip.top="showSuggestedQuestions ? 'Hide suggestions' : 'Show suggestions'"
+                v-tooltip.top="
+                  showSuggestedQuestions
+                    ? 'Hide suggestions'
+                    : 'Show suggestions'
+                "
               />
               <InputText
                 v-model="chatInput"
-                :placeholder="`Ask about ${selectedChart?.title || 'the chart'}...`"
+                :placeholder="`Ask about ${
+                  selectedChart?.title || 'the chart'
+                }...`"
                 class="p-inputtext-lg chat-input-field"
                 @keydown.ctrl.enter="sendMessage"
                 @keydown.meta.enter="sendMessage"
@@ -480,16 +543,34 @@ const addToChatHandler = (chart) => {
 </template>
 
 <style scoped>
+.search-box {
+  width: 20vw;
+}
+.loading-div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin-left: auto;
+  margin-right: auto;
+  overflow-x: auto;
+  overflow-y: auto;
+  justify-content: center;
+  align-items: center;
+  margin-top: 15%;
+}
+
+.loading-chats-label {
+  margin-top: 0.5rem;
+  color: gray;
+  font-size: 12px;
+  text-align: center;
+}
+
 .chart-page {
   padding: 2rem;
 }
-.header-bar {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
+
 .search-input {
   width: 400px;
 }
@@ -505,12 +586,12 @@ const addToChatHandler = (chart) => {
   padding: 2rem;
 }
 .chart-dialog .p-dialog-header {
-  background: var(--green-500, #4CAF50);
+  background: var(--green-500, #4caf50);
   color: var(--primary-color-text, #ffffff);
   padding: 1rem 1.5rem;
   font-size: 1.15rem;
   font-weight: 600;
-  border-bottom: 1px solid var(--green-600, #388E3C);
+  border-bottom: 1px solid var(--green-600, #388e3c);
   text-align: center;
 }
 .chart-dialog .p-dialog-footer {
@@ -542,7 +623,7 @@ const addToChatHandler = (chart) => {
   padding: 0.25rem 1.25rem 0.25rem 1.25rem;
   font-size: 1.2rem;
   font-weight: 600;
-  font-family: 'Poppins', sans-serif;
+  font-family: "Poppins", sans-serif;
   text-align: center;
   margin: 0 auto 0.75rem auto;
 }
@@ -559,7 +640,8 @@ const addToChatHandler = (chart) => {
 }
 .chat-input-area textarea.chat-input:focus {
   border-color: var(--primary-color, #007bff);
-  box-shadow: 0 0 0 0.2rem var(--primary-color-transparent, rgba(0,123,255,.25));
+  box-shadow: 0 0 0 0.2rem
+    var(--primary-color-transparent, rgba(0, 123, 255, 0.25));
   outline: none;
 }
 .data-field {
@@ -590,7 +672,7 @@ const addToChatHandler = (chart) => {
 .chat-prompt p {
   font-size: 1.5rem;
   font-weight: 700;
-  font-family: 'Poppins', sans-serif;
+  font-family: "Poppins", sans-serif;
 }
 
 .chat-input-area textarea.chat-input {
@@ -739,8 +821,16 @@ const addToChatHandler = (chart) => {
   animation-delay: 0.4s;
 }
 @keyframes typing {
-  0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
-  40% { transform: scale(1); opacity: 1; }
+  0%,
+  80%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .chat-input-container {
@@ -779,14 +869,14 @@ const addToChatHandler = (chart) => {
   border-radius: 12px;
   padding: 1.5rem;
   transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-  display: flex;
-  flex-direction: column;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   aspect-ratio: 1 / 1;
   position: relative;
+  width: 25rem;
+  height: 25rem;
 }
 .chart-card h3 {
-  font-family: 'Poppins', sans-serif;
+  font-family: "Poppins", sans-serif;
   font-size: 1.25rem;
   font-weight: 600;
   color: var(--text-color);
@@ -795,18 +885,11 @@ const addToChatHandler = (chart) => {
 }
 .chart-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
 }
 .chart-card .chart-container-placeholder {
-  flex-grow: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--surface-ground);
   border-radius: 8px;
   margin-top: 1rem;
-  color: var(--text-color-secondary);
-  font-style: italic;
 }
 .detail-dialog .p-dialog-content {
   display: flex;
@@ -890,7 +973,8 @@ const addToChatHandler = (chart) => {
   height: 100%;
 }
 
-.detail-chart-instance .chart-title-slot-class { /* Assuming ChartContainer uses a class for its title slot */
+.detail-chart-instance .chart-title-slot-class {
+  /* Assuming ChartContainer uses a class for its title slot */
   display: none; /* Hide built-in title if sidebar header is sufficient */
 }
 

@@ -55,7 +55,7 @@ async def ai_prompt(
     
     start = time.time()
     # Store the project metadata
-    data = await ai_service.call(body)
+    data = await ai_service.call(body, user, org)
     
     data = data.model_dump()
     

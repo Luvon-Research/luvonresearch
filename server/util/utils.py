@@ -72,3 +72,21 @@ def strip_code_block(text: str) -> str:
         lines[-1] = re.sub(r'\s*"+$', '', lines[-1])
 
     return "\n".join(lines).strip()
+
+def is_boolean_string(s: str) -> bool:
+    """
+    Check if `s` (after stripping) is exactly "true" or "false" (case-insensitive).
+    """
+    if not isinstance(s, str):
+        return False
+    return s.strip().lower() in {"true", "false"}
+
+
+def parse_boolean_string(s: str) -> bool:
+    """
+    Convert a "true"/"false" string into a boolean.
+    Raises ValueError if the string isn’t a valid boolean representation.
+    """
+    if not is_boolean_string(s):
+        raise ValueError(f"Cannot convert {s!r} to bool")
+    return s.strip().lower() == "true"

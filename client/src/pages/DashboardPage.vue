@@ -426,6 +426,7 @@ const filteredSheets = computed(() => {
   max-width: calc(100% - 2rem);
   overflow-x: auto;
   overflow-y: auto;
+  height: 100%;
 }
 
 .sheet-chat {
