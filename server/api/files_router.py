@@ -16,16 +16,16 @@ async def upload_file(
     request: Request,
     org_id: str = Form(...),
     file: UploadFile = File(...),
+    is_chart: bool = Form(...),
     service: FilesService = Depends(get_files_service),
     user_service: UserService = Depends(get_user_service)
 ):
     try:
         # Get the uploader_id from the authenticated user
-        # uploader_id = await user_service.verify_user_token(request)
-        uploader_id = "123"
-        
+        uploader_id = await user_service.verify_user_token(request)
+
         file_content = await file.read()
-        return await service.upload_file(org_id, uploader_id, file_content, file.filename)
+        return await service.upload_file(org_id, uploader_id, file_content, file.filename, is_chart)
     except HTTPException as e:
         raise e
     except Exception as e:
@@ -48,20 +48,14 @@ async def get_files_by_organization(
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) 
     
-
-@router.get("/file/{filename}")
-async def get_files_by_organization(
-    filename: str,
+@router.get("/signed-url/{file_path}")
+async def get_signed_url(
+    file_path: str,
     service: FilesService = Depends(get_files_service)
 ):
     try:
-        file = await service.get_files_by_filename(filename)
-        
-        if not file:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No files found by this name")
-
-        return {'url': file}
+        return await service.get_signed_url(file_path)
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) 
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

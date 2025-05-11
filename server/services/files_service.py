@@ -11,7 +11,7 @@ class FilesService:
     def get_client(self) -> Client:
         return self.db.get_client()
 
-    async def upload_file(self, org_id: str, uploader_id: str, file: bytes, file_name: str, file_option="application/pdf"):
+    async def upload_file(self, org_id: str, uploader_id: str, file: bytes, file_name: str, is_chart: bool = False):
         try:
             client = self.get_client()
             
@@ -21,8 +21,8 @@ class FilesService:
             if not storage_response:
                 raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to upload file to storage")
 
-            # Construct file path
-            file_path = f"files/{file_name}"
+            # Construct file path based on is_chart parameter
+            file_path = f"charts/{file_name}" if is_chart else f"files/{file_name}"
 
             # Store file metadata in the files_data table
             file_data = {
@@ -48,27 +48,25 @@ class FilesService:
             client = self.get_client()
             response = client.table("files_data").select("*").eq("org_id", org_id).execute()
             files = response.data or []
-            print(files)
-            print(org_id)
-
-            # Generate signed URLs for each file
-            for file in files:
-                print(f"Generating signed URL for file path: {file['file_path']}")
-                # Remove "files/" prefix
-                file_path = file["file_path"]
-                if file_path.startswith("files/"):
-                    file_path = file_path[len("files/"):]
-
-                signed_url_response = client.storage.from_('files').create_signed_url(
-                    file_path, 
-                    expires_in=3600
-                )
-                print(f"Signed URL: {signed_url_response['signedURL']}")
-                file["signed_url"] = signed_url_response['signedURL']
-
             return files
         except Exception as e:
             print(e)
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+    async def get_signed_url(self, file_path: str):
+        try:
+            client = self.get_client()
+            # Remove "files/" prefix if present
+            if file_path.startswith("files/"):
+                file_path = file_path[len("files/"):]
+                
+            signed_url_response = client.storage.from_('files').create_signed_url(
+                file_path,
+                expires_in=3600
+            )
+            return {"signed_url": signed_url_response['signedURL']}
+        except Exception as e:
+            print(e) 
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
         
     async def get_files_by_filename(self, filename: str):
