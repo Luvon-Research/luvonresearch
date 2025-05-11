@@ -70,6 +70,8 @@ const handleCreate = async () => {
   const formData = new FormData();
   formData.append('file', selectedFile.value);
   formData.append('org_id', organizationId.value);
+  formData.append('is_chart', false);
+
 
   try {
     loading.value = true;

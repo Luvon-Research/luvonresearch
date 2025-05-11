@@ -23,7 +23,7 @@ class AIService:
         system_prompt = """
         You are Luvon, an AI research assistant. Always respond in English. You have three tools:
 
-        1. graph (chart)
+        1. graph (chart) (you can make any type of chart that exists)
         - Call `_tool_graph` tool and obtain `r_code` and `img_url`
             • Generates raw ggplot2 R code for charts.  
         • Include a small message on the output
@@ -113,6 +113,7 @@ class AIService:
                 model=settings.AI_MODEL,
                 system_prompt=f'''
                     You are the graph/chart tool which writes R code for making graphs/charts. 
+                    You can make any type of chart that exists
                     Only use ggplot2 to make these graphs.
                     Your sole task is to produce professional, aesthetically pleasing ggplot2 
                     R code under `r_code` that:
@@ -154,8 +155,9 @@ class AIService:
                         # TODO fill in the org id and everything
                         with open(output_png_absolute, 'rb') as fp:
                             data = fp.read()
-                            out = await self.files_service.upload_file('test_org', 'test', data, img_filename, 'image/png')
-                            img_url = await self.files_service.get_files_by_filename(img_filename)
+                            out = await self.files_service.upload_file('test_org', 'test', data, img_filename, is_chart=True)
+                            img_url = out['file_url']
+                            #img_url = await self.files_service.get_files_by_filename(img_filename)
                         
                         success = True
                         break
@@ -203,14 +205,14 @@ class AIService:
                     os.remove(output_png_absolute)     
                 return GraphAgentFinalResponse(r_code=r_code, status='success', img_url=img_url)
             else:
-                # if os.path.exists(csv_absolute):
-                #     os.remove(csv_absolute)
+                if os.path.exists(csv_absolute):
+                    os.remove(csv_absolute)
                     
-                # if os.path.exists(script_absolute):
-                #     os.remove(script_absolute)
+                if os.path.exists(script_absolute):
+                    os.remove(script_absolute)
                     
-                # if os.path.exists(output_png_absolute):
-                #     os.remove(output_png_absolute)      
+                if os.path.exists(output_png_absolute):
+                    os.remove(output_png_absolute)      
 
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

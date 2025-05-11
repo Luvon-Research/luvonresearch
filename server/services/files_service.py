@@ -15,6 +15,10 @@ class FilesService:
         try:
             client = self.get_client()
             
+            file_option = "application/pdf"
+            
+            if(is_chart): file_option = "image/png"
+            
             # Upload file to Supabase storage
             storage_response = client.storage.from_('files').upload(file_name, file, file_options={"content-type": file_option})
             
@@ -22,22 +26,44 @@ class FilesService:
                 raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to upload file to storage")
 
             # Construct file path based on is_chart parameter
-            file_path = f"charts/{file_name}" if is_chart else f"files/{file_name}"
+            #file_path = f"charts/{file_name}" if is_chart else f"files/{file_name}"
+            
+            file_url = await self.get_signed_url(file_name)
+            file_url = file_url['signed_url']
 
             # Store file metadata in the files_data table
             file_data = {
                 "id": generate_uuid(),
                 "org_id": org_id,
                 "uploader_id": uploader_id,
-                "file_path": file_path
+                "file_path": file_name,
+                "file_url": file_url
             }
-            response = client.table("files_data").insert(file_data).execute()
+            
+            # ONLY USED FOR CHARTS
+            chart_data = {
+                "org_id": org_id,
+                "project_id": org_id, 
+                "uploader_id": uploader_id,
+                "file_path": file_name,
+                "chart_name": "Test name",
+                "file_url": file_url
+            }
+            
+            table_name = "files_data"
+            
+            if is_chart:
+                table_name = "charts"
+                file_data = chart_data
+            
+            response = client.table(table_name).insert(file_data).execute()
+            
             print(response)
 
             if not response.data:
                 raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to store file metadata")
 
-            return {"status": "success", "message": "File uploaded successfully", "file_path": file_path}
+            return {"status": "success", "message": "File uploaded successfully", "file_path": file_name, "file_url": file_url}
 
         except Exception as e:
             print(e)
@@ -62,7 +88,7 @@ class FilesService:
                 
             signed_url_response = client.storage.from_('files').create_signed_url(
                 file_path,
-                expires_in=3600
+                expires_in=315576000 # 10 Years
             )
             return {"signed_url": signed_url_response['signedURL']}
         except Exception as e:
@@ -75,7 +101,7 @@ class FilesService:
 
             signed_url_response = client.storage.from_('files').create_signed_url(
                 filename, 
-                expires_in=31536000 # 1 year
+                expires_in=315576000 # 10 years
             )
             print(f"Signed URL: {signed_url_response['signedURL']}")
             return signed_url_response['signedURL']
