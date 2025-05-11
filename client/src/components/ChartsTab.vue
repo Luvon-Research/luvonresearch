@@ -46,6 +46,13 @@ const loadingCharts = ref(true);
 const charts = ref([]);
 const API_URL = import.meta.env.VITE_API_URL;
 
+// Filter charts by search
+const filteredCharts = computed(() =>
+  charts.value.filter((c) =>
+    c["chart_name"].toLowerCase().includes(searchTerm.value.toLowerCase())
+  )
+);
+
 onMounted(async () => {
   // Gets charts after mount
   let org_id = organization.value.id;
@@ -318,11 +325,29 @@ const addToChatHandler = (chart) => {
       </div>
     </div>
 
+    <div v-if="filteredCharts.length === 0 && !loadingCharts">
+      <center>
+        <div class="no-charts">
+          <img
+            src="../assets/undraw_segmentation.svg"
+            alt="No charts"
+            class="no-charts-img"
+          />
+          <h1 class="no-charts-title">No charts found</h1>
+          <p class="no-charts-subtitle">
+            Navigate to a sheet and open the AI Assitant window and ask it to
+            make a chart for you
+          </p>
+        </div>
+      </center>
+
+      </div>
+
     <!-- Charts grid: 3 per row -->
     <div class="chart-grid">
-      <template v-if="charts.length">
+      <template v-if="filteredCharts.length">
         <div
-          v-for="chart in charts"
+          v-for="chart in filteredCharts"
           :key="chart.id"
           class="chart-card"
           @click="openChat(chart)"
@@ -346,7 +371,6 @@ const addToChatHandler = (chart) => {
           -->
         </div>
       </template>
-      <div v-else class="no-results">No charts found.</div>
     </div>
 
     <!-- Generation dialog -->
@@ -543,6 +567,22 @@ const addToChatHandler = (chart) => {
 </template>
 
 <style scoped>
+
+.no-charts-img {
+  margin-top: 20vh;
+  width: 12rem;
+}
+
+.no-charts-title {
+  font-size: 30px;
+  margin-top: 1rem;
+}
+
+.no-charts-subtitle {
+  color: gray;
+  width: 30%;
+}
+
 .search-box {
   width: 20vw;
 }
@@ -579,12 +619,7 @@ const addToChatHandler = (chart) => {
   grid-template-columns: repeat(3, 1fr);
   gap: 2rem;
 }
-.no-results {
-  grid-column: 1 / -1;
-  text-align: center;
-  color: var(--text-color-secondary);
-  padding: 2rem;
-}
+
 .chart-dialog .p-dialog-header {
   background: var(--green-500, #4caf50);
   color: var(--primary-color-text, #ffffff);
