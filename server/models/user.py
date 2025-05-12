@@ -16,3 +16,7 @@ class UserSearchByID(BaseModel):
 class UserCreated(BaseModel):
     status: str
     message: str
+
+class IntegrationCreated(BaseModel):
+    status: str
+    message: str

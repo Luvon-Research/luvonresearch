@@ -1,4 +1,4 @@
-from models.user import UserBase, UserCreated
+from models.user import UserBase, UserCreated, IntegrationCreated
 from fastapi import HTTPException, status
 from services.supabase_service import SupabaseService
 from clerk_backend_api import Clerk
@@ -57,6 +57,35 @@ class UserService:
                 raise HTTPException(
                     status_code=status.HTTP_200_OK,
                     detail="User with that key already exists. No need to create.",
+                    )
+            else: 
+                print(e)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Something went wrong...",
+                )
+
+    async def store_box_token(self, user_id: str, token:str) -> IntegrationCreated:
+        try:
+            client = self.db.get_client()
+            payload = {
+                "user_id" : user_id,
+                "token" : token,
+                "integration": "box"
+            }
+            response = client.table('integrations').upsert(payload).execute()
+            val = response.data
+            print(val)
+            return IntegrationCreated(
+                status = "success",
+                message="Integration stored successfully"
+            )
+        except Exception as e:
+            print(e)
+            if(e.code == '23505'): # Key already exists
+                raise HTTPException(
+                    status_code=status.HTTP_200_OK,
+                    detail="Integration with that key already exists. No need to create.",
                     )
             else: 
                 print(e)
