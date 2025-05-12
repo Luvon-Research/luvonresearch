@@ -7,9 +7,10 @@ import hmac
 import hashlib
 
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
+supabase = SupabaseService()
 
 def get_project_service() -> ProjectService:
-    return ProjectService(SupabaseService())
+    return ProjectService(supabase)
 
 def verify_clerk_webhook(
     request: Request,

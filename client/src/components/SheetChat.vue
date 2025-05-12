@@ -2,41 +2,123 @@
   <div class="sheet-chat" :style="{ width: chatWidth + 'px' }">
     <!-- Header -->
     <header class="chat-header">
-      <h3>How can I assist you?</h3>
-      <button class="close-btn" @click="close">×</button>
+      <div class="d-flex justify-content-between">
+        <h3>How can I assist you?</h3>
+        <div class="d-flex">
+          <button class="expand-btn" @click="fullscreenToggle">
+            <i
+              :class="
+                'pi ' +
+                (fullscreen ? 'pi-window-minimize' : 'pi-window-maximize')
+              "
+            ></i>
+          </button>
+          <button class="close-btn" @click="close">×</button>
+        </div>
+      </div>
+
+      <div class="d-flex">
+        <span class="context-badge">
+          Using Context:
+          <i
+            v-if="props.contextType === 'sheets'"
+            class="pi pi-table sheet-icon"
+          ></i>
+          <img
+            :src="orgImgUrl"
+            v-if="props.contextType !== 'sheets'"
+            class="org-img"
+          />
+          <p v-if="props.contextType !== 'sheets'">{{ orgName }}</p>
+          <p v-if="props.contextType === 'sheets'">{{ props.contextName }}</p>
+        </span>
+      </div>
     </header>
 
     <!-- suggestion buttons -->
-    <div class="suggestions">
+    <div class="suggestions" v-if="messages.length === 0 && !loadingChats">
       <button
         v-for="(s, i) in suggestions"
         :key="i"
         class="suggestion"
-        @click="applySuggestion(s)"
+        @click="displayText(s)"
       >
         {{ s }}
       </button>
     </div>
 
     <!-- messages (plain text, no boxes) -->
-    <div class="messages" ref="msgsContainer">
-      <p
+    <div class="messages" ref="msgsContainer" v-if="!loadingChats">
+      <div
         v-for="(msg, idx) in messages"
         :key="idx"
         :class="['message', msg.from]"
       >
-        {{ msg.text }}
-      </p>
+        <p class="timestamp">{{ msg.timestamp }}</p>
+        <p v-if="msg.type === 'message'">{{ msg.text }}</p>
+        <div v-if="msg.type === 'skeleton-text'">
+          <Skeleton width="80%" class="mb-2"></Skeleton>
+          <Skeleton width="80%" class="mb-2"></Skeleton>
+          <Skeleton width="80%" class="mb-2"></Skeleton>
+        </div>
+        <div v-if="msg.type === 'skeleton-img'">
+          <Skeleton width="80%" height="5rem"></Skeleton>
+        </div>
+
+        <img :src="msg.text" v-if="msg.type === 'image'" class="img" />
+
+        <div
+          v-if="
+            msg.from === 'assistant' &&
+            msg.type !== 'skeleton-text' &&
+            msg.type !== 'image'
+          "
+          class="generatedTime"
+        >
+          <div v-if="msg.type === 'code'">
+            <p>Here's the R code used to make this chart</p>
+            <CodeBlock
+              :code="msg.text"
+              :numbered="true"
+              :show-header="true"
+              file-name="chart.R"
+              language="c"
+              theme="vsDark"
+              style="font-size: 12px"
+            >
+            </CodeBlock>
+          </div>
+          <i class="pi pi-sparkles"></i> Generated in {{ msg.generationTime }}s
+        </div>
+      </div>
     </div>
 
-    <!-- input bar -->
-    <div class="input-bar">
-      <input
-        v-model="draft"
-        @keyup.enter="send"
-        placeholder="Send a message…"
+    <center v-if="!loadingChats">
+      <div class="input-bar">
+        <input
+          v-model="draft"
+          @keyup.enter="send"
+          placeholder="Send a message…"
+        />
+        <Button
+          class="send-btn"
+          @click="send"
+          icon="pi pi-arrow-up"
+          :loading="loading"
+        >
+        </Button>
+      </div>
+    </center>
+
+    <div v-if="loadingChats" class="loading-div">
+      <ProgressSpinner
+        style="width: 40px; height: 40px"
+        strokeWidth="3"
+        fill="transparent"
+        animationDuration=".5s"
+        aria-label="Custom ProgressSpinner"
       />
-      <button class="send-btn" @click="send">Send</button>
+      <p class="loading-chats-label">Loading Chats</p>
     </div>
 
     <!-- Resizable handle -->
@@ -51,96 +133,359 @@
 </template>
 
 <script setup>
-import { ref, reactive, nextTick, onMounted, onBeforeUnmount } from 'vue'
-const emit = defineEmits(['close'])
+import {
+  ref,
+  reactive,
+  nextTick,
+  onMounted,
+  onBeforeUnmount,
+  defineProps,
+  unref,
+} from "vue";
+import Skeleton from "primevue/skeleton";
+import { useSession, useOrganization } from "@clerk/vue";
+import Button from "primevue/button";
+import { CodeBlock } from "vuejs-code-block";
+import { ProgressSpinner } from "primevue";
+
+const { organization } = useOrganization();
+const emit = defineEmits(["close"]);
+const { session } = useSession();
+const orgImgUrl = ref("");
+const orgName = ref("");
+const fullscreen = ref(false);
+const loading = ref(false);
+const loadingChats = ref(true);
+
+const props = defineProps({
+  contextType: {
+    type: String,
+    default: null,
+  },
+  contextName: {
+    type: String,
+    default: null,
+  },
+  sheetId: {
+    type: String,
+    default: null,
+  },
+});
+
+onMounted(async () => {
+  console.log(session.value.id);
+  console.log(props.sheetId);
+  console.log(organization.value.imageUrl);
+  console.log(session.value.user.id);
+  orgImgUrl.value = organization.value.imageUrl;
+  orgName.value = organization.value.name;
+    // initial load
+    await loadChats(1, false);
+
+    scrollToBottom();
+  // attach listener
+  const el = msgsContainer.value;
+  if (el) el.addEventListener("scroll", onScroll);
+});
+
+onBeforeUnmount(() => {
+  const el = msgsContainer.value;
+  if (el) el.removeEventListener("scroll", onScroll);
+});
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 // hard‑coded suggestion list
 const suggestions = [
-  'Create a new column',
-  'Create a new row',
-  'Perform research',
-  'What else can you do?'
-]
+  "Create a new column",
+  "Create a new row",
+  "Perform research",
+  "Create a chart",
+  "What else can you do?",
+];
 
 // chat state
-const messages = reactive([])
-const draft = ref('')
-const msgsContainer = ref(null)
-const chatWidth = ref(380) // Initial width in pixels
-const isResizing = ref(false)
-const minWidth = 200 // Minimum width in pixels
+const messages = reactive([]);
+const draft = ref("");
+const msgsContainer = ref(null);
+const chatWidth = ref(440); // Initial width in pixels
+const isResizing = ref(false);
+const minWidth = 420; // Minimum width in pixels
+const currentPage = ref(1);
+const PAGE_SIZE = 6;
+const noMoreChats  = ref(false);
+
+function formatDateMMDDhhmm(dateInput = new Date()) {
+  const d = new Date(dateInput);
+
+  // Month and day
+  const MM = String(d.getMonth() + 1).padStart(2, "0");
+  const DD = String(d.getDate()).padStart(2, "0");
+
+  // Hours and minutes
+  let hh = d.getHours(); // 0–23
+  const ampm = hh >= 12 ? "PM" : "AM";
+  hh = hh % 12 || 12; // convert 0 → 12, 13 → 1, etc.
+  const mm = String(d.getMinutes()).padStart(2, "0");
+
+  return `${MM}/${DD} ${hh}:${mm} ${ampm}`;
+}
 
 function scrollToBottom() {
   nextTick(() => {
-    const el = msgsContainer.value
-    if (el) el.scrollTop = el.scrollHeight
-  })
+    const el = msgsContainer.value;
+    if (el) el.scrollTop = el.scrollHeight;
+  });
 }
 
-function applySuggestion(text) {
-  messages.push({ from: 'user', text })
-  scrollToBottom()
-  setTimeout(() => {
+function displayText(
+  text,
+  from,
+  type,
+  generationTime = 0,
+  timestamp = formatDateMMDDhhmm()
+) {
+  if (from === "user") {
     messages.push({
-      from: 'assistant',
-      text: `🛠 Here's a response for: " ${text} "`
-    })
-    scrollToBottom()
-  }, 500)
+      from: from,
+      type: "message",
+      text: text,
+      timestamp: timestamp,
+    });
+    scrollToBottom();
+  } else if (from === "assistant") {
+    messages.push({
+      from: from,
+      type: type,
+      text: `${text}`,
+      timestamp: timestamp,
+      generationTime: generationTime,
+    });
+  }
+  scrollToBottom();
 }
 
-function send() {
-  const txt = draft.value.trim()
-  if (!txt) return
-  applySuggestion(txt)
-  draft.value = ''
+// function getChatHistory() {
+//   loadingChats.value = true;
+//   fetch(`${API_URL}/api/chat/${session.value.user.id}/${currentPagenation.value}`, {
+//     method: "GET",
+//     headers: {
+//       "Content-Type": "application/json",
+//       Authorization: `Bearer ${session.value.id}`,
+//     },
+//   }).then(async (res) => {
+//     console.log(res);
+
+//     if (res.ok) {
+//       let data = await res.json();
+//       console.log(data);
+
+//       data.forEach((msgGroup) => {
+//         console.log(msgGroup);
+//         msgGroup["message"].forEach((message) => {
+//           displayText(
+//             message["value"],
+//             msgGroup["from_type"],
+//             message["type"],
+//             msgGroup["generation_time"].toFixed(2),
+//             formatDateMMDDhhmm(new Date(msgGroup["timestamp"]))
+//           );
+//         });
+//       });
+
+//       // answers.forEach((val) => {
+//       //   displayText(val["value"], "assistant", val["type"], elapsedSec);
+//       // });
+//     } else {
+//       displayText(
+//         "Error fetching chats, reload your page and try again",
+//         "assistant",
+//         "message",
+//         0
+//       );
+//     }
+//     loadingChats.value = false;
+//   });
+// }
+
+// — pull‐out the fetch logic —
+async function loadChats(page = 1, prepend = false) {
+  loadingChats.value = true;
+  try {
+    const res = await fetch(
+      `${API_URL}/api/chat/${session.value.user.id}/${page}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.value.id}`,
+        },
+      }
+    );
+    if (!res.ok) throw new Error("Fetch failed");
+    const data = await res.json();
+    if (data.length < PAGE_SIZE) noMoreChats.value = true;
+
+    // build a flat array of message‐objects in chronological order
+    const newMessages = [];
+    data.forEach(group => {
+      const ts = formatDateMMDDhhmm(new Date(group.timestamp));
+      group.message.forEach(msg => {
+        newMessages.push({
+          from:           group.from_type,
+          type:           msg.type,
+          text:           msg.value,
+          timestamp:      ts,
+          generationTime: group.generation_time.toFixed(2),
+        });
+      });
+    });
+
+    // remember scrollHeight before we prepend
+    const el = msgsContainer.value;
+    const prevScrollHeight = el?.scrollHeight || 0;
+
+    if (prepend) {
+      // add older messages at the front
+      messages.unshift(...newMessages);
+    } else {
+      // initial load
+      messages.push(...newMessages);
+    }
+
+    await nextTick();
+
+    // restore scroll so content doesn’t jump
+    if (el && prepend) {
+      const newScrollHeight = el.scrollHeight;
+      el.scrollTop = newScrollHeight - prevScrollHeight;
+    } else if (el) {
+      // initial load: scroll to bottom
+      el.scrollTop = el.scrollHeight;
+    }
+    
+  } catch (err) {
+    console.error("Error loading chats:", err);
+  } finally {
+    loadingChats.value = false;
+  }
+}
+
+// — scroll handler to detect “at top” and load the next page —
+function onScroll() {
+  const el = msgsContainer.value;
+  if (!el || loadingChats.value || noMoreChats.value) return;
+  if (el.scrollTop === 0) {
+    currentPage.value += 1;
+    loadChats(currentPage.value, true);
+  }
+}
+
+
+function fullscreenToggle() {
+  if (fullscreen.value) {
+    // Reverts back to small
+    chatWidth.value = 380;
+  } else {
+    chatWidth.value = window.outerWidth; // Makes it full screen
+  }
+  fullscreen.value = !fullscreen.value;
+}
+
+async function send() {
+  const txt = draft.value.trim();
+  if (!txt) return;
+
+  displayText(txt, "user");
+
+  displayText("Loading...", "assistant", "skeleton-text");
+
+  const start = Date.now();
+
+  loading.value = true;
+
+  fetch(`${API_URL}/api/ai`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.value.id}`,
+    },
+    body: JSON.stringify({
+      prompt: txt,
+      session_id: session.value.id,
+      context_source: unref(props.sheetId),
+    }),
+  }).then(async (res) => {
+    messages.pop();
+
+    console.log(res);
+
+    if (res.ok) {
+      let data = await res.json();
+      console.log(data);
+      const elapsedSec = (Date.now() - start) / 1000;
+
+      let answers = data["answer"];
+
+      answers.forEach((val) => {
+        displayText(val["value"], "assistant", val["type"], elapsedSec);
+      });
+    } else {
+      const elapsedSec = (Date.now() - start) / 1000;
+      let body = await res.json();
+      let errMsg = body["detail"];
+      displayText(errMsg, "assistant", "message", elapsedSec);
+    }
+
+    loading.value = false;
+  });
+  draft.value = "";
 }
 
 function close() {
-  emit('close')
+  emit("close");
 }
 
-let startX, startWidth
+let startX, startWidth;
 
 function startResize(event) {
-  startX = event.clientX
-  startWidth = chatWidth.value
-  isResizing.value = true
-  document.documentElement.addEventListener('mousemove', doResize)
-  document.documentElement.addEventListener('mouseup', stopResize)
+  startX = event.clientX;
+  startWidth = chatWidth.value;
+  isResizing.value = true;
+  document.documentElement.addEventListener("mousemove", doResize);
+  document.documentElement.addEventListener("mouseup", stopResize);
 }
 
 function doResize(event) {
-  const newWidth = startWidth + (event.clientX - startX)
-  chatWidth.value = Math.max(newWidth, minWidth) // Ensure minimum width
+  const newWidth = startWidth + (event.clientX - startX);
+  chatWidth.value = Math.max(newWidth, minWidth); // Ensure minimum width
 }
 
 function stopResize() {
-  isResizing.value = false
-  document.documentElement.removeEventListener('mousemove', doResize)
-  document.documentElement.removeEventListener('mouseup', stopResize)
+  isResizing.value = false;
+  document.documentElement.removeEventListener("mousemove", doResize);
+  document.documentElement.removeEventListener("mouseup", stopResize);
 }
 
 onMounted(() => {
   // Any additional setup if needed
-})
+});
 
 onBeforeUnmount(() => {
   // Clean up event listeners if needed
-  document.documentElement.removeEventListener('mousemove', doResize)
-  document.documentElement.removeEventListener('mouseup', stopResize)
-})
+  document.documentElement.removeEventListener("mousemove", doResize);
+  document.documentElement.removeEventListener("mouseup", stopResize);
+});
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap");
 
 .sheet-chat {
   display: flex;
   flex-direction: column;
   height: 100%;
   background: #ffffff;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   z-index: 1000;
   position: relative;
   border: 1px solid #e0e0e0; /* Light grey border */
@@ -149,9 +494,6 @@ onBeforeUnmount(() => {
 
 /* header with title + close */
 .chat-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   padding: 1rem;
   border-bottom: 1px solid #e0e0e0;
 }
@@ -169,6 +511,19 @@ onBeforeUnmount(() => {
   color: #666;
 }
 
+.loading-div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  max-width: 75vw;
+  margin-left: auto;
+  margin-right: auto;
+  min-width: 380px;
+  position: relative;
+  top: 30%;
+}
+
 /* suggestions row */
 .suggestions {
   display: flex;
@@ -176,9 +531,13 @@ onBeforeUnmount(() => {
   gap: 0.5rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid #e0e0e0;
+  max-width: 75vw;
+  margin-left: auto;
+  margin-right: auto;
+  min-width: 380px;
 }
 .suggestion {
-  width: 100%;
+  max-width: 75vw;
   padding: 0.6rem;
   background: #f9f9f9;
   border: 1px solid #e0e0e0;
@@ -199,6 +558,11 @@ onBeforeUnmount(() => {
   flex: 1;
   overflow-y: auto;
   padding: 1rem;
+  max-width: 60vw;
+  min-width: 360px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
 }
 .message {
   margin: 0.4rem 0;
@@ -208,10 +572,17 @@ onBeforeUnmount(() => {
 .message.user {
   text-align: right;
   color: #3f51b5;
+  margin-left: 5%;
+  padding-inline: 1rem;
+  padding-top: 1rem;
+  font-weight: 800;
 }
 .message.assistant {
   text-align: left;
   color: #333;
+  margin-right: 5%;
+  padding-inline: 1rem;
+  padding-top: 1rem;
 }
 
 /* input bar pinned at bottom */
@@ -220,6 +591,7 @@ onBeforeUnmount(() => {
   gap: 0.5rem;
   padding: 0.75rem 1rem;
   border-top: 1px solid #e0e0e0;
+  max-width: 45vw;
 }
 .input-bar input {
   flex: 1;
@@ -267,5 +639,71 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
+}
+
+.timestamp {
+  color: gray;
+  font-size: 12px;
+}
+
+.generatedTime {
+  color: gray;
+  font-size: 12px;
+}
+
+.context-badge {
+  display: flex;
+  gap: 0.4rem;
+  width: fit-content;
+  height: 2rem;
+  padding-inline: 1rem;
+  padding-block: 0.4rem;
+  border: 1px solid #f0f0f0; /* Lighter border */
+  font-size: 0.875rem;
+  color: #333; /* Dark text color */
+  border-radius: 6px; /* Slightly more rounded corners */
+  box-shadow: none; /* Remove shadow */
+  cursor: pointer;
+  background-color: white; /* White background */
+  transition: background-color 0.2s ease, border-color 0.2s ease; /* Smooth transition */
+}
+
+.context-badge:hover {
+  cursor: pointer;
+  background-color: #f9f9f9; /* Softer light gray on hover */
+  border-color: #e0e0e0; /* Slightly darker border on hover */
+}
+
+.sheet-icon {
+  color: rgb(3, 161, 3);
+  margin-top: 0.1rem;
+}
+
+.context-text {
+  font-size: 13px;
+  margin-right: 1rem;
+}
+
+.org-img {
+  height: 1.3rem;
+  width: 1.3rem;
+  border-radius: 4px;
+}
+
+.expand-btn {
+  margin-right: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.img {
+  width: 100%;
+  max-width: 40vw;
+}
+
+.loading-chats-label {
+  margin-top: 0.5rem;
+  color: gray;
+  font-size: 12px;
+  text-align: center;
 }
 </style>

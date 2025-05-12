@@ -8,9 +8,10 @@ from models.user import UserBase, UserCreated
 from services.user_service import UserService
 
 router = APIRouter(prefix="/api/users", tags=["users"])
+supabase = SupabaseService()
 
 def get_user_service() -> UserService:
-    return UserService(SupabaseService())
+    return UserService(supabase)
 
 # TODO
 @router.get("/",)
@@ -19,7 +20,7 @@ async def list_users(service: UserService = Depends(get_user_service)):
 
 @router.get("/{user_id}")
 async def get_user(user_id: str, request: Request, service: UserService = Depends(get_user_service)):
-    user_id = await service.verify_user_token(request)
+    user_id, org_id = await service.verify_user_token(request)
     user = await service.get_by_id(user_id)
     if not user:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
@@ -27,7 +28,7 @@ async def get_user(user_id: str, request: Request, service: UserService = Depend
 
 @router.post("/", response_model=UserCreated, status_code=status.HTTP_201_CREATED)
 async def create_user(u: UserBase, request: Request, service: UserService = Depends(get_user_service)):
-    user_id = await service.verify_user_token(request)
+    user_id, org_id = await service.verify_user_token(request)
     if(user_id == u.id):
         return await service.create(u)
     else:

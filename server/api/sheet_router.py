@@ -9,12 +9,13 @@ from services.sheet_service import SheetService
 from services.user_service import UserService
 
 router = APIRouter(prefix="/api/sheets", tags=["sheets"])
+supabase = SupabaseService()
 
 def get_sheet_service() -> SheetService:
-    return SheetService(SupabaseService())
+    return SheetService(supabase)
 
 def get_user_service() -> UserService:
-    return UserService(SupabaseService())
+    return UserService(supabase)
 
 # TODO
 # @router.get("/",)

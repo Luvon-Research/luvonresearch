@@ -14,7 +14,6 @@ class Settings(BaseSettings):
     BOX_CLIENT_SECRET: str 
 
     
-    
     class Config:
         env_file = ".env"
 

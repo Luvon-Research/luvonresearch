@@ -10,3 +10,6 @@ class ProjectCreated(BaseModel):
     id: str
     status: str
     message: str 
+
+class ProjectID(BaseModel):
+    id: str
