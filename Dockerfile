@@ -12,5 +12,7 @@ RUN pip install --upgrade pip \
 # 2) now copy the rest of your server code
 COPY server/ .
 
+EXPOSE 8080
+
 # 3) run uvicorn from inside /app
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
