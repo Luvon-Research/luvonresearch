@@ -1,7 +1,7 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useFileDialog } from "@vueuse/core";
-import { useOrganization, useSession } from "@clerk/vue";
+import { useOrganization, useSession, useUser } from "@clerk/vue";
 import Button from "primevue/button";
 import Dialog from "primevue/dialog";
 import InputText from "primevue/inputtext";
@@ -30,6 +30,29 @@ const fileViewerUrl = ref(null);
 const showPreview = ref(false);
 
 const { open, onChange } = useFileDialog({ accept: "*/*" });
+const { user } = useUser();
+
+// Fetch files from Box API (via backend)
+const fetchBoxFiles = async () => {
+  try {
+    const res = await fetch(`http://localhost:8000/api/box/files/${user.value.id}`);
+    const data = await res.json();
+    const formatted = data.entries.map(file => ({
+      name: file.name,
+      size: "(Box)",
+      uploaded_by: "Box",
+      date: new Date().toLocaleDateString(),
+      url: null
+    }));
+    uploadedFiles.value.push(...formatted);
+  } catch (err) {
+    console.error("Failed to fetch Box files:", err);
+  }
+};
+
+onMounted(() => {
+  fetchBoxFiles();
+});
 
 onChange((files) => {
   if (files?.[0]) selectedFile.value = files[0];

@@ -26,6 +26,7 @@ app.include_router(users_router)
 app.include_router(sheets_router)
 app.include_router(projects_router)
 app.include_router(webhooks_router)
+app.include_router(box_router)
 
 @app.get("/")
 async def read_root():
@@ -41,6 +42,8 @@ async def get_data():
 async def create_user():
     # Example API endpoint
     return {"data": "Some data fetched from the server"}
+
+
 
 # To run the server (from the 'server' directory):
 # 1. Install dependencies: pip install "fastapi[all]" uvicorn
