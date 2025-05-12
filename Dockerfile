@@ -13,9 +13,6 @@ RUN pip install --upgrade pip \
 RUN apt-get update && apt-get install -y --no-install-recommends \
 r-base \
 r-base-dev \
-libcurl4-openssl-dev \
-libssl-dev \
-libxml2-dev \
 && rm -rf /var/lib/apt/lists/*
 
 # ─── Install R graphing packages ───────────────────────────────────────────────
