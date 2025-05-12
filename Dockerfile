@@ -11,8 +11,6 @@ RUN pip install --upgrade pip \
 
  # ─── Install R and system dependencies ─────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
-r-base \
-r-base-dev \
 && rm -rf /var/lib/apt/lists/*
 
 # ─── Install R graphing packages ───────────────────────────────────────────────
