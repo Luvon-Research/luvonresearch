@@ -5,16 +5,19 @@ from api.sheet_router import router as sheets_router
 from api.project_router import router as projects_router
 from api.webhook_router import router as webhooks_router
 from api.ai_router import router as ai_router
-from fastapi.responses import StreamingResponse
 import json
 from sse_starlette import EventSourceResponse
 import time
 from api.files_router import router as files_router
 from api.chat_history_router import router as chat_history_router
+from api.box_router_auth import router as box_router
+
 app = FastAPI()
 
 # Configure CORS
 origins = ["*"]  # Allow all origins
+
+app.include_router(box_router, prefix="/api")
 
 app.add_middleware(
     CORSMiddleware,
