@@ -6,12 +6,13 @@ from services.project_service import ProjectService
 from services.user_service import UserService
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
+supabase = SupabaseService()
 
 def get_project_service() -> ProjectService:
-    return ProjectService(SupabaseService())
+    return ProjectService(supabase)
 
 def get_user_service() -> UserService:
-    return UserService(SupabaseService())
+    return UserService(supabase)
 
 @router.post("/", response_model=ProjectCreated)
 async def create_project(

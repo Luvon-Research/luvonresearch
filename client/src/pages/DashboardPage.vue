@@ -299,6 +299,9 @@ const filteredSheets = computed(() => {
         <SheetChat
           v-if="showChat"
           class="sheet-chat"
+          :sheet-id="selectedSheetId"
+          :context-name="selectedSheetName"
+          :context-type="selectedPage"
           @close="showChat = false"
         />
       </transition>
@@ -423,6 +426,7 @@ const filteredSheets = computed(() => {
   max-width: calc(100% - 2rem);
   overflow-x: auto;
   overflow-y: auto;
+  height: 100%;
 }
 
 .sheet-chat {
@@ -447,34 +451,16 @@ const filteredSheets = computed(() => {
 }
 
 .no-sheets-img{
-  margin-top: 10vh;
-  width: 14vw;
+  margin-top: 20vh;
+  width: 10rem;
 }
 
 .no-sheets-title{
-  margin-top: 1rem;
-  font-size: 28px;
+  font-size: 30px;
 }
 
 .no-sheets-subtitle{
-  width: 25%;
   color: gray;
-}
-
-.create-sheet-btn {
-  background-color: #4a56e2; /* Blue background */
-  color: white; /* White text */
-  border: none; /* No border */
-  padding: 0.5rem 1rem; /* Adjust padding for size */
-  font-size: 0.875rem;
-  border-radius: 6px; /* Rounded corners */
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  transition: background-color 0.2s ease; /* Smooth transition */
-}
-
-.create-sheet-btn:hover {
-  background-color: #3b47b3; /* Darker blue on hover */
+  width: 30%;
 }
 </style>

@@ -32,9 +32,10 @@ class UserService:
         
         try:
             session = self.clerk.sessions.get(session_id=session_token)
+            print(session)
             if not session:
                 raise HTTPException(status_code=401, detail="Invalid session")
-            return session.user_id
+            return session.user_id, session.last_active_organization_id
         
         except Exception as e:
             raise HTTPException(status_code=401, detail=str(e))
