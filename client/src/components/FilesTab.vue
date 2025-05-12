@@ -9,6 +9,16 @@ import FloatLabel from "primevue/floatlabel";
 import IconField from "primevue/iconfield";
 import InputIcon from "primevue/inputicon";
 
+const CLIENT_ID = "qtc894sq3i00wq9tlt4zze1h5s000y1g";
+const REDIRECT_URI = "http://localhost:5173/callback";
+
+const redirectToBoxLogin = () => {
+  const authUrl = `https://account.box.com/api/oauth2/authorize?response_type=code&client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(
+    REDIRECT_URI
+  )}&state=box_login`;
+  window.location.href = authUrl;
+};
+
 const visible = ref(false);
 const sheetName = ref("");
 const selectedFile = ref(null);
@@ -131,7 +141,12 @@ function formatFileSize(bytes) {
       </table>
     </div>
 
-    <Dialog v-model:visible="showPreview" modal header="File Preview" :style="{ width: '85vw', height: '90vh' }">
+    <Dialog
+      v-model:visible="showPreview"
+      modal
+      header="File Preview"
+      :style="{ width: '85vw', height: '90vh' }"
+    >
       <iframe
         v-if="fileViewerUrl"
         :src="fileViewerUrl"
@@ -166,6 +181,13 @@ function formatFileSize(bytes) {
       </div>
 
       <Button
+        label="Upload with Box"
+        icon="pi pi-external-link"
+        class="box-button"
+        @click="redirectToBoxLogin"
+      />
+
+      <Button
         :disabled="!isCreateEnabled"
         :loading="loading"
         :label="loading ? 'Uploading...' : 'Upload File'"
@@ -177,6 +199,14 @@ function formatFileSize(bytes) {
 </template>
 
 <style scoped>
+.box-button {
+  background-color: #0061d5;
+  color: white;
+  font-weight: bold;
+  border-radius: 6px;
+  margin-top: 0.5rem;
+}
+
 .empty-state {
   display: flex;
   flex-direction: column;

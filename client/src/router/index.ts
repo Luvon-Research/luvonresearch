@@ -3,6 +3,7 @@ import LandingPage from '../pages/LandingPage.vue'
 // 1. Import the DashboardPage
 import DashboardPage from '../pages/DashboardPage.vue'
 import Test from '../pages/Test.vue'
+import BoxCallback from '../pages/BoxCallback.vue'
 
 const routes = [
   {
@@ -22,7 +23,12 @@ const routes = [
     component: DashboardPage,
     // Optional: Add meta field for routes that require authentication
     meta: { requiresAuth: true }
-  }
+  },{
+    path: '/callback',
+    name: 'BoxCallback',
+    component: BoxCallback
+  },
+  
   // Add more routes here later
 ]
 

@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     CLERK_WEBHOOK_SECRET: str = ""
     AI_MODEL: str
     GEMINI_API_KEY: str
+    BOX_CLIENT_ID: str
+    BOX_CLIENT_SECRET: str 
+
     
     
     class Config:

@@ -4,11 +4,14 @@ from api.users_router import router as users_router
 from api.sheet_router import router as sheets_router
 from api.project_router import router as projects_router
 from api.webhook_router import router as webhooks_router
+from api.box_router_auth import router as box_router
 
 app = FastAPI()
 
 # Configure CORS
 origins = ["*"]  # Allow all origins
+
+app.include_router(box_router, prefix="/api")
 
 app.add_middleware(
     CORSMiddleware,
