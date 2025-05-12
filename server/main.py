@@ -26,6 +26,7 @@ app.include_router(users_router)
 app.include_router(sheets_router)
 app.include_router(projects_router)
 app.include_router(webhooks_router)
+app.include_router(box_router)
 
 @app.get("/")
 async def read_root():

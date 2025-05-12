@@ -9,7 +9,7 @@ class TokenExchangeRequest(BaseModel):
     code: str
     user_id: str
 
-@router.post("/box/exchange")
+@router.post("/exchange")
 async def box_token_exchange(request: TokenExchangeRequest):
     try:
         token_data = await exchange_code_for_token(request.code, request.user_id)

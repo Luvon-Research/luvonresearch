@@ -9,7 +9,7 @@ const router = useRouter();
 
 onMounted(async () => {
   const code = route.query.code;
-  router.push("/dashboard"); 
+  //router.push("/dashboard"); 
   }
 );
 </script>

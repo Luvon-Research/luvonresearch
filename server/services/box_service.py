@@ -15,7 +15,7 @@ async def exchange_code_for_token(code: str, user_id: str):
         "code": code,
         "client_id": os.getenv("BOX_CLIENT_ID"),
         "client_secret": os.getenv("BOX_CLIENT_SECRET"),
-        "redirect_uri": os.getenv("BOX_REDIRECT_URI"),
+        "redirect_uri": 'http://localhost:8000/callback',
     }
 
     async with httpx.AsyncClient() as client:

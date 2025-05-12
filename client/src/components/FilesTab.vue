@@ -9,7 +9,7 @@ import FloatLabel from "primevue/floatlabel";
 import IconField from "primevue/iconfield";
 import InputIcon from "primevue/inputicon";
 
-const CLIENT_ID = "qtc894sq3i00wq9tlt4zze1h5s000y1g";
+const CLIENT_ID = "x08evj9jxdq775u7d324j0dxmizaqfsx";
 const REDIRECT_URI = "http://localhost:5173/callback";
 
 const redirectToBoxLogin = () => {
