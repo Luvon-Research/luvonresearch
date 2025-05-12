@@ -50,7 +50,7 @@
 </style>
 
 <script setup>
-import { onMounted, onUnmounted, ref, watch, defineProps, nextTick } from "vue";
+import { onMounted, onUnmounted, ref, watch, nextTick } from "vue";
 import Button from "primevue/button";
 import jspreadsheet from "jspreadsheet-ce";
 import "jspreadsheet-ce/dist/jspreadsheet.css";
