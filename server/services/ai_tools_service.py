@@ -162,9 +162,8 @@ class AIService:
                         # TODO fill in the org id and everything
                         with open(output_png_absolute, 'rb') as fp:
                             data = fp.read()
-                            out = await self.files_service.upload_file(ctx.deps.org_id, ctx.deps.user_id, data, img_filename, is_chart=True)
+                            out = await self.files_service.upload_file(ctx.deps.org_id, ctx.deps.user_id, data, img_filename, is_chart=True, r_code=r_code)
                             img_url = out['file_url']
-                            #img_url = await self.files_service.get_files_by_filename(img_filename)
                         
                         success = True
                         break

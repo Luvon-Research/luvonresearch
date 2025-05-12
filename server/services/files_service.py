@@ -11,7 +11,7 @@ class FilesService:
     def get_client(self) -> Client:
         return self.db.get_client()
 
-    async def upload_file(self, org_id: str, uploader_id: str, file: bytes, file_name: str, is_chart: bool = False):
+    async def upload_file(self, org_id: str, uploader_id: str, file: bytes, file_name: str, is_chart: bool = False, r_code: str = ''):
         try:
             client = self.get_client()
             
@@ -47,7 +47,8 @@ class FilesService:
                 "uploader_id": uploader_id,
                 "file_path": file_name,
                 "chart_name": "Test name",
-                "file_url": file_url
+                "file_url": file_url,
+                "r_code": r_code
             }
             
             table_name = "files_data"

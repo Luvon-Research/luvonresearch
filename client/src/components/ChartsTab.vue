@@ -13,6 +13,7 @@ import Divider from "primevue/divider";
 import Tooltip from "primevue/tooltip";
 import { useSession, useOrganization } from "@clerk/vue";
 import InputGroup from "primevue/inputgroup";
+import { CodeBlock } from "vuejs-code-block";
 
 // State
 const { organization } = useOrganization();
@@ -299,6 +300,13 @@ const addToChatHandler = (chart) => {
   console.log("Add to chat clicked for chart:", chart.title);
   // Prevent openChat from being called if needed, though @click.stop should handle it
 };
+
+function viewCodeClick() {
+  const el = document.getElementById("codeblock");
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
 </script>
 
 <template>
@@ -340,8 +348,7 @@ const addToChatHandler = (chart) => {
           </p>
         </div>
       </center>
-
-      </div>
+    </div>
 
     <!-- Charts grid: 3 per row -->
     <div class="chart-grid">
@@ -352,15 +359,21 @@ const addToChatHandler = (chart) => {
           class="chart-card"
           @click="openChat(chart)"
         >
-          <Button
-            icon="pi pi-sparkles"
-            class="p-button-rounded p-button-sm p-button-text add-to-chat-btn"
-            v-tooltip.top="'Add to chat'"
-            @click.stop="addToChatHandler(chart)"
-          />
+          <div class="add-to-chat-btn">
+              <Button
+                icon="pi pi-sparkles"
+                label="Ask AI"
+                class="p-button-sm p-button-text ask-ai-btn"
+                iconPos="right" 
+                v-tooltip.top="'Add to chat'"
+                @click.stop="addToChatHandler(chart)"
+              />
+            </div>
+
+
           <h3>{{ chart["chart_name"] }}</h3>
           <div class="chart-container-placeholder">
-            <img :src="chart['file_url']" alt="Chart image" />
+            <img :src="chart['file_url']" alt="Chart image" class="chart-img" />
           </div>
           <!-- Original ChartContainer is commented out or removed for placeholder UI -->
           <!-- 
@@ -373,77 +386,43 @@ const addToChatHandler = (chart) => {
       </template>
     </div>
 
-    <!-- Generation dialog -->
-    <Dialog
-      v-model:visible="showDialog"
-      modal
-      :style="{ width: '35vw', height: '42vh' }"
-      :contentStyle="{
-        padding: '1.5rem',
-        height: 'calc(32vh - 3.5rem)',
-        overflowY: 'auto',
-      }"
-      :draggable="false"
-      :resizable="false"
-      class="chart-dialog"
-    >
-      <div class="chat-dialog-content">
-        <!-- Chat prompt bubble -->
-        <div class="chat-prompt">
-          <p>What would you like to visualize?</p>
-        </div>
-
-        <!-- User input area -->
-        <div class="chat-input-area">
-          <textarea
-            v-model="promptText"
-            placeholder="Type your description..."
-            rows="3"
-            class="chat-input p-inputtextarea p-inputtext"
-            autofocus
-          ></textarea>
-        </div>
-
-        <!-- Data source selection -->
-        <div class="p-field data-field">
-          <label for="dataSources">Data Sources</label>
-          <MultiSelect
-            id="dataSources"
-            v-model="selectedDataSources"
-            :options="dataSourceOptions"
-            placeholder="Select data sources"
-            class="data-source-select"
-            :selectAll="true"
-            :filter="false"
-            selectAllLabel="Apply all datasources"
-          />
-        </div>
-      </div>
-
-      <template #footer>
-        <Button
-          label="Cancel"
-          class="p-button-text"
-          @click="showDialog = false"
-        />
-        <Button
-          label="OK"
-          icon="pi pi-check"
-          class="p-button-success p-button-lg"
-          @click="generateChart"
-        />
-      </template>
-    </Dialog>
-
     <Dialog
       v-model:visible="showDetailDialog"
       modal
-      :style="{ width: '66vw', height: '90vh', borderRadius: '12px' }"
+      :style="{ width: 'fit-content', height: '90vh', borderRadius: '12px' }"
       :draggable="false"
       :resizable="false"
       class="detail-dialog"
     >
-      <div class="detail-container">
+      <template #header>
+        <div class="d-flex items-center justify-center gap-2">
+          <span class="font-bold" style="font-weight: bold">{{
+            selectedChart ? selectedChart["chart_name"] : "Loading"
+          }}</span>
+          <Button variant="outlined" @click="viewCodeClick">View Code</Button>
+        </div>
+      </template>
+      <img
+        :src="selectedChart['file_url']"
+        alt="Chart expanded"
+        class="expanded-chart"
+      />
+      <p>Here's the R code used to make this chart</p>
+      <div id="codeblock">
+        <CodeBlock
+          :code="selectedChart ? selectedChart['r_code'] : 'loading...'"
+          :numbered="true"
+          :show-header="true"
+          file-name="chart.R"
+          language="c"
+          theme="vsDark"
+          style="font-size: 12px"
+          class="code-block"
+        >
+        </CodeBlock>
+      </div>
+
+      <!-- <div class="detail-container">
         <div class="chart-display">
           <div class="chart-display-wrapper" v-if="selectedChart">
             <ChartContainer
@@ -456,8 +435,6 @@ const addToChatHandler = (chart) => {
           </div>
         </div>
         <div class="chat-sidebar" :class="{ collapsed: !isSidebarPinned }">
-          <!-- Sidebar Header removed -->
-          <!-- Chat Window and Input remain below -->
           <div v-if="isSidebarPinned" class="chat-window" ref="chatWindowRef">
             <div
               v-for="msg in messages[selectedChart?.id]"
@@ -490,7 +467,6 @@ const addToChatHandler = (chart) => {
                 size="small"
               />
             </div>
-            <!-- AI Typing Indicator -->
             <div v-if="isAiTyping" class="message-container ai">
               <Avatar
                 icon="pi pi-robot"
@@ -561,13 +537,22 @@ const addToChatHandler = (chart) => {
             </div>
           </div>
         </div>
-      </div>
+      </div> -->
     </Dialog>
   </div>
 </template>
 
 <style scoped>
 
+.chart-img {
+  width: 95%;
+}
+.code-block {
+  width: 40vw;
+}
+.expanded-chart {
+  width: 39vw;
+}
 .no-charts-img {
   margin-top: 20vh;
   width: 12rem;
@@ -616,8 +601,9 @@ const addToChatHandler = (chart) => {
 }
 .chart-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2rem;
+  grid-template-columns: repeat(3, 0fr);
+  gap: 1rem;
+  margin-top: 2rem;
 }
 
 .chart-dialog .p-dialog-header {
@@ -902,7 +888,7 @@ const addToChatHandler = (chart) => {
   cursor: pointer;
   background-color: var(--surface-card);
   border-radius: 12px;
-  padding: 1.5rem;
+  padding: 2rem;
   transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   aspect-ratio: 1 / 1;
@@ -926,12 +912,7 @@ const addToChatHandler = (chart) => {
   border-radius: 8px;
   margin-top: 1rem;
 }
-.detail-dialog .p-dialog-content {
-  display: flex;
-  gap: 1rem;
-  padding: 1rem 1rem 0.5rem 1rem;
-  height: 100%;
-}
+
 .detail-container {
   display: flex;
   width: 100%;

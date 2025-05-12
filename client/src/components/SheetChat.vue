@@ -208,9 +208,9 @@ const suggestions = [
 const messages = reactive([]);
 const draft = ref("");
 const msgsContainer = ref(null);
-const chatWidth = ref(380); // Initial width in pixels
+const chatWidth = ref(440); // Initial width in pixels
 const isResizing = ref(false);
-const minWidth = 200; // Minimum width in pixels
+const minWidth = 420; // Minimum width in pixels
 const currentPage = ref(1);
 const PAGE_SIZE = 6;
 const noMoreChats  = ref(false);
@@ -560,6 +560,7 @@ onBeforeUnmount(() => {
   padding: 1rem;
   max-width: 60vw;
   min-width: 360px;
+  width: 100%;
   margin-left: auto;
   margin-right: auto;
 }
@@ -571,7 +572,7 @@ onBeforeUnmount(() => {
 .message.user {
   text-align: right;
   color: #3f51b5;
-  margin-left: 10%;
+  margin-left: 5%;
   padding-inline: 1rem;
   padding-top: 1rem;
   font-weight: 800;
@@ -579,7 +580,7 @@ onBeforeUnmount(() => {
 .message.assistant {
   text-align: left;
   color: #333;
-  margin-right: 10%;
+  margin-right: 5%;
   padding-inline: 1rem;
   padding-top: 1rem;
 }

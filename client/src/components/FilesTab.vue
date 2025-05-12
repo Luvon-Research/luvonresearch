@@ -26,7 +26,7 @@ const error = ref(null);
 const fileViewerUrl = ref(null);
 const showPreview = ref(false);
 const selectedPreviewFile = ref(null);
-const organizationId = computed(() => organization.value?.id);
+const organizationId = ref("");
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -133,11 +133,23 @@ const fetchFiles = async () => {
 
   try {
     loading.value = true;
-    const response = await axios.get(`${API_URL}/api/files/${organizationId.value}`);
-    console.log("Files response:", response.data);
+    let response = await fetch(`${API_URL}/api/files/${organizationId.value}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.value.id}`,
+          "is_chart": false,
+        }
+      }
+    );
+
+    if (!response.ok) throw new Error("Fetch failed");
+    const data = await response.json();
+    console.log(data);
     
     // Process files first
-    const processedFiles = response.data.map(file => {
+    const processedFiles = data.map(file => {
       const fileName = file.file_path ? file.file_path.split('/').pop() : 'Unnamed File';
       
       return {
@@ -223,6 +235,7 @@ const handleFileClick = async (file) => {
 };
 
 onMounted(() => {
+  organizationId.value = organization.value.id
   fetchFiles();
 });
 </script>
