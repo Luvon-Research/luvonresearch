@@ -6,5 +6,6 @@ pyjwt[crypto]
 requests
 numpy
 pydantic-ai-slim[vertexai]
+pydantic-ai-slim[openai]
 sse_starlette
 json-repair
