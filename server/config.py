@@ -12,9 +12,7 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str
     BOX_CLIENT_ID: str
     BOX_CLIENT_SECRET: str 
-    BOX_REDIRECT_URI: str 
 
-    
     
     class Config:
         env_file = ".env"

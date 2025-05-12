@@ -25,7 +25,7 @@ class SheetService:
             print(e)
             return e
     
-    async def get_sheet_data_csv_by_id(self, id: str):
+    async def get_sheet_data_csv_by_id(self, id: str, res=True):
             try:
                 client = self.db.get_client()
                 # 1) Get the data from DB
@@ -64,7 +64,12 @@ class SheetService:
                 headers = {
                     "Content-Disposition": 'attachment; filename="sheet.csv"'
                 }
-                return StreamingResponse(buffer, media_type="text/csv", headers=headers)
+                
+                if(res):
+                    return StreamingResponse(buffer, media_type="text/csv", headers=headers)
+                else:
+                    return buffer
+                    
 
             except Exception as e:
                 print(e)

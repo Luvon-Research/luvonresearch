@@ -42,7 +42,6 @@ const items = ref([
 
     <template #end>
       <div class="flex items-center gap-2">
-        <InputText placeholder="Search" type="text" class="w-32 sm:w-auto" />
         <div class="user-button-wrapper">
           <UserButton :appearance="{
             elements: {

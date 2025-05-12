@@ -4,6 +4,12 @@ from api.users_router import router as users_router
 from api.sheet_router import router as sheets_router
 from api.project_router import router as projects_router
 from api.webhook_router import router as webhooks_router
+from api.ai_router import router as ai_router
+import json
+from sse_starlette import EventSourceResponse
+import time
+from api.files_router import router as files_router
+from api.chat_history_router import router as chat_history_router
 from api.box_router_auth import router as box_router
 
 app = FastAPI()
@@ -27,6 +33,9 @@ app.include_router(sheets_router)
 app.include_router(projects_router)
 app.include_router(webhooks_router)
 app.include_router(box_router)
+app.include_router(ai_router)
+app.include_router(files_router)
+app.include_router(chat_history_router)
 
 @app.get("/")
 async def read_root():
@@ -48,3 +57,25 @@ async def create_user():
 # To run the server (from the 'server' directory):
 # 1. Install dependencies: pip install "fastapi[all]" uvicorn
 # 2. Run: uvicorn main:app --reload
+
+def fake_video_streamer():
+    try:
+        for i in range(10):
+            time.sleep(0.5)
+            yield {
+                    "data": json.dumps(f"data point: {i}"),
+                    "event": "data",
+                }
+        yield {"event": "end"}
+    except:
+        yield {
+            "event": "error",
+            "data": json.dumps(
+                {"status_code": 500, "message": "Internal Server Error"}
+            ),
+        }
+        raise
+
+@app.get("/test")
+async def main():
+    return EventSourceResponse(fake_video_streamer())
