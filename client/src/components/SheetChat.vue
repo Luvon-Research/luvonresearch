@@ -175,7 +175,7 @@ const props = defineProps({
 onMounted(async () => {
   console.log(session.value.id);
   console.log(props.sheetId);
-  console.log(organization.value.imageUrl);
+  
   console.log(session.value.user.id);
   orgImgUrl.value = organization.value.imageUrl;
   orgName.value = organization.value.name;

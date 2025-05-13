@@ -1,0 +1,187 @@
+from pinecone import Pinecone, ServerlessSpec
+from config import settings
+from typing import List, Dict, Any
+import tiktoken
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_openai import OpenAIEmbeddings
+import os
+import PyPDF2
+import io
+
+class PineconeService:
+    def __init__(self):
+        self.pc = Pinecone(api_key=settings.PINECONE_KEY)
+        self.embeddings = OpenAIEmbeddings(
+            openai_api_key=settings.OPENAI_API_KEY,
+            model="text-embedding-3-small"
+        )
+        self.text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=200,
+            length_function=len,
+        )
+
+    def create_index(self, index_name: str = "quickstart", dimension: int = 1536, metric: str = "cosine"):
+        """
+        Create a new Pinecone index with specified parameters
+        
+        Args:
+            index_name (str): Name of the index to create
+            dimension (int): Dimension of the vectors to be stored
+            metric (str): Distance metric to use (e.g., "cosine", "euclidean")
+        """
+        try:
+            self.pc.create_index(
+                name=index_name,
+                dimension=dimension,
+                metric=metric,
+                spec=ServerlessSpec(
+                    cloud="aws",
+                    region="us-east-1"
+                )
+            )
+            return {"status": "success", "message": f"Index {index_name} created successfully"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    async def process_pdf(self, file_content: bytes) -> List[str]:
+        """
+        Process a PDF file and extract text chunks
+        
+        Args:
+            file_content (bytes): The PDF file content
+            
+        Returns:
+            List[str]: List of text chunks
+        """
+        try:
+            # Read PDF content
+            pdf_file = io.BytesIO(file_content)
+            pdf_reader = PyPDF2.PdfReader(pdf_file)
+            
+            # Extract text from all pages
+            text = ""
+            for page in pdf_reader.pages:
+                text += page.extract_text()
+            
+            # Split text into chunks
+            chunks = self.text_splitter.split_text(text)
+            return chunks
+            
+        except Exception as e:
+            raise Exception(f"Error processing PDF: {str(e)}")
+
+    async def get_embeddings(self, texts: List[str]) -> List[List[float]]:
+        """
+        Get embeddings for a list of texts
+        
+        Args:
+            texts (List[str]): List of text chunks to embed
+            
+        Returns:
+            List[List[float]]: List of embeddings
+        """
+        try:
+            embeddings = await self.embeddings.aembed_documents(texts)
+            return embeddings
+        except Exception as e:
+            raise Exception(f"Error getting embeddings: {str(e)}")
+
+    async def process_and_upload_file(self, file_content: bytes, file_name: str, index_name: str, metadata: Dict[str, Any] = None):
+        """
+        Process a file, create embeddings, and upload to Pinecone
+        
+        Args:
+            file_content (bytes): The file content
+            file_name (str): Name of the file
+            index_name (str): Name of the Pinecone index
+            metadata (Dict[str, Any], optional): Additional metadata to store with vectors
+        """
+        try:
+            # Process file and get chunks
+            chunks = await self.process_pdf(file_content)
+            
+            # Get embeddings for chunks
+            embeddings = await self.get_embeddings(chunks)
+            
+            # Prepare vectors for upload
+            vectors = []
+            for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
+                vector_metadata = {
+                    "text": chunk,
+                    "file_name": file_name,
+                    "chunk_index": i
+                }
+                if metadata:
+                    vector_metadata.update(metadata)
+                
+                vectors.append({
+                    "id": f"{file_name}-chunk-{i}",
+                    "values": embedding,
+                    "metadata": vector_metadata
+                })
+            
+            # Upload to Pinecone
+            return await self.upsert_vectors(index_name, vectors)
+            
+        except Exception as e:
+            raise Exception(f"Error processing and uploading file: {str(e)}")
+
+    async def upsert_vectors(self, index_name: str, vectors: list, namespace: str = ""):
+        """
+        Upload vectors to a Pinecone index
+        
+        Args:
+            index_name (str): Name of the index to upload to
+            vectors (list): List of vectors to upload
+            namespace (str): Optional namespace for the vectors
+        
+        Returns:
+            dict: Status of the upload operation
+        """
+        try:
+            # Get the index
+            index = self.pc.Index(index_name)
+            
+            # Upsert the vectors
+            upsert_response = index.upsert(
+                vectors=vectors,
+                namespace=namespace
+            )
+            
+            return {
+                "status": "success", 
+                "message": f"Successfully uploaded {len(vectors)} vectors",
+                "upserted_count": upsert_response.upserted_count
+            }
+            
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    async def query_vectors(self, index_name: str, query_vector: List[float], top_k: int = 5, namespace: str = "", filter: Dict = None):
+        """
+        Query vectors from a Pinecone index
+        
+        Args:
+            index_name (str): Name of the index to query
+            query_vector (List[float]): Query vector
+            top_k (int): Number of results to return
+            namespace (str): Optional namespace to query
+            filter (Dict): Optional filter criteria
+            
+        Returns:
+            dict: Query results
+        """
+        try:
+            index = self.pc.Index(index_name)
+            results = index.query(
+                vector=query_vector,
+                top_k=top_k,
+                namespace=namespace,
+                filter=filter
+            )
+            return results
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    
