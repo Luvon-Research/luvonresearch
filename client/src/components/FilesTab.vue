@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useFileDialog } from "@vueuse/core";
 import { useOrganization, useSession, useClerk } from "@clerk/vue";
 import Button from "primevue/button";
@@ -36,7 +36,7 @@ const error = ref(null);
 const fileViewerUrl = ref(null);
 const showPreview = ref(false);
 const selectedPreviewFile = ref(null);
-const organizationId = ref("");
+const organizationId = ref(null);
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -244,10 +244,15 @@ const handleFileClick = async (file) => {
   }
 };
 
-onMounted(() => {
-  organizationId.value = organization.value.id
-  fetchFiles();
-});
+watch(
+  () => organization.value?.id,
+  (newOrgId) => {
+    if (!newOrgId) return;   // guard against undefined
+    organizationId.value = newOrgId;
+    fetchFiles();            // now safe to call
+  },
+  { immediate: true }        // also run on first mount when org.value.id is ready
+);
 </script>
 
 <template>

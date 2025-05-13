@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, nextTick, onMounted, onUnmounted } from "vue";
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from "vue";
 import InputText from "primevue/inputtext";
 import Button from "primevue/button";
 import Dialog from "primevue/dialog";
@@ -54,14 +54,18 @@ const filteredCharts = computed(() =>
   )
 );
 
-onMounted(async () => {
-  // Gets charts after mount
-  let org_id = organization.value.id;
-  let session_id = session.value.id;
+watch(
+  () => organization.value?.id,
+  async (newOrgId) => {
+    if (!newOrgId) return; // guard against undefined
+    let org_id = organization.value.id;
+    let session_id = session.value.id;
 
-  console.log(org_id, session_id);
-  await getCharts();
-});
+    console.log(org_id, session_id);
+    await getCharts();
+  },
+  { immediate: true } // also run on first mount when org.value.id is ready
+);
 
 // Open the generation dialog
 const openDialog = () => {
@@ -360,16 +364,15 @@ function viewCodeClick() {
           @click="openChat(chart)"
         >
           <div class="add-to-chat-btn">
-              <Button
-                icon="pi pi-sparkles"
-                label="Ask AI"
-                class="p-button-sm p-button-text ask-ai-btn"
-                iconPos="right" 
-                v-tooltip.top="'Add to chat'"
-                @click.stop="addToChatHandler(chart)"
-              />
-            </div>
-
+            <Button
+              icon="pi pi-sparkles"
+              label="Ask AI"
+              class="p-button-sm p-button-text ask-ai-btn"
+              iconPos="right"
+              v-tooltip.top="'Add to chat'"
+              @click.stop="addToChatHandler(chart)"
+            />
+          </div>
 
           <h3>{{ chart["chart_name"] }}</h3>
           <div class="chart-container-placeholder">
@@ -543,7 +546,6 @@ function viewCodeClick() {
 </template>
 
 <style scoped>
-
 .chart-img {
   width: 95%;
 }
