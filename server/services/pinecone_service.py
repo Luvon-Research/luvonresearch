@@ -4,6 +4,7 @@ from typing import List, Dict, Any
 import tiktoken
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
+from google import genai
 import os
 import PyPDF2
 import io
@@ -11,17 +12,20 @@ import io
 class PineconeService:
     def __init__(self):
         self.pc = Pinecone(api_key=settings.PINECONE_KEY)
-        self.embeddings = OpenAIEmbeddings(
-            openai_api_key=settings.OPENAI_API_KEY,
-            model="text-embedding-3-small"
-        )
+        self.client = genai.Client(api_key=settings.GENAI_KEY)
+        self.model = "gemini-embedding-exp-03-07"
+        
+        # self.embeddings = OpenAIEmbeddings(
+        #     openai_api_key=settings.OPENAI_API_KEY,
+        #     model="text-embedding-3-small"
+        # )
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
             chunk_overlap=200,
             length_function=len,
         )
 
-    def create_index(self, index_name: str = "quickstart", dimension: int = 1536, metric: str = "cosine"):
+    def create_index(self, index_name: str = "quickstart", dimension: int = 3072, metric: str = "cosine"):
         """
         Create a new Pinecone index with specified parameters
         
@@ -82,8 +86,11 @@ class PineconeService:
             List[List[float]]: List of embeddings
         """
         try:
-            embeddings = await self.embeddings.aembed_documents(texts)
-            return embeddings
+            embeddings = self.client.models.embed_content(
+                model= self.model,
+                contents=texts)
+            #embeddings = await self.embeddings.aembed_documents(texts)
+            return [e.values for e in embeddings.embeddings]
         except Exception as e:
             raise Exception(f"Error getting embeddings: {str(e)}")
 
@@ -104,6 +111,8 @@ class PineconeService:
             # Get embeddings for chunks
             embeddings = await self.get_embeddings(chunks)
             
+            print(embeddings)
+                        
             # Prepare vectors for upload
             vectors = []
             for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):

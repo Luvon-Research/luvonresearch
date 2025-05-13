@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     BOX_CLIENT_ID: str
     BOX_CLIENT_SECRET: str
     PINECONE_KEY: str 
+    GENAI_KEY: str
 
     
     class Config:

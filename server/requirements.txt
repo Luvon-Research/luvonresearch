@@ -17,3 +17,4 @@ tiktoken
 PyPDF2
 openai
 python-dotenv
+google-genai
