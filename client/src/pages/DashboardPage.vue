@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch, onBeforeMount } from "vue";
 import { useRouter } from "vue-router";
 import { useSession, useOrganization } from "@clerk/vue";
 import ProgressSpinner from "primevue/progressspinner";
@@ -19,6 +19,7 @@ import FilesTab from "../components/FilesTab.vue";
 
 const router = useRouter();
 const showChat = ref(false);
+
 function toggleChat() {
   showChat.value = !showChat.value;
 }
@@ -81,7 +82,15 @@ async function fetchSheets() {
       // sheets.value.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // Sort newest first
 
       // Select the first sheet in the (potentially sorted) list
-      selectedSheetId.value = sheets.value[0].id;
+      let storedSheet = window.localStorage.getItem('selectedSheet');
+      console.log("STORED SHEET: ", storedSheet)
+      if(storedSheet !== null && storedSheet !== undefined){
+        selectedSheetId.value = storedSheet;
+      } else {
+        print("SETTING to ", sheets.value[0].id)
+        selectedSheetId.value = sheets.value[0].id;
+        window.localStorage.setItem('selectedSheet', selectedSheetId.value)
+      }
       console.log(`Default sheet selected: ${selectedSheetId.value}`);
     } else {
       // No sheets found for the org
@@ -103,8 +112,22 @@ async function fetchSheets() {
   }
 }
 
+onBeforeMount(() => {
+  let storedPage = window.localStorage.getItem("selectedPage");
+
+  console.log(storedPage);
+
+  if (storedPage !== undefined && storedPage !== null) {
+    setSelectPage(storedPage, window.localStorage.getItem('selectedSheet'));
+  }
+});
+
 // Fetch sheets when component mounts or organization changes
-onMounted(fetchSheets);
+onMounted(async () => {
+  await fetchSheets();
+
+});
+
 watch(
   () => organization.value?.id,
   (newOrgId, oldOrgId) => {
@@ -127,8 +150,8 @@ function handleSheetCreated(newSheet) {
 // Popover reference and toggle
 const op = ref();
 const toggle = (event) => {
-  if(sheets.value.length === 0){
-    selectedPage.value = 'sheets'
+  if (sheets.value.length === 0) {
+    selectedPage.value = "sheets";
   } else {
     op.value.toggle(event);
   }
@@ -141,6 +164,8 @@ const selectedPage = ref("sheets");
 
 function setSelectPage(page, sheetId = null) {
   selectedPage.value = page; // Set the page regardless
+  console.log("SETTING TO: ", page)
+  window.localStorage.setItem('selectedPage', page)
 
   if (page === "sheets") {
     // Only update selectedSheetId if a specific sheetId is provided (from popover click)
@@ -155,6 +180,9 @@ function setSelectPage(page, sheetId = null) {
         `Switched to sheets tab, selecting default: ${selectedSheetId.value}`
       );
     }
+
+    window.localStorage.setItem('selectedSheet', selectedSheetId.value)
+
     // Hide popover if it was used to select a sheet
     if (op.value && sheetId !== null) {
       op.value.hide();
@@ -227,7 +255,10 @@ const filteredSheets = computed(() => {
               </div>
             </Popover>
 
-            <button class="options-tab-btn ai-assistant-btn" @click="toggleChat">
+            <button
+              class="options-tab-btn ai-assistant-btn"
+              @click="toggleChat"
+            >
               <i class="pi pi-sparkles"></i>
               AI assistant
             </button>
@@ -263,10 +294,13 @@ const filteredSheets = computed(() => {
                 <SheetBlock :sheet-id="selectedSheetId" />
               </div>
               <div v-if="sheets.length === 0">
-                <center style="margin-top: 10vh;">
-                  <img src="../assets/void.svg" class="no-sheets-img"/>
+                <center style="margin-top: 10vh">
+                  <img src="../assets/void.svg" class="no-sheets-img" />
                   <h1 class="no-sheets-title">No Sheets Yet</h1>
-                  <p class="no-sheets-subtitle">Create a sheet to get started by clicking the create sheet button at the top</p>
+                  <p class="no-sheets-subtitle">
+                    Create a sheet to get started by clicking the create sheet
+                    button at the top
+                  </p>
                 </center>
               </div>
             </div>
@@ -302,7 +336,7 @@ const filteredSheets = computed(() => {
           :sheet-id="selectedSheetId"
           :context-name="selectedSheetName"
           :context-type="selectedPage"
-          @close="showChat = false"
+          @close="toggleChat"
         />
       </transition>
     </main>
@@ -450,16 +484,16 @@ const filteredSheets = computed(() => {
   transform: translateX(-100%);
 }
 
-.no-sheets-img{
+.no-sheets-img {
   margin-top: 20vh;
   width: 10rem;
 }
 
-.no-sheets-title{
+.no-sheets-title {
   font-size: 30px;
 }
 
-.no-sheets-subtitle{
+.no-sheets-subtitle {
   color: gray;
   width: 30%;
 }
