@@ -19,38 +19,68 @@ const { clerk } = useClerk();
 const CLIENT_ID = "x08evj9jxdq775u7d324j0dxmizaqfsx";
 const REDIRECT_URI = "http://localhost:5173/callback";
 
+const boxTreeVisible = ref(false);      // Controls showing the tree
+const boxTreeNodes = ref([]);           // Tree structure data
+const selectedBoxKeys = ref({});        // Selected keys for checkboxes
+
+const boxFiles = ref([]);
+const boxFilesVisible = ref(false);
+
 const redirectToBoxLogin = async () => {
-  if (!session.value.id) {
+  if (!session.value?.id) {
     error.value = "You must be logged in to connect Box.";
     return;
   }
 
   try {
-        const res = await fetch(`${API_URL}/api/box/has_integration/${session.value.id}`, {
-      method: "GET",
+    // ✅ Check if Clerk is available and get a token
+    const token = await session.value.id;
+    if (!token) {
+      console.error("No Clerk session token found.");
+      error.value = "Authentication token missing.";
+      return;
+    }
+
+    // ✅ Ask your backend if the user is already integrated
+    const res = await fetch(`${API_URL}/api/box/has_integration/`, {
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.value.id}`,
+        Authorization: `Bearer ${token}`,
       },
     });
-    if (!res.ok) throw new Error("Fetch failed");
-    const data = await res.json();
-    let hasIntegration = data["has_integration"]
 
-    if (hasIntegration) {
-      // Already connected — redirect to dashboard or show file picker
-      console.log("User already has Box connected.");
-     // router.push("/dashboard"); // 👈 or wherever you want to take them
-    } else {
-      // Not connected — redirect to Box OAuth
+    if (!res.ok) throw new Error("Fetch failed");
+
+    const { has_integration, access_token } = await res.json();
+
+    // 🔁 If not integrated, redirect to Box OAuth
+    if (!has_integration) {
       const authUrl = `https://account.box.com/api/oauth2/authorize?response_type=code&client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=box_login`;
       window.location.href = authUrl;
+      return;
     }
+
+    // ✅ If already integrated, fetch user's Box files
+    const boxRes = await fetch("https://api.box.com/2.0/folders/0/items", {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+      },
+    });
+
+    if (!boxRes.ok) throw new Error("Box API failed");
+
+    const boxData = await boxRes.json();
+    boxFiles.value = boxData.entries;
+    boxFilesVisible.value = true;
+
   } catch (err) {
     console.error("Failed to check Box integration:", err);
     error.value = "Box integration check failed.";
   }
 };
+
+
+
+
 
 
 const visible = ref(false);
@@ -283,11 +313,47 @@ watch(
 </script>
 
 <template>
+
+  <Dialog 
+  v-model:visible="boxTreeVisible" 
+  modal 
+  header="Select Files from Box" 
+  :style="{ width: '40vw', maxHeight: '90vh' }"
+>
+  <div class="box-tree-container">
+    <Tree
+      v-model:selectionKeys="selectedBoxKeys"
+      :value="boxTreeNodes"
+      selectionMode="checkbox"
+      class="box-tree"
+    />
+    <div class="tree-footer">
+      <Button 
+        label="Cancel"
+        icon="pi pi-times"
+        severity="secondary"
+        @click="boxTreeVisible = false"
+      />
+      <Button 
+        label="Select"
+        icon="pi pi-check"
+        class="confirm-button"
+        @click="handleBoxFileSelection"
+      />
+    </div>
+  </div>
+</Dialog>
+
+
+
+  
   <!-- Show loading spinner when loading -->
   <div v-if="loading" class="loading-container">
     <ProgressSpinner />
     <p>Loading files...</p>
   </div>
+
+  
   
   <!-- Show empty state only when not loading and no files -->
   <div v-else-if="uploadedFiles.length === 0" class="empty-state">
@@ -564,4 +630,5 @@ watch(
   height: 50vh;
   gap: 1rem;
 }
+
 </style>

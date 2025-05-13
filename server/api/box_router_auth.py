@@ -44,13 +44,26 @@ async def get_box_files(user_id: str):
         res = await client.get("https://api.box.com/2.0/folders/0/items", headers=headers)
     return res.json()
 
-@router.get("/has_integration/{user_id}")
-async def has_box_integration(request: Request,user_id: str, service: UserService = Depends(get_user_service)):
+@router.get("/has_integration/")
+async def has_box_integration(
+    request: Request,
     
+    service: UserService = Depends(get_user_service)
+):
     user_id, org_id = await service.verify_user_token(request)
-    from services.supabase_service import SupabaseService
-    supabase = SupabaseService()
 
+    supabase = SupabaseService()
     result = supabase.get_client().table("integrations").select("token").eq("user_id", user_id).execute()
+
     has_integration = result.data is not None and len(result.data) > 0
-    return {"has_integration": has_integration}
+    access_token = result.data[0]["token"] if has_integration else None
+
+    return {
+        "has_integration": has_integration,
+        "access_token": access_token
+    }
+
+
+
+
+
