@@ -12,6 +12,7 @@ from json_repair import repair_json
 from models.chat_history import ChatHistoryUpload
 from services.chat_history_service import ChatHistoryService
 import time 
+from util.utils import check_user_connected
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -55,7 +56,7 @@ async def ai_prompt(
     
     start = time.time()
     # Store the project metadata
-    data = await ai_service.call(body, user, org)
+    data = await ai_service.call(body, user, org, request)
     
     data = data.model_dump()
     
@@ -73,6 +74,8 @@ async def ai_prompt(
                         generation_time=end-start,
                         from_type='assistant',
                         chat_id="TODO")
+    
+    await check_user_connected(request)
 
     await chat_history_service.save_chat(assistant_chat)
 

@@ -3,7 +3,13 @@ from datetime import datetime
 import os
 import subprocess, shutil
 import re
+from fastapi import Request, HTTPException
 
+async def check_user_connected(request: Request):                
+    if await request.is_disconnected():
+        print("Client disconnected → cancelling work")
+        raise HTTPException(status_code=499, detail="Client disconnected")
+    
 def generate_uuid():
     return str(uuid4())
 

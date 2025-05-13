@@ -102,9 +102,8 @@
         />
         <Button
           class="send-btn"
-          @click="send"
-          icon="pi pi-arrow-up"
-          :loading="loading"
+          @click="loading ? cancelPrompt() : send()"
+          :icon="loading ? 'pi pi-stop' : 'pi pi-arrow-up'"
         >
         </Button>
       </div>
@@ -147,6 +146,7 @@ import { useSession, useOrganization } from "@clerk/vue";
 import Button from "primevue/button";
 import { CodeBlock } from "vuejs-code-block";
 import { ProgressSpinner } from "primevue";
+import { useFetch } from "@vueuse/core";
 
 const { organization } = useOrganization();
 const emit = defineEmits(["close"]);
@@ -179,10 +179,10 @@ onMounted(async () => {
   console.log(session.value.user.id);
   orgImgUrl.value = organization.value.imageUrl;
   orgName.value = organization.value.name;
-    // initial load
-    await loadChats(1, false);
+  // initial load
+  await loadChats(1, false);
 
-    scrollToBottom();
+  scrollToBottom();
   // attach listener
   const el = msgsContainer.value;
   if (el) el.addEventListener("scroll", onScroll);
@@ -213,7 +213,24 @@ const isResizing = ref(false);
 const minWidth = 400; // Minimum width in pixels
 const currentPage = ref(1);
 const PAGE_SIZE = 6;
-const noMoreChats  = ref(false);
+const noMoreChats = ref(false);
+const abortFetch = ref(null);
+
+function cancelPrompt() {
+  console.log("BTN clicked");
+  if (abortFetch.value) {
+    console.log("Canceling...");
+    abortFetch.value();
+    loading.value = false;
+    if (
+      messages.length &&
+      messages[messages.length - 1].type === "skeleton-text"
+    ) {
+      messages.pop();
+    }
+    abortFetch.value = null;
+  }
+}
 
 function formatDateMMDDhhmm(dateInput = new Date()) {
   const d = new Date(dateInput);
@@ -327,14 +344,14 @@ async function loadChats(page = 1, prepend = false) {
 
     // build a flat array of message‐objects in chronological order
     const newMessages = [];
-    data.forEach(group => {
+    data.forEach((group) => {
       const ts = formatDateMMDDhhmm(new Date(group.timestamp));
-      group.message.forEach(msg => {
+      group.message.forEach((msg) => {
         newMessages.push({
-          from:           group.from_type,
-          type:           msg.type,
-          text:           msg.value,
-          timestamp:      ts,
+          from: group.from_type,
+          type: msg.type,
+          text: msg.value,
+          timestamp: ts,
           generationTime: group.generation_time.toFixed(2),
         });
       });
@@ -362,7 +379,6 @@ async function loadChats(page = 1, prepend = false) {
       // initial load: scroll to bottom
       el.scrollTop = el.scrollHeight;
     }
-    
   } catch (err) {
     console.error("Error loading chats:", err);
   } finally {
@@ -380,7 +396,6 @@ function onScroll() {
   }
 }
 
-
 function fullscreenToggle() {
   if (fullscreen.value) {
     // Reverts back to small
@@ -395,50 +410,76 @@ async function send() {
   const txt = draft.value.trim();
   if (!txt) return;
 
+  console.log("SENDING....");
+
   displayText(txt, "user");
 
   displayText("Loading...", "assistant", "skeleton-text");
 
   const start = Date.now();
 
+  draft.value = '';
+
   loading.value = true;
 
-  fetch(`${API_URL}/api/ai`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.value.id}`,
+  const fetcher = useFetch(
+    `${API_URL}/api/ai`,
+    {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.value.id}`,
+      },
     },
-    body: JSON.stringify({
+    {
+      immediate: false,
+    }
+  )
+    .post({
       prompt: txt,
       session_id: session.value.id,
       context_source: unref(props.sheetId),
-    }),
-  }).then(async (res) => {
-    messages.pop();
+    })
+    .json();
 
-    console.log(res);
+  // save its abort fn
+  abortFetch.value = fetcher.abort;
 
-    if (res.ok) {
-      let data = await res.json();
-      console.log(data);
-      const elapsedSec = (Date.now() - start) / 1000;
+  try {
+    // actually fire the request
+    let res = await fetcher.execute()
 
-      let answers = data["answer"];
+    if(res !== null){
+      messages.pop();
+      console.log(res);
 
-      answers.forEach((val) => {
-        displayText(val["value"], "assistant", val["type"], elapsedSec);
-      });
-    } else {
-      const elapsedSec = (Date.now() - start) / 1000;
-      let body = await res.json();
-      let errMsg = body["detail"];
-      displayText(errMsg, "assistant", "message", elapsedSec);
+      if (res.ok) {
+        let data = await res.json();
+        console.log("GOT DATA")
+        console.log(data);
+        const elapsedSec = (Date.now() - start) / 1000;
+
+        let answers = data["answer"];
+
+        answers.forEach((val) => {
+          displayText(val["value"], "assistant", val["type"], elapsedSec);
+        });
+      } else {
+        const elapsedSec = (Date.now() - start) / 1000;
+        let body = await res.json();
+        let errMsg = body["detail"];
+        displayText(errMsg, "assistant", "message", elapsedSec);
+      }
+
+      loading.value = false;
     }
 
-    loading.value = false;
-  });
-  draft.value = "";
+    
+  } catch (e) {
+  } finally {
+    // loading.value = false;
+    // abortFetch.value = null;
+    // draft.value = "";
+  }
 }
 
 function close() {

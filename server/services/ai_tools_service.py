@@ -3,7 +3,7 @@ from config import settings
 from pydantic_ai import Agent, Tool, RunContext
 from models.ai import AIResponse, GraphAgentResponse, AIInput, GraphAgentFinalResponse, CodeFixAgent
 from fastapi import HTTPException, status
-from util.utils import generate_uuid, ensure_dir, run_r_script, fetch_sample_lines, strip_code_block
+from util.utils import generate_uuid, ensure_dir, run_r_script, fetch_sample_lines, strip_code_block, check_user_connected
 from services.sheet_service import SheetService
 import os
 from services.files_service import FilesService
@@ -11,12 +11,14 @@ from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.azure import AzureProvider
 from dataclasses import dataclass
+from fastapi import Request
 
 @dataclass
 class SupportDependencies:  
     user_id: str
     org_id: str
     context_source: str 
+    request: Request
     
 class AIService:
     def __init__(self, db: SupabaseService):
@@ -81,6 +83,7 @@ class AIService:
         )
 
     async def _tool_graph(self, ctx: RunContext[str], prompt: str) -> GraphAgentFinalResponse:
+        await check_user_connected(ctx.deps.request)
         print("SHEET ID", ctx.deps.context_source)
         # Loads the CSV data
         ensure_dir('temp_files')
@@ -105,6 +108,9 @@ class AIService:
             
             sample_data = fetch_sample_lines(csv_file_name, lines=3)
             print(f"Got sample data {sample_data}")
+            
+            await check_user_connected(ctx.deps.request)
+
 
             # Local graph-only agent
             model = OpenAIModel(
@@ -138,6 +144,10 @@ class AIService:
             res = res.output
             print(res)
             
+            await check_user_connected(ctx.deps.request)
+
+
+            
             if(res.status == 'success'):
                 print("code generation success")
                 r_code = strip_code_block(res.r_code)
@@ -145,6 +155,8 @@ class AIService:
                 success = False
                 
                 while tries <= self.retries:
+                    await check_user_connected(ctx.deps.request)
+
                     print(f"###### Retry: {tries}/{self.retries}")
                     try:
                         with open(run_script_name, 'w', newline="") as fp:
@@ -226,14 +238,14 @@ class AIService:
                 )
         except Exception as e:
             print(e)
-            # if os.path.exists(csv_absolute):
-            #     os.remove(csv_absolute)
+            if os.path.exists(csv_absolute):
+                os.remove(csv_absolute)
                 
-            # if os.path.exists(script_absolute):
-            #     os.remove(script_absolute)
+            if os.path.exists(script_absolute):
+                os.remove(script_absolute)
                 
-            # if os.path.exists(output_png_absolute):
-            #     os.remove(output_png_absolute)    
+            if os.path.exists(output_png_absolute):
+                os.remove(output_png_absolute)    
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(e)
@@ -263,7 +275,7 @@ You are the analysis tool. Provide detailed analysis in AIResponse format.
         res = await analysis_agent.run(prompt)
         return res.output
 
-    async def call(self, input: AIInput, user_id:str, org_id:str):
+    async def call(self, input: AIInput, user_id:str, org_id:str, req: Request):
         """
         Dispatch the prompt to the appropriate tool via the unified agent.
         Returns a MainAgentResponse with `answer_path` and tool output attached.
@@ -273,6 +285,7 @@ You are the analysis tool. Provide detailed analysis in AIResponse format.
                 user_id= user_id,
                 org_id=org_id,
                 context_source=input.context_source,
+                request=req
         )
         
         result = await self.agent.run(input.prompt, deps=ctx)
