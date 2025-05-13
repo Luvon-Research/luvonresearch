@@ -19,12 +19,39 @@ const { clerk } = useClerk();
 const CLIENT_ID = "x08evj9jxdq775u7d324j0dxmizaqfsx";
 const REDIRECT_URI = "http://localhost:5173/callback";
 
-const redirectToBoxLogin = () => {
-  const authUrl = `https://account.box.com/api/oauth2/authorize?response_type=code&client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(
-    REDIRECT_URI
-  )}&state=box_login`;
-  window.location.href = authUrl;
+const redirectToBoxLogin = async () => {
+  if (!session.value.id) {
+    error.value = "You must be logged in to connect Box.";
+    return;
+  }
+
+  try {
+        const res = await fetch(`${API_URL}/api/box/has_integration/${session.value.id}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.value.id}`,
+      },
+    });
+    if (!res.ok) throw new Error("Fetch failed");
+    const data = await res.json();
+    let hasIntegration = data["has_integration"]
+
+    if (hasIntegration) {
+      // Already connected — redirect to dashboard or show file picker
+      console.log("User already has Box connected.");
+     // router.push("/dashboard"); // 👈 or wherever you want to take them
+    } else {
+      // Not connected — redirect to Box OAuth
+      const authUrl = `https://account.box.com/api/oauth2/authorize?response_type=code&client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=box_login`;
+      window.location.href = authUrl;
+    }
+  } catch (err) {
+    console.error("Failed to check Box integration:", err);
+    error.value = "Box integration check failed.";
+  }
 };
+
 
 const visible = ref(false);
 const sheetName = ref("");
