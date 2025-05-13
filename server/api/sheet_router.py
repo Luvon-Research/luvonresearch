@@ -40,7 +40,7 @@ async def create_sheet(
 ):
     # Get the user ID from the authentication token
     try:
-        user_id = await user_service.verify_user_token(request)
+        user_id, org_id = await user_service.verify_user_token(request)
         sheet.owner_id = user_id
     except HTTPException:
         # Continue without user ID if authentication fails

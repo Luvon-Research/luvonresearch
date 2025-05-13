@@ -2,11 +2,13 @@ from supabase import create_client, Client
 from fastapi import HTTPException, status
 from config import settings
 from services.supabase_service import SupabaseService
+from services.pinecone_service import PineconeService
 from util.utils import generate_uuid
 
 class FilesService:
-    def __init__(self, db: SupabaseService):
+    def __init__(self, db: SupabaseService, pinecone: PineconeService):
         self.db = db
+        self.pinecone = pinecone
 
     def get_client(self) -> Client:
         return self.db.get_client()
@@ -18,6 +20,9 @@ class FilesService:
             file_option = "application/pdf"
             
             if(is_chart): file_option = "image/png"
+            
+            #### Uploads and chunks file to pinecone
+            pinecone = await self.pinecone.process_and_upload_file(file, file_name, org_id)
             
             # Upload file to Supabase storage
             storage_response = client.storage.from_('files').upload(file_name, file, file_options={"content-type": file_option})

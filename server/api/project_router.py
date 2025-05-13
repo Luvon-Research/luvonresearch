@@ -22,7 +22,7 @@ async def create_project(
     user_service: UserService = Depends(get_user_service)
 ):
     # Verify the user is authenticated
-    user_id = await user_service.verify_user_token(request)
+    user_id, org_id = await user_service.verify_user_token(request)
     
     # Set the user_id in the project data
     project.user_id = user_id
@@ -37,7 +37,7 @@ async def get_user_projects(
     user_service: UserService = Depends(get_user_service)
 ):
     # Verify the user is authenticated
-    user_id = await user_service.verify_user_token(request)
+    user_id, org_id = await user_service.verify_user_token(request)
     
     # Get the user's projects
     return project_service.get_user_projects(user_id)
@@ -50,7 +50,7 @@ async def get_project(
     user_service: UserService = Depends(get_user_service)
 ):
     # Verify the user is authenticated
-    user_id = await user_service.verify_user_token(request)
+    user_id, org_id = await user_service.verify_user_token(request)
     
     # Get the project
     project = project_service.get_by_id(project_id)

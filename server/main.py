@@ -15,6 +15,8 @@ from services.pinecone_service import PineconeService
 from fastapi import FastAPI, UploadFile, File, HTTPException, status
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
+from models.pinecone import QueryRequest, QueryResponse, QueryResult
+from api.pinecone_router import router as pinecone_router
 
 app = FastAPI()
 
@@ -39,6 +41,7 @@ app.include_router(webhooks_router)
 app.include_router(ai_router)
 app.include_router(files_router)
 app.include_router(chat_history_router)
+app.include_router(pinecone_router)
 
 @app.get("/")
 async def read_root():
@@ -128,59 +131,7 @@ async def upload_file(file: UploadFile = File(...)):
 pinecone_svc = PineconeService()
 DEFAULT_INDEX = "test"
 
-class QueryRequest(BaseModel):
-    prompt: str
-    top_k: Optional[int] = 5
-    namespace: Optional[str] = ""
-    filter: Optional[Dict[str, Any]] = None
-
-class QueryResult(BaseModel):
-    id: str
-    score: float
-    text: str
-    metadata: Dict[str, Any]
-
-class QueryResponse(BaseModel):
-    results: List[QueryResult]
-
 @app.post("/query-pinecone", response_model=QueryResponse)
 async def query_pinecone(q: QueryRequest):
-    # 1) Embed the prompt
-    try:
-        embeddings = await pinecone_svc.get_embeddings([q.prompt])
-        query_vector = embeddings[0]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Embedding failed: {e}")
-
-    # 2) Ensure index exists (optional)
-    idx_ok = pinecone_svc.create_index(index_name=DEFAULT_INDEX)
-    if idx_ok.get("status") == "error" and "already exists" not in idx_ok.get("message",""):
-        raise HTTPException(status_code=500, detail=f"Index error: {idx_ok['message']}")
-
-    # 3) Query Pinecone
-    try:
-        resp = await pinecone_svc.query_vectors(
-            index_name=DEFAULT_INDEX,
-            query_vector=query_vector,
-            top_k=q.top_k,
-            namespace=q.namespace,
-            filter=q.filter
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Pinecone query failed: {e}")
-
-    # 4) Build the response including chunk text
-    results = []
-    for m in resp.matches:
-        # Pull out the chunk text stored in metadata
-        chunk_text = m.metadata.get("text", "")
-        # Optionally remove it from metadata if you don't want duplication
-        # metadata = {k:v for k,v in m.metadata.items() if k != "text"}
-        results.append(QueryResult(
-            id=m.id,
-            score=m.score,
-            text=chunk_text,
-            metadata=m.metadata
-        ))
-
-    return QueryResponse(results=results)
+    return await PineconeService().query_vectors(q.prompt, namespace=q.namespace)
+    

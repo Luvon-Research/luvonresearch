@@ -8,6 +8,8 @@ from google import genai
 import os
 import PyPDF2
 import io
+from fastapi import FastAPI, UploadFile, File, HTTPException, status
+from models.pinecone import QueryRequest, QueryResponse, QueryResult
 
 class PineconeService:
     def __init__(self):
@@ -20,12 +22,13 @@ class PineconeService:
         #     model="text-embedding-3-small"
         # )
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
+            chunk_size=3000,
             chunk_overlap=200,
             length_function=len,
         )
+        self.index_name = "luvonai"
 
-    def create_index(self, index_name: str = "quickstart", dimension: int = 3072, metric: str = "cosine"):
+    def create_index(self, index_name: str, dimension: int = 3072, metric: str = "cosine"):
         """
         Create a new Pinecone index with specified parameters
         
@@ -44,8 +47,10 @@ class PineconeService:
                     region="us-east-1"
                 )
             )
+            print("Index created...")
             return {"status": "success", "message": f"Index {index_name} created successfully"}
         except Exception as e:
+            print("Index creation fail: " + str(e))
             return {"status": "error", "message": str(e)}
 
     async def process_pdf(self, file_content: bytes) -> List[str]:
@@ -94,7 +99,7 @@ class PineconeService:
         except Exception as e:
             raise Exception(f"Error getting embeddings: {str(e)}")
 
-    async def process_and_upload_file(self, file_content: bytes, file_name: str, index_name: str, metadata: Dict[str, Any] = None):
+    async def process_and_upload_file(self, file_content: bytes, file_name: str, namespace: str, metadata: Dict[str, Any] = None):
         """
         Process a file, create embeddings, and upload to Pinecone
         
@@ -105,6 +110,11 @@ class PineconeService:
             metadata (Dict[str, Any], optional): Additional metadata to store with vectors
         """
         try:
+            print("WORKING....")
+            
+            ## Creates index if it doesn't already exist (for each org)
+            self.create_index(self.index_name)
+            
             # Process file and get chunks
             chunks = await self.process_pdf(file_content)
             
@@ -131,7 +141,8 @@ class PineconeService:
                 })
             
             # Upload to Pinecone
-            return await self.upsert_vectors(index_name, vectors)
+            print("UPloading vectors")
+            return await self.upsert_vectors(self.index_name, vectors, namespace=namespace)
             
         except Exception as e:
             raise Exception(f"Error processing and uploading file: {str(e)}")
@@ -167,7 +178,7 @@ class PineconeService:
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-    async def query_vectors(self, index_name: str, query_vector: List[float], top_k: int = 5, namespace: str = "", filter: Dict = None):
+    async def query_vectors(self, prompt: str, top_k: int = 3, namespace: str = "", filter: Dict = None):
         """
         Query vectors from a Pinecone index
         
@@ -181,16 +192,37 @@ class PineconeService:
         Returns:
             dict: Query results
         """
+        # 1) Embed the prompt
         try:
-            index = self.pc.Index(index_name)
-            results = index.query(
+            embeddings = await self.get_embeddings([prompt])
+            query_vector = embeddings[0]
+            
+            index = self.pc.Index(self.index_name)
+            resp = index.query(
                 vector=query_vector,
                 top_k=top_k,
                 namespace=namespace,
-                filter=filter
+                filter=filter,
+                include_values=False,
+                include_metadata=True,
             )
-            return results
-        except Exception as e:
-            return {"status": "error", "message": str(e)}
 
+            # 4) Build the response including chunk text
+            results = []
+            for m in resp.matches:
+                print(m)
+                # Pull out the chunk text stored in metadata
+                chunk_text = m.metadata.get("text", "")
+                # Optionally remove it from metadata if you don't want duplication
+                # metadata = {k:v for k,v in m.metadata.items() if k != "text"}
+                results.append(QueryResult(
+                    id=m.id,
+                    score=m.score,
+                    metadata=m.metadata
+                ))
+
+            return QueryResponse(results=results)
+    
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Pinecone query failed: {e}")
     
