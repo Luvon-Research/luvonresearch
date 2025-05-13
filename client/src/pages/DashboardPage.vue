@@ -87,7 +87,6 @@ async function fetchSheets() {
       if(storedSheet !== null && storedSheet !== undefined){
         selectedSheetId.value = storedSheet;
       } else {
-        print("SETTING to ", sheets.value[0].id)
         selectedSheetId.value = sheets.value[0].id;
         window.localStorage.setItem('selectedSheet', selectedSheetId.value)
       }
