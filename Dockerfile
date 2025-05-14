@@ -1,5 +1,5 @@
 # use whatever base you like
-FROM python:3.12
+FROM python:3.10.3
 
 # pick a working dir inside the container
 WORKDIR /app
