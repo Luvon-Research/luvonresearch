@@ -1,0 +1,16 @@
+fastapi[all]
+uvicorn
+supabase
+clerk-backend-api
+requests
+numpy
+pydantic-ai-slim[vertexai]
+sse_starlette
+json-repair
+pinecone
+langchain
+openai
+python-dotenv
+google-genai
+langchain-community
+langchain-pinecone
