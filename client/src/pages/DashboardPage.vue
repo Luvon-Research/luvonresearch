@@ -54,7 +54,7 @@ async function fetchSheets() {
   try {
 
     const response = await fetch(
-      `${API_URL}/api/sheets/organization/${organization.value.id}/`,
+      `${API_URL}/api/sheets/organization/${organization.value.id}`,
       {
         headers: {
           Authorization: `Bearer ${session.value.id}`, // Use actual session token
