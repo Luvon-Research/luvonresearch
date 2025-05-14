@@ -10,7 +10,6 @@ pydantic-ai-slim[openai]
 sse_starlette
 json-repair
 pinecone
-pinecone-client
 langchain
 langchain-openai
 tiktoken
