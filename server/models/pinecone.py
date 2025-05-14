@@ -11,7 +11,8 @@ class QueryRequest(BaseModel):
 class QueryResult(BaseModel):
     id: str
     score: float
-    metadata: Dict[str, Any]
+    text: str
+    meta: dict
 
 class QueryResponse(BaseModel):
     results: List[QueryResult]

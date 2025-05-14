@@ -30,4 +30,4 @@ async def query_pinecone(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized user")
     
     # Store the project metadata
-    return await pinecone_service.query_vectors(body.prompt, namespace=org_id, top_k=body.top_k)
+    return await pinecone_service.query(body.prompt, namespace=org_id, top_k=body.top_k)

@@ -22,7 +22,7 @@ class FilesService:
             if(is_chart): file_option = "image/png"
             
             #### Uploads and chunks file to pinecone
-            pinecone = await self.pinecone.process_and_upload_file(file, file_name, org_id)
+            pinecone = await self.pinecone.ingest_pdf_bytes(file, file_name, org_id)
             
             # Upload file to Supabase storage
             storage_response = client.storage.from_('files').upload(file_name, file, file_options={"content-type": file_option})
