@@ -11,6 +11,7 @@ from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.azure import AzureProvider
 from dataclasses import dataclass
+from services.pinecone_service import PineconeService
 
 @dataclass
 class SupportDependencies:  
@@ -19,10 +20,10 @@ class SupportDependencies:
     context_source: str 
     
 class AIService:
-    def __init__(self, db: SupabaseService):
+    def __init__(self, db: SupabaseService, pinecone: PineconeService):
         self.db = db
         self.sheet_service = SheetService(self.db)
-        self.files_service = FilesService(db)
+        self.files_service = FilesService(db, pinecone)
         self.retries = 3
 
         # Unified system prompt describing available tools

@@ -12,19 +12,24 @@ from json_repair import repair_json
 from models.chat_history import ChatHistoryUpload
 from services.chat_history_service import ChatHistoryService
 import time 
+from services.pinecone_service import PineconeService
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
 supabase = SupabaseService()
 
+def get_pinecone_service() -> PineconeService:
+    return PineconeService()
+
 def get_ai_service() -> AIService:
-    return AIService(supabase)
+    return AIService(supabase, get_pinecone_service())
 
 def get_user_service() -> UserService:
     return UserService(supabase)
 
 def get_chat_history_service() -> ChatHistoryService:
     return ChatHistoryService(supabase)
+
 
 @router.post("/", status_code=status.HTTP_200_OK) # response_model=AIResponse,
 async def ai_prompt(
