@@ -52,9 +52,6 @@ async function fetchSheets() {
 
   console.log(`Fetching sheets for org: ${organization.value.id}`);
   try {
-    if (API_URL.startsWith("http://")) {
-      API_URL = API_URL.replace(/^http:\/\//, "https://");
-    }
 
     const response = await fetch(
       `${API_URL}/api/sheets/organization/${organization.value.id}`,
