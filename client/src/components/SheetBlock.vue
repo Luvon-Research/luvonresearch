@@ -86,7 +86,7 @@ const loading = ref(false);
 function donwnloadSheet() {
   loading.value = true;
 
-  fetch(`${API_URL}/api/sheets/export/1`, {
+  fetch(`${API_URL}/api/sheets/export/1/`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${""}`,
@@ -339,7 +339,7 @@ async function loadSheetData() {
   console.log(`SheetBlock: Fetching data for sheet ID: ${props.sheetId}`);
 
   try {
-    const response = await fetch(`${API_URL}/api/sheets/${props.sheetId}`, {
+    const response = await fetch(`${API_URL}/api/sheets/${props.sheetId}/`, {
       headers: {
         Authorization: `Bearer ${""}`, // Add actual token here
       },
@@ -419,7 +419,7 @@ async function flushUpdates() {
   console.log("Formatted data for saving:", { row_data: allRowsData, sheet_id: props.sheetId });
 
   try {
-    const response = await fetch(`${API_URL}/api/sheets/rows`, {
+    const response = await fetch(`${API_URL}/api/sheets/rows/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

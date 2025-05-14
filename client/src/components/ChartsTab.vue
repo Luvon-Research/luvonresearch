@@ -91,7 +91,7 @@ const generateChart = () => {
 async function getCharts() {
   loadingCharts.value = true;
   try {
-    const res = await fetch(`${API_URL}/api/files/${organization.value.id}`, {
+    const res = await fetch(`${API_URL}/api/files/${organization.value.id}/`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

@@ -64,7 +64,7 @@ const handleCreate = async () => {
     };
     
     // Create the sheet first
-    const response = await fetch(`${API_URL}/api/sheets`, {
+    const response = await fetch(`${API_URL}/api/sheets/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

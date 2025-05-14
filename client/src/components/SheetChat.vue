@@ -313,7 +313,7 @@ async function loadChats(page = 1, prepend = false) {
   loadingChats.value = true;
   try {
     const res = await fetch(
-      `${API_URL}/api/chat/${session.value.user.id}/${page}`,
+      `${API_URL}/api/chat/${session.value.user.id}/${page}/`,
       {
         headers: {
           "Content-Type": "application/json",
@@ -403,7 +403,7 @@ async function send() {
 
   loading.value = true;
 
-  fetch(`${API_URL}/api/ai`, {
+  fetch(`${API_URL}/api/ai/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
