@@ -29,7 +29,7 @@ const { session } = useSession();
 const { organization } = useOrganization();
 
 // API URL from environment
-const API_URL = import.meta.env.VITE_API_URL;
+let API_URL = import.meta.env.VITE_API_URL;
 
 // Initialize sheets as an empty array (will be populated from API)
 const sheets = ref([]);
@@ -52,6 +52,10 @@ async function fetchSheets() {
 
   console.log(`Fetching sheets for org: ${organization.value.id}`);
   try {
+    if (API_URL.startsWith("http://")) {
+      API_URL = API_URL.replace(/^http:\/\//, "https://");
+    }
+
     const response = await fetch(
       `${API_URL}/api/sheets/organization/${organization.value.id}`,
       {
@@ -82,13 +86,13 @@ async function fetchSheets() {
       // sheets.value.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // Sort newest first
 
       // Select the first sheet in the (potentially sorted) list
-      let storedSheet = window.localStorage.getItem('selectedSheet');
-      console.log("STORED SHEET: ", storedSheet)
-      if(storedSheet !== null && storedSheet !== undefined){
+      let storedSheet = window.localStorage.getItem("selectedSheet");
+      console.log("STORED SHEET: ", storedSheet);
+      if (storedSheet !== null && storedSheet !== undefined) {
         selectedSheetId.value = storedSheet;
       } else {
         selectedSheetId.value = sheets.value[0].id;
-        window.localStorage.setItem('selectedSheet', selectedSheetId.value)
+        window.localStorage.setItem("selectedSheet", selectedSheetId.value);
       }
       console.log(`Default sheet selected: ${selectedSheetId.value}`);
     } else {
@@ -117,14 +121,13 @@ onBeforeMount(() => {
   console.log(storedPage);
 
   if (storedPage !== undefined && storedPage !== null) {
-    setSelectPage(storedPage, window.localStorage.getItem('selectedSheet'));
+    setSelectPage(storedPage, window.localStorage.getItem("selectedSheet"));
   }
 });
 
 // Fetch sheets when component mounts or organization changes
 onMounted(async () => {
   await fetchSheets();
-
 });
 
 watch(
@@ -163,8 +166,8 @@ const selectedPage = ref("sheets");
 
 function setSelectPage(page, sheetId = null) {
   selectedPage.value = page; // Set the page regardless
-  console.log("SETTING TO: ", page)
-  window.localStorage.setItem('selectedPage', page)
+  console.log("SETTING TO: ", page);
+  window.localStorage.setItem("selectedPage", page);
 
   if (page === "sheets") {
     // Only update selectedSheetId if a specific sheetId is provided (from popover click)
@@ -180,7 +183,7 @@ function setSelectPage(page, sheetId = null) {
       );
     }
 
-    window.localStorage.setItem('selectedSheet', selectedSheetId.value)
+    window.localStorage.setItem("selectedSheet", selectedSheetId.value);
 
     // Hide popover if it was used to select a sheet
     if (op.value && sheetId !== null) {

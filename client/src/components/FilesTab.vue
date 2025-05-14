@@ -248,6 +248,7 @@ watch(
   () => organization.value?.id,
   (newOrgId) => {
     if (!newOrgId) return;   // guard against undefined
+    console.log(session.value.id)
     organizationId.value = newOrgId;
     fetchFiles();            // now safe to call
   },

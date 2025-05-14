@@ -9,3 +9,15 @@ pydantic-ai-slim[vertexai]
 pydantic-ai-slim[openai]
 sse_starlette
 json-repair
+pinecone
+pinecone-client
+langchain
+langchain-openai
+tiktoken
+PyPDF2
+openai
+python-dotenv
+google-genai
+langchain-community
+pypdf
+langchain-pinecone

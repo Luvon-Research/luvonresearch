@@ -3,15 +3,19 @@ from services.files_service import FilesService
 from services.service_provider import ServiceProvider
 from services.user_service import UserService
 from typing import Optional
+from services.pinecone_service import PineconeService
 from util.utils import parse_boolean_string
 
 router = APIRouter(prefix="/api/files", tags=["files"])
 
 def get_files_service() -> FilesService:
-    return ServiceProvider().files
+    return FilesService(ServiceProvider().supabase, get_pinecone_service())
 
 def get_user_service() -> UserService:
     return UserService(ServiceProvider().supabase)
+
+def get_pinecone_service() -> PineconeService:
+    return PineconeService()
 
 @router.post("/upload")
 async def upload_file(

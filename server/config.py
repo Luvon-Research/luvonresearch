@@ -11,7 +11,10 @@ class Settings(BaseSettings):
     AI_MODEL: str
     GEMINI_API_KEY: str
     BOX_CLIENT_ID: str
-    BOX_CLIENT_SECRET: str 
+    BOX_CLIENT_SECRET: str
+    PINECONE_API_KEY: str 
+    GENAI_KEY: str
+    PINECONE_ENVIRONMENT: str
 
     
     class Config:
