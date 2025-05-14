@@ -145,8 +145,6 @@ class AIService:
             print(res)
             
             await check_user_connected(ctx.deps.request)
-
-
             
             if(res.status == 'success'):
                 print("code generation success")
