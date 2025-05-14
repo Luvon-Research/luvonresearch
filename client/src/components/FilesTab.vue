@@ -143,7 +143,7 @@ const fetchFiles = async () => {
 
   try {
     loading.value = true;
-    let response = await fetch(`${API_URL}/api/files/${organizationId.value}/`,
+    let response = await fetch(`${API_URL}/api/files/${organizationId.value}`,
       {
         method: "GET",
         headers: {
