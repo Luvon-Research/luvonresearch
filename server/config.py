@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     PINECONE_API_KEY: str 
     GENAI_KEY: str
     PINECONE_ENVIRONMENT: str
+    E2B_API_KEY: str
 
     
     class Config:
