@@ -12,8 +12,7 @@ from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.azure import AzureProvider
 from dataclasses import dataclass
 from services.pinecone_service import PineconeService
-from dotenv import load_dotenv
-from e2b_code_interpreter import Sandbox
+from services.e2b_service import E2BService
 
 @dataclass
 class SupportDependencies:  
@@ -22,12 +21,12 @@ class SupportDependencies:
     context_source: str 
     
 class AIService:
-    def __init__(self, db: SupabaseService, pinecone: PineconeService):
+    def __init__(self, db: SupabaseService, pinecone: PineconeService, sbx: E2BService):
         self.db = db
         self.sheet_service = SheetService(self.db)
         self.files_service = FilesService(db, pinecone)
         self.retries = 3
-        load_dotenv()
+        self.sbx = sbx
 
         # Unified system prompt describing available tools
         system_prompt = """
@@ -84,44 +83,6 @@ class AIService:
             input_type=AIInput
         )
         
-        self._sandboxes_file = "sandboxes.txt"
-        self.sbx_template_id = "potaq3k9ta9l28671h7j"
-
-        # 1) Load any previously‐used sandbox IDs
-        if os.path.exists(self._sandboxes_file):
-            with open(self._sandboxes_file, "r") as f:
-                sandbox_ids = [line.strip() for line in f if line.strip()]
-        else:
-            sandbox_ids = []
-
-        active_sbx = None
-        updated_ids = []
-
-        # 2) Try each ID in turn
-        for sbx_id in sandbox_ids:
-            try:
-                sbx = Sandbox(sbx_id)      # attach to existing
-                if sbx.is_running():       # check health
-                    active_sbx = sbx
-                    updated_ids.append(sbx_id)
-                    break
-            except Exception:
-                # Either invalid ID or not accessible → skip
-                pass
-
-        # 3) If none was active, spin up a new one
-        if active_sbx is None:
-            # create from template
-            active_sbx = Sandbox(self.sbx_template_id)
-            # It will have a new .id property
-            updated_ids = sandbox_ids + [active_sbx.sandbox_id]
-
-        # 4) Persist the cleaned+updated list
-        with open(self._sandboxes_file, "w") as f:
-            f.write("\n".join(updated_ids))
-
-        # 5) Store the sandbox for your later use
-        self.sbx = active_sbx
 
     async def _tool_graph(self, ctx: RunContext[str], prompt: str) -> GraphAgentFinalResponse:
         print("SHEET ID", ctx.deps.context_source)
@@ -192,12 +153,8 @@ class AIService:
                 tries = 0
                 success = False
                 
-                # Creates sandbox if not active
-                if(not self.sbx.is_running()):
-                    self.sbx = Sandbox(self.sbx_template_id)
-                
                 # Adds csv file to sandbox
-                self.sbx.files.write(csv_file_only_name, csv_data.getvalue())
+                await self.sbx.add_file(csv_file_only_name, csv_data.getvalue())
                 
                 while tries <= self.retries:
                     print(f"###### Retry: {tries}/{self.retries}")
@@ -208,10 +165,10 @@ class AIService:
                         
                         print("Wrote the code to R file, running...")
                         
-                        self.sbx.files.write(script_file_only, r_code)
+                        await self.sbx.add_file(script_file_only, r_code)
                         
-                        output = self.sbx.commands.run(f"Rscript {script_file_only}")
-                        #print(output)
+                        output = await self.sbx.run_command(f"Rscript {script_file_only}")
+                        print(output)
                         code_gen_error = output
                         
                         #execution = sbx.run_code(code=r_code, language='r') # Execute Python inside the sandbox
@@ -227,14 +184,13 @@ class AIService:
                         img_url = None
                         img_filename = f'{uuid}.png'
                         
-                        file_content = bytes(self.sbx.files.read(output_png_only, format="bytes"))
+                        file_content = await self.sbx.get_file(output_png_only, format="bytes")
                         print("Got file content")
                 
                         out = await self.files_service.upload_file(ctx.deps.org_id, ctx.deps.user_id, file_content, img_filename, is_chart=True, r_code=r_code)
                         img_url = out['file_url']
                         
-                        self.sbx.files.remove(script_file_only)
-                        self.sbx.files.remove(output_png_only)
+                        await self.sbx.remove_files([script_file_only, output_png_only])
 
                         # Uploads the file
                         # TODO fill in the org id and everything

@@ -13,23 +13,29 @@ from models.chat_history import ChatHistoryUpload
 from services.chat_history_service import ChatHistoryService
 import time 
 from services.pinecone_service import PineconeService
+from services.e2b_service import E2BService
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
 supabase = SupabaseService()
 
+def get_e2b_service() -> E2BService:
+    return E2BService()
+
 def get_pinecone_service() -> PineconeService:
     return PineconeService()
 
+e2bService = get_e2b_service()
+pineconeService = get_pinecone_service()
+
 def get_ai_service() -> AIService:
-    return AIService(supabase, get_pinecone_service())
+    return AIService(supabase, pineconeService, e2bService)
 
 def get_user_service() -> UserService:
     return UserService(supabase)
 
 def get_chat_history_service() -> ChatHistoryService:
     return ChatHistoryService(supabase)
-
 
 @router.post("/", status_code=status.HTTP_200_OK) # response_model=AIResponse,
 async def ai_prompt(
