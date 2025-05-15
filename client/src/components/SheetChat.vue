@@ -403,7 +403,7 @@ async function send() {
 
   loading.value = true;
 
-  fetch(`${API_URL}/api/ai/`, {
+  fetch(`${API_URL}/api/ai`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
