@@ -25,11 +25,11 @@ def get_e2b_service() -> E2BService:
 def get_pinecone_service() -> PineconeService:
     return PineconeService()
 
-e2bService = get_e2b_service()
+# e2bService = get_e2b_service()
 pineconeService = get_pinecone_service()
 
 def get_ai_service() -> AIService:
-    return AIService(supabase, pineconeService, e2bService)
+    return AIService(supabase, pineconeService)
 
 def get_user_service() -> UserService:
     return UserService(supabase)
@@ -45,46 +45,53 @@ async def ai_prompt(
     user_service: UserService = Depends(get_user_service),
     chat_history_service: ChatHistoryService = Depends(get_chat_history_service)
 ):
-    # Verify the user is authenticated
-    user, org = await user_service.verify_user_token(request)
-    print(user, org)
     
-    # TODO Verify if the context is available to the org that the user is apart of 
-    
-    ### Saves the user message
-    msg = [
-        {"type" : "message", "value" : body.prompt}
-    ]
-    user_chat = ChatHistoryUpload(org_id=org,
+    try:
+        # Verify the user is authenticated
+        user, org = await user_service.verify_user_token(request)
+        print(user, org)
+        
+        # TODO Verify if the context is available to the org that the user is apart of 
+        
+        ### Saves the user message
+        msg = [
+            {"type" : "message", "value" : body.prompt}
+        ]
+        user_chat = ChatHistoryUpload(org_id=org,
+                                user_id=user,
+                                message=msg,
+                                generation_time=0,
+                                from_type='user',
+                                chat_id="TODO")
+        
+        await chat_history_service.save_chat(user_chat)
+        
+        start = time.time()
+        # Store the project metadata
+        data = await ai_service.call(body, user, org)
+
+        print(data)
+        
+        #good_json_string = repair_json(data['answer'])
+        
+        #data['answer'] = json.loads(good_json_string)
+        
+        end = time.time()
+        
+        assistant_chat = ChatHistoryUpload(org_id=org,
                             user_id=user,
-                            message=msg,
-                            generation_time=0,
-                            from_type='user',
+                            message=data['answer'],
+                            generation_time=end-start,
+                            from_type='assistant',
                             chat_id="TODO")
-    
-    await chat_history_service.save_chat(user_chat)
-    
-    start = time.time()
-    # Store the project metadata
-    data = await ai_service.call(body, user, org)
-    
-    data = data.model_dump()
-    
-    print(data)
-    
-    good_json_string = repair_json(data['answer'])
-    
-    data['answer'] = json.loads(good_json_string)
-    
-    end = time.time()
-    
-    assistant_chat = ChatHistoryUpload(org_id=org,
-                        user_id=user,
-                        message=data['answer'],
-                        generation_time=end-start,
-                        from_type='assistant',
-                        chat_id="TODO")
 
-    await chat_history_service.save_chat(assistant_chat)
+        await chat_history_service.save_chat(assistant_chat)
 
-    return data
+        return data
+    
+    except Exception as e:
+        print("FAILED AI ROUTER", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )

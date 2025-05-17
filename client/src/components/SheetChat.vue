@@ -88,6 +88,16 @@
             >
             </CodeBlock>
           </div>
+
+          <div v-if="msg.type === 'data_table'">
+            <DataTable :value="msg.text['data']">
+              <Column
+                v-for="col of msg.text['headers']"
+                :field="col"
+                :header="col"
+              ></Column>
+            </DataTable>
+          </div>
           <i class="pi pi-sparkles"></i> Generated in {{ msg.generationTime }}s
         </div>
       </div>
@@ -147,6 +157,11 @@ import { useSession, useOrganization } from "@clerk/vue";
 import Button from "primevue/button";
 import { CodeBlock } from "vuejs-code-block";
 import { ProgressSpinner } from "primevue";
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import ColumnGroup from 'primevue/columngroup';   // optional
+import Row from 'primevue/row';                   // optional
+
 
 const { organization } = useOrganization();
 const emit = defineEmits(["close"]);
@@ -175,14 +190,14 @@ const props = defineProps({
 onMounted(async () => {
   console.log(session.value.id);
   console.log(props.sheetId);
-  
+
   console.log(session.value.user.id);
   orgImgUrl.value = organization.value.imageUrl;
   orgName.value = organization.value.name;
-    // initial load
-    await loadChats(1, false);
+  // initial load
+  await loadChats(1, false);
 
-    scrollToBottom();
+  scrollToBottom();
   // attach listener
   const el = msgsContainer.value;
   if (el) el.addEventListener("scroll", onScroll);
@@ -213,7 +228,7 @@ const isResizing = ref(false);
 const minWidth = 400; // Minimum width in pixels
 const currentPage = ref(1);
 const PAGE_SIZE = 6;
-const noMoreChats  = ref(false);
+const noMoreChats = ref(false);
 
 function formatDateMMDDhhmm(dateInput = new Date()) {
   const d = new Date(dateInput);
@@ -257,7 +272,7 @@ function displayText(
     messages.push({
       from: from,
       type: type,
-      text: `${text}`,
+      text: text,
       timestamp: timestamp,
       generationTime: generationTime,
     });
@@ -327,14 +342,14 @@ async function loadChats(page = 1, prepend = false) {
 
     // build a flat array of message‐objects in chronological order
     const newMessages = [];
-    data.forEach(group => {
+    data.forEach((group) => {
       const ts = formatDateMMDDhhmm(new Date(group.timestamp));
-      group.message.forEach(msg => {
+      group.message.forEach((msg) => {
         newMessages.push({
-          from:           group.from_type,
-          type:           msg.type,
-          text:           msg.value,
-          timestamp:      ts,
+          from: group.from_type,
+          type: msg.type,
+          text: msg.value,
+          timestamp: ts,
           generationTime: group.generation_time.toFixed(2),
         });
       });
@@ -362,7 +377,6 @@ async function loadChats(page = 1, prepend = false) {
       // initial load: scroll to bottom
       el.scrollTop = el.scrollHeight;
     }
-    
   } catch (err) {
     console.error("Error loading chats:", err);
   } finally {
@@ -379,7 +393,6 @@ function onScroll() {
     loadChats(currentPage.value, true);
   }
 }
-
 
 function fullscreenToggle() {
   if (fullscreen.value) {

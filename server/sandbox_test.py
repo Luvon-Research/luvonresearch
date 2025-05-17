@@ -8,15 +8,22 @@ file_data = None
 
 sbx.files.write('test.csv', "hello")
 code = '''
-with open('test.csv', 'r') as fp:
-    print(fp.read())
+x = 10
+print(x)
 '''
 execution = sbx.run_code(code) # Execute Python inside the sandbox
 print(execution.logs)
 
+code = '''
+x += 1
+print(x)
+'''
+execution1 = sbx.run_code(code) # Execute Python inside the sandbox
+print(execution1)
+
 files = sbx.files.list("/")
-print(files)
-print("--------------")
+# print(files)
+# print("--------------")
 
 sbx.kill()
 #f = sbx.files.read("test.txt")

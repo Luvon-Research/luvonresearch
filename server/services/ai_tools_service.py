@@ -3,7 +3,7 @@ from config import settings
 from pydantic_ai import Agent, Tool, RunContext
 from models.ai import AIResponse, GraphAgentResponse, AIInput, GraphAgentFinalResponse, CodeFixAgent
 from fastapi import HTTPException, status
-from util.utils import generate_uuid, ensure_dir, run_r_script, fetch_sample_lines, strip_code_block
+from util.utils import generate_uuid, ensure_dir, run_r_script, fetch_sample_lines, strip_code_block, parse_table_json
 from services.sheet_service import SheetService
 import os
 from services.files_service import FilesService
@@ -13,20 +13,23 @@ from pydantic_ai.providers.azure import AzureProvider
 from dataclasses import dataclass
 from services.pinecone_service import PineconeService
 from services.e2b_service import E2BService
+import json
+from json_repair import repair_json
 
 @dataclass
 class SupportDependencies:  
     user_id: str
     org_id: str
     context_source: str 
+    sandbox: E2BService
     
 class AIService:
-    def __init__(self, db: SupabaseService, pinecone: PineconeService, sbx: E2BService):
+    def __init__(self, db: SupabaseService, pinecone: PineconeService):
         self.db = db
         self.sheet_service = SheetService(self.db)
         self.files_service = FilesService(db, pinecone)
         self.retries = 3
-        self.sbx = sbx
+        # self.sbx = sbx
 
         # Unified system prompt describing available tools
         system_prompt = """
@@ -41,15 +44,17 @@ class AIService:
 
 
         2. predict  
-        • Produce data predictions.
+        • Produce data predictions. And also run code to find details about the data
+        • First Include a small message on the output
+        • Second include a data table with the values of the output
 
         3. analysis  
         • Provide data analysis text.
 
         Your `answer` must be a VALID JSON array of objects, each with:
         {
-            "type": "message" | "image" | "code",
-            "value": "<text or URL or code>"
+            "type": "message" | "image" | "code" | "data_table",
+            "value": "<text or URL or code or data_table (format should be {headers: <list>, data: <data>})>"
         }
 
         - For plain text answers use type "message".  
@@ -64,7 +69,6 @@ class AIService:
         }
         ]
         """
-
 
         # Define the three tools bound to internal methods
         tools = [
@@ -277,25 +281,122 @@ class AIService:
                 detail=str(e)
             )
 
-    async def _tool_predict(self, prompt: str) -> AIResponse:
-        # Local prediction-only agent
-        predict_agent = Agent(
-            model=settings.AI_MODEL,
-            system_prompt='''
-You are the prediction tool. Return predicted values in AIResponse format.
-''',
-            output_type=AIResponse
-        )
-        res = await predict_agent.run(prompt)
-        return res.output
+    async def _tool_code_execution(self, ctx: RunContext[str], code: str):
+        print("RUNNING CODE------: \n " + code)
+        output = await ctx.deps.sandbox.run_code(code, language="python")
+        print(output)
+        print("ERROR", output.logs)
+        return output
+        
+    async def _tool_predict(self, ctx: RunContext[str], prompt: str) -> AIResponse:
+        uuid = generate_uuid()
+        csv_file_local = f"temp_files/{uuid}.csv"
+        csv_file_sandbox = f'/home/user/{uuid}.csv'
+
+        try:
+            print("Pulling CSV data")
+            csv_data = await self.sheet_service.get_sheet_data_csv_by_id(ctx.deps.context_source, False)
+                
+            print("Wrote CSV data")
+            with open(csv_file_local, 'w', newline="") as fp:
+                fp.write(csv_data.getvalue())
+                fp.close()
+            
+            sample_data = fetch_sample_lines(csv_file_local, lines=3)
+            print(f"Got sample data {sample_data}")
+            
+            tools = [
+                Tool(name="code_executor", description="This code is connected to a sandbox where you can run any code you want", function=self._tool_code_execution),
+            ]
+            
+            model = OpenAIModel(
+                'o3-mini',
+                provider=AzureProvider(
+                    azure_endpoint='https://admin-magg5801-eastus2.openai.azure.com/',
+                    api_version='2024-12-01-preview',
+                    api_key='EVK8DO7H0s7dRsQdTQzbAnDopoCUIDLQukfui89GSkIvlFHbPgbsJQQJ99BEACHYHv6XJ3w3AAAAACOGLFmQ',
+                ),
+            )
+            
+            # Local prediction-only agent
+            predict_agent = Agent(
+                model=settings.AI_MODEL,
+                system_prompt = f"""
+                You are a prediction tool that generates Python code for ML tasks using 
+                PyTorch, TensorFlow, scikit-learn, NumPy, and pandas.
+
+                Prompt: {prompt}
+
+                Data schema (sample): {sample_data}
+
+                Instructions:
+                1. Load CSV from `{csv_file_sandbox}` into a pandas DataFrame (IMPORTANT).
+                 - Make sure you consider that the header is the first row
+                2. Determine train/test split:
+                    • Treat any rows or indices explicitly provided in the prompt as the test set.
+                    • Use all remaining rows as the training set.
+                3. Identify the target column(s):
+                    • If specified in the prompt, predict only those.
+                    • Otherwise, infer missing/empty column(s) and predict them.
+                4. Generate Python code to:
+                    a. Split the DataFrame into train/test according to step 2.
+                    b. Train an appropriate model.
+                    c. Apply it to the test set.
+                5. Then you execute the code using the tool provided, if the tool gives 
+                a response which shows a failed run of the code, fix the code and try again
+                up to three times. If the code still doesn't work, then return an error message 
+                6. Output results as:
+                Table headers: [<col1>, <col2>, …]  
+                Table data: [ [row1_vals], [row2_vals], … ]
+                """,
+                output_type=AIResponse,
+                tools=tools,
+                deps_type=SupportDependencies,
+            )
+            
+            print("Init sandbox")
+            
+            tool_sandbox = E2BService(id=uuid)
+            
+            tool_ctx = SupportDependencies(
+                user_id= '',
+                org_id='',
+                context_source='',
+                sandbox=tool_sandbox
+            )
+            
+            print("Adding file to sandbox")
+            await tool_sandbox.add_file(csv_file_sandbox, csv_data)
+            
+            print("Added file to sandbox file")
+            res = await predict_agent.run(prompt, deps=tool_ctx)
+            
+            # Checks if data_table is in data            
+            print("ran agent")
+            
+            print(res)
+            
+            if os.path.exists(csv_file_local):
+                os.remove(csv_file_local)
+
+            return res.output
+
+        except Exception as e:
+            if os.path.exists(csv_file_local):
+                os.remove(csv_file_local)
+                
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(e)
+            )
 
     async def _tool_analysis(self, prompt: str) -> AIResponse:
         # Local analysis-only agent
         analysis_agent = Agent(
             model=settings.AI_MODEL,
             system_prompt='''
-You are the analysis tool. Provide detailed analysis in AIResponse format.
-''',
+            You are the analysis tool. Provide detailed analysis in AIResponse format.
+            ''',
             output_type=AIResponse
         )
         res = await analysis_agent.run(prompt)
@@ -311,7 +412,26 @@ You are the analysis tool. Provide detailed analysis in AIResponse format.
                 user_id= user_id,
                 org_id=org_id,
                 context_source=input.context_source,
+                sandbox=None
         )
         
         result = await self.agent.run(input.prompt, deps=ctx)
-        return result.output
+        
+        #print(result.output.answer)
+        print("MODEL DUMP", result.output.model_dump())
+        model_dumped = result.output.model_dump()
+        answer_response = json.loads(repair_json(model_dumped['answer']))
+        
+        for msg in answer_response:
+            print("MESSAGE", msg)
+            if(msg['type'] == 'data_table'):
+                table_data = msg['value']
+                table_formatted = {
+                    "headers": table_data["headers"],
+                    "data": parse_table_json(table_data['headers'], table_data['data'])
+                }
+                msg['value'] = table_formatted
+        print(answer_response)
+        
+        model_dumped['answer'] = answer_response
+        return model_dumped
