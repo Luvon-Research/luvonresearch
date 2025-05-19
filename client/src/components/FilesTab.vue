@@ -11,6 +11,8 @@ import InputIcon from "primevue/inputicon";
 import Avatar from "primevue/avatar";
 import ProgressSpinner from "primevue/progressspinner";
 import axios from 'axios';
+import Tree from "primevue/tree";
+
 
 const { organization } = useOrganization();
 const { session } = useSession();
@@ -31,35 +33,33 @@ const redirectToBoxLogin = async () => {
     error.value = "You must be logged in to connect Box.";
     return;
   }
+  console.log("WOrking type shi")
 
   try {
-    // ✅ Check if Clerk is available and get a token
-    const token = await session.value.id;
-    if (!token) {
-      console.error("No Clerk session token found.");
-      error.value = "Authentication token missing.";
-      return;
-    }
+    // Use Clerk session ID as your auth token
+    const token = session.value.id;
 
-    // ✅ Ask your backend if the user is already integrated
+    // Check backend for existing Box integration
     const res = await fetch(`${API_URL}/api/box/has_integration/`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
+    
 
-    if (!res.ok) throw new Error("Fetch failed");
+    if (!res.ok) throw new Error("Integration check failed");
 
     const { has_integration, access_token } = await res.json();
 
-    // 🔁 If not integrated, redirect to Box OAuth
+    // Redirect to Box OAuth if not integrated
     if (!has_integration) {
       const authUrl = `https://account.box.com/api/oauth2/authorize?response_type=code&client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=box_login`;
       window.location.href = authUrl;
       return;
     }
+    console.log(access_token)
 
-    // ✅ If already integrated, fetch user's Box files
+    // Fetch files/folders from Box root
     const boxRes = await fetch("https://api.box.com/2.0/folders/0/items", {
       headers: {
         Authorization: `Bearer ${access_token}`,
@@ -69,14 +69,94 @@ const redirectToBoxLogin = async () => {
     if (!boxRes.ok) throw new Error("Box API failed");
 
     const boxData = await boxRes.json();
-    boxFiles.value = boxData.entries;
-    boxFilesVisible.value = true;
+    console.log("Box response:", boxData);
+
+    // Build PrimeVue Tree structure
+    boxTreeNodes.value = boxData.entries.map((item) => ({
+  key: String(item.id),
+  label: item.name,
+  icon: item.type === "folder" ? "pi pi-folder" : "pi pi-file",
+  leaf: item.type !== "folder",
+  data: {
+    type: item.type,
+    access_token,
+  },
+  children: [],  // ✅ Always include children array to render correctly
+}));
+
+
+    console.log("Tree nodes:", boxTreeNodes.value);
+
+    // Show dialog
+    boxTreeVisible.value = true;
 
   } catch (err) {
     console.error("Failed to check Box integration:", err);
     error.value = "Box integration check failed.";
   }
 };
+
+const loadBoxFolder = async (node) => {
+  const folderId = node.key;
+  const token = node.data.access_token;
+
+  try {
+    const res = await fetch(`https://api.box.com/2.0/folders/${folderId}/items`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+
+    node.children = data.entries.map((item) => ({
+      key: item.id,
+      label: item.name,
+      icon: item.type === "folder" ? "pi pi-folder" : "pi pi-file",
+      leaf: item.type !== "folder",
+      children: item.type === "folder" ? [] : undefined,
+      data: { access_token: token, type: item.type },
+    }));
+  } catch (err) {
+    console.error("Error loading folder from Box:", err);
+  }
+};
+
+const handleBoxFileSelection = () => {
+  const selectedItems = [];
+
+  const collectSelectedNodes = (nodes) => {
+    nodes.forEach((node) => {
+      if (selectedBoxKeys.value[node.key]) {
+        selectedItems.push({
+          id: node.key,
+          name: node.label,
+          type: node.data?.type,
+        });
+      }
+
+      if (node.children) {
+        collectSelectedNodes(node.children);
+      }
+    });
+  };
+
+  collectSelectedNodes(boxTreeNodes.value);
+
+  if (selectedItems.length === 0) {
+    error.value = "Please select at least one file or folder.";
+    return;
+  }
+
+  console.log("✅ Selected Box items:", selectedItems);
+
+  // Example: Do something with selectedItems
+  // await axios.post(`${API_URL}/api/box/import`, selectedItems)
+
+  boxTreeVisible.value = false;
+  error.value = null;
+};
+
 
 
 
@@ -322,11 +402,14 @@ watch(
 >
   <div class="box-tree-container">
     <Tree
-      v-model:selectionKeys="selectedBoxKeys"
-      :value="boxTreeNodes"
-      selectionMode="checkbox"
-      class="box-tree"
-    />
+  v-model:selectionKeys="selectedBoxKeys"
+  :value="boxTreeNodes"
+  selectionMode="checkbox"
+  :lazy="true"
+  @nodeExpand="loadBoxFolder"
+  class="box-tree"
+/>
+
     <div class="tree-footer">
       <Button 
         label="Cancel"
@@ -630,5 +713,24 @@ watch(
   height: 50vh;
   gap: 1rem;
 }
+
+.box-tree-container {
+  display: flex;
+  flex-direction: column;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.box-tree {
+  flex: 1;
+}
+
+.tree-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding-top: 1rem;
+}
+
 
 </style>

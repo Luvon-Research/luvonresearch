@@ -1,12 +1,13 @@
 # services/box_service.py
+
 import os
 import httpx
 from dotenv import load_dotenv
+from services.supabase_service import SupabaseService
 
 load_dotenv()
+supabase = SupabaseService()
 
-# In-memory token store (replace with actual database logic)
-user_token_store = {}
 
 async def exchange_code_for_token(code: str, user_id: str):
     url = "https://api.box.com/oauth2/token"
@@ -24,16 +25,22 @@ async def exchange_code_for_token(code: str, user_id: str):
             raise Exception(f"Box token exchange failed: {res.text}")
         token_data = res.json()
 
-    # Store the token per user (temporary, replace with DB logic)
-    user_token_store[user_id] = token_data
-    return token_data
+    return {
+        "access_token": token_data["access_token"],
+        "refresh_token": token_data["refresh_token"],
+        "expires_in": token_data["expires_in"]
+    }
+
 
 async def list_user_files(user_id: str):
-    token_data = user_token_store.get(user_id)
-    if not token_data:
-        raise Exception("Box token not found for user")
+    result = supabase.get_client().table("integrations").select(
+        "*").eq("user_id", user_id).execute()
+    if not result.data or len(result.data) == 0:
+        raise Exception("No Box integration found")
 
-    access_token = token_data["access_token"]
+    token_data = result.data[0]
+    access_token = token_data["token"]
+
     headers = {"Authorization": f"Bearer {access_token}"}
     url = "https://api.box.com/2.0/folders/0/items"  # root folder
 
