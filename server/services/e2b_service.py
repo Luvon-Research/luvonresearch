@@ -45,7 +45,7 @@ class E2BService:
         # with open(self._sandboxes_file, "w") as f:
         #     f.write("\n".join(updated_ids))
         
-        self.sbx = Sandbox(timeout=240, metadata={'id': id})
+        self.sbx = Sandbox(self.sbx_template_id, timeout=240, metadata={'id': id})
     
     async def add_file(self, filename, data):
         if(not self.sbx.is_running()):

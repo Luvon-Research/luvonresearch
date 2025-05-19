@@ -35,6 +35,7 @@ let API_URL = import.meta.env.VITE_API_URL;
 const sheets = ref([]);
 const selectedSheetId = ref(null);
 const loading = ref(true);
+const selectedCells = ref([])
 
 // Function to fetch sheets from API
 async function fetchSheets() {
@@ -133,6 +134,14 @@ watch(
     if (newOrgId !== oldOrgId) {
       fetchSheets();
     }
+  }
+);
+
+watch(
+  () => selectedCells.value,
+  (newCells, oldCells) => {
+    console.log(newCells, oldCells);
+    selectedCells.value = newCells;
   }
 );
 
@@ -290,7 +299,7 @@ const filteredSheets = computed(() => {
           <div v-if="!loading">
             <div v-if="selectedPage === 'sheets'">
               <div v-if="sheets.length !== 0">
-                <SheetBlock :sheet-id="selectedSheetId" />
+                <SheetBlock :sheet-id="selectedSheetId" :setSelectedCells="val => selectedCells = val"/>
               </div>
               <div v-if="sheets.length === 0">
                 <center style="margin-top: 10vh">
@@ -336,6 +345,7 @@ const filteredSheets = computed(() => {
           :context-name="selectedSheetName"
           :context-type="selectedPage"
           @close="toggleChat"
+          :selectedCells="selectedCells"
         />
       </transition>
     </main>
@@ -382,7 +392,7 @@ const filteredSheets = computed(() => {
 .dashboard-layout {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 98vh;
 }
 
 .dashboard-content {

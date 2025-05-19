@@ -149,7 +149,6 @@ import {
   nextTick,
   onMounted,
   onBeforeUnmount,
-  defineProps,
   unref,
 } from "vue";
 import Skeleton from "primevue/skeleton";
@@ -185,6 +184,10 @@ const props = defineProps({
     type: String,
     default: null,
   },
+  selectedCells: {
+    type: Map,
+    default: {}
+  }
 });
 
 onMounted(async () => {
@@ -426,6 +429,7 @@ async function send() {
       prompt: txt,
       session_id: session.value.id,
       context_source: unref(props.sheetId),
+      selectedCells: props.selectedCells
     }),
   }).then(async (res) => {
     messages.pop();

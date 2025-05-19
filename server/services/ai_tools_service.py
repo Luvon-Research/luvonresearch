@@ -10,11 +10,12 @@ from services.files_service import FilesService
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.azure import AzureProvider
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from services.pinecone_service import PineconeService
 from services.e2b_service import E2BService
 import json
 from json_repair import repair_json
+from typing import Optional, Dict
 
 @dataclass
 class SupportDependencies:  
@@ -22,6 +23,7 @@ class SupportDependencies:
     org_id: str
     context_source: str 
     sandbox: E2BService
+    selectedCells: Optional[dict] = field(default_factory=dict)
     
 class AIService:
     def __init__(self, db: SupabaseService, pinecone: PineconeService):
@@ -33,7 +35,7 @@ class AIService:
 
         # Unified system prompt describing available tools
         system_prompt = """
-        You are Luvon, an AI research assistant. Always respond in English. You have three tools:
+        You are Luvon, an AI research assistant. Always respond in English. You have three tools (call only one tool):
 
         1. graph (chart) (you can make any type of chart that exists)
         - Call `_tool_graph` tool and obtain `r_code` and `img_url`
@@ -47,6 +49,7 @@ class AIService:
         • Produce data predictions. And also run code to find details about the data
         • First Include a small message on the output
         • Second include a data table with the values of the output
+        • If predict tool returns error, give user error message
 
         3. analysis  
         • Provide data analysis text.
@@ -121,7 +124,7 @@ class AIService:
 
             # Local graph-only agent
             model = OpenAIModel(
-                'o3-mini',
+                'gpt-4.1-nano',
                 provider=AzureProvider(
                     azure_endpoint='https://admin-magg5801-eastus2.openai.azure.com/',
                     api_version='2024-12-01-preview',
@@ -157,8 +160,10 @@ class AIService:
                 tries = 0
                 success = False
                 
+                tool_sandbox = E2BService(id=uuid)
+                
                 # Adds csv file to sandbox
-                await self.sbx.add_file(csv_file_only_name, csv_data.getvalue())
+                await tool_sandbox.add_file(csv_file_only_name, csv_data.getvalue())
                 
                 while tries <= self.retries:
                     print(f"###### Retry: {tries}/{self.retries}")
@@ -169,9 +174,9 @@ class AIService:
                         
                         print("Wrote the code to R file, running...")
                         
-                        await self.sbx.add_file(script_file_only, r_code)
+                        await tool_sandbox.add_file(script_file_only, r_code)
                         
-                        output = await self.sbx.run_command(f"Rscript {script_file_only}")
+                        output = await tool_sandbox.run_command(f"Rscript {script_file_only}")
                         print(output)
                         code_gen_error = output
                         
@@ -188,13 +193,13 @@ class AIService:
                         img_url = None
                         img_filename = f'{uuid}.png'
                         
-                        file_content = await self.sbx.get_file(output_png_only, format="bytes")
+                        file_content = await tool_sandbox.get_file(output_png_only, format="bytes")
                         print("Got file content")
                 
                         out = await self.files_service.upload_file(ctx.deps.org_id, ctx.deps.user_id, file_content, img_filename, is_chart=True, r_code=r_code)
                         img_url = out['file_url']
                         
-                        await self.sbx.remove_files([script_file_only, output_png_only])
+                        await tool_sandbox.remove_files([script_file_only, output_png_only])
 
                         # Uploads the file
                         # TODO fill in the org id and everything
@@ -285,7 +290,7 @@ class AIService:
         print("RUNNING CODE------: \n " + code)
         output = await ctx.deps.sandbox.run_code(code, language="python")
         print(output)
-        print("ERROR", output.logs)
+        #print("ERROR", output.logs)
         return output
         
     async def _tool_predict(self, ctx: RunContext[str], prompt: str) -> AIResponse:
@@ -303,6 +308,7 @@ class AIService:
                 fp.close()
             
             sample_data = fetch_sample_lines(csv_file_local, lines=3)
+            header_row = fetch_sample_lines(csv_file_local, lines=1)
             print(f"Got sample data {sample_data}")
             
             tools = [
@@ -310,7 +316,7 @@ class AIService:
             ]
             
             model = OpenAIModel(
-                'o3-mini',
+                'gpt-4.1-nano',
                 provider=AzureProvider(
                     azure_endpoint='https://admin-magg5801-eastus2.openai.azure.com/',
                     api_version='2024-12-01-preview',
@@ -329,22 +335,37 @@ class AIService:
 
                 Data schema (sample): {sample_data}
 
+                The CSV data is presented to the user in this format:
+                Index: 1. | LABEL, LABEL, ...    (header row)
+                Index: 2. | DATA, DATA, ...      (first data row; DataFrame row 1 after dropping header)
+                Index: 3. | DATA, DATA, ...     (DataFrame row 2)
+                ...
+
+                When handling row indices from the user (either from the prompt or from the `selectedCells` variable):
+                - User-provided indices are 1-based and refer to the UI.
+                - After dropping the header row, subtract 2 from the user's indices to map them to pandas DataFrame row indices.
+                - Clamp the resulting indices to ensure they are within [0, len(df)-1] to prevent out-of-bounds errors.
+                - If the resulting `top` index is greater than `bottom`, swap them to maintain a valid range.
+                - Always validate and fix indices before using them to subset the DataFrame.
+
                 Instructions:
-                1. Load CSV from `{csv_file_sandbox}` into a pandas DataFrame (IMPORTANT).
-                 - Make sure you consider that the header is the first row
-                2. Determine train/test split:
-                    • Treat any rows or indices explicitly provided in the prompt as the test set.
-                    • Use all remaining rows as the training set.
+                1. Load CSV from `{csv_file_sandbox}` into a pandas DataFrame.
+                    - Drop the first row if it contains headers.
+                2. Determine the train/test split:
+                    - If the prompt names specific rows or indices, use those as the test set (with the above 
+                        index conversion and validation).
+                    - Otherwise, use `{ctx.deps.selectedCells}` (a grid of user-selected cell ranges) to
+                        identify the test rows, applying the same index conversion and validation.
+                    - All other rows become the training set.
                 3. Identify the target column(s):
-                    • If specified in the prompt, predict only those.
-                    • Otherwise, infer missing/empty column(s) and predict them.
+                    - If specified in the prompt, predict only those.
+                    - Otherwise, infer missing/empty column(s) and predict them.
                 4. Generate Python code to:
                     a. Split the DataFrame into train/test according to step 2.
                     b. Train an appropriate model.
-                    c. Apply it to the test set.
-                5. Then you execute the code using the tool provided, if the tool gives 
-                a response which shows a failed run of the code, fix the code and try again
-                up to three times. If the code still doesn't work, then return an error message 
+                    c. Run predictions on the test set.
+                5. Execute the code via the provided tool. Check logs for results. If execution fails, 
+                    auto-fix and retry up to 3 times. On final failure, return an error message.
                 6. Output results as:
                 Table headers: [<col1>, <col2>, …]  
                 Table data: [ [row1_vals], [row2_vals], … ]
@@ -412,7 +433,8 @@ class AIService:
                 user_id= user_id,
                 org_id=org_id,
                 context_source=input.context_source,
-                sandbox=None
+                sandbox=None,
+                selectedCells=input.selectedCells
         )
         
         result = await self.agent.run(input.prompt, deps=ctx)
