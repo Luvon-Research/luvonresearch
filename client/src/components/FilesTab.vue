@@ -21,12 +21,33 @@ const { clerk } = useClerk();
 const CLIENT_ID = "x08evj9jxdq775u7d324j0dxmizaqfsx";
 const REDIRECT_URI = "http://localhost:5173/callback";
 
-const boxTreeVisible = ref(false);      // Controls showing the tree
-const boxTreeNodes = ref([]);           // Tree structure data
-const selectedBoxKeys = ref({});        // Selected keys for checkboxes
+const boxTreeVisible = ref(false);     
+const boxTreeNodes = ref([]);          
+const selectedBoxKeys = ref({});       
 
 const boxFiles = ref([]);
 const boxFilesVisible = ref(false);
+const visible = ref(false);
+const sheetName = ref("");
+const selectedFile = ref(null);
+const uploadedFiles = ref([]);
+const searchQuery = ref("");
+const loading = ref(false);
+const error = ref(null);
+const fileViewerUrl = ref(null);
+const showPreview = ref(false);
+const selectedPreviewFile = ref(null);
+const organizationId = ref(null);
+
+const API_URL = import.meta.env.VITE_API_URL;
+
+const { open, onChange } = useFileDialog({ accept: "*/*" });
+
+const userCache = ref(new Map()); // Cache to store user data
+
+onChange((files) => {
+  if (files?.[0]) selectedFile.value = files[0];
+});
 
 const redirectToBoxLogin = async () => {
   console.log(session.value.id)
@@ -37,10 +58,10 @@ const redirectToBoxLogin = async () => {
   console.log("WOrking type shi")
 
   try {
-    // Use Clerk session ID as your auth token
+ 
     const token = session.value.id;
 
-    // Check backend for existing Box integration
+
     const res = await fetch(`${API_URL}/api/box/has_integration/`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -52,7 +73,7 @@ const redirectToBoxLogin = async () => {
 
     const { has_integration, access_token } = await res.json();
 
-    // Redirect to Box OAuth if not integrated
+   
     if (!has_integration) {
       const authUrl = `https://account.box.com/api/oauth2/authorize?response_type=code&client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=box_login`;
       window.location.href = authUrl;
@@ -60,7 +81,6 @@ const redirectToBoxLogin = async () => {
     }
     console.log(access_token)
 
-    // Fetch files/folders from Box root
     const boxRes = await fetch("https://api.box.com/2.0/folders/0/items", {
       headers: {
         Authorization: `Bearer ${access_token}`,
@@ -72,7 +92,6 @@ const redirectToBoxLogin = async () => {
     const boxData = await boxRes.json();
     console.log("Box response:", boxData);
 
-    // Build PrimeVue Tree structure
     boxTreeNodes.value = boxData.entries.map((item) => ({
   key: String(item.id),
   label: item.name,
@@ -82,13 +101,13 @@ const redirectToBoxLogin = async () => {
     type: item.type,
     access_token,
   },
-  children: [],  // ✅ Always include children array to render correctly
+  children: [],  
 }));
 
 
     console.log("Tree nodes:", boxTreeNodes.value);
 
-    // Show dialog
+   
     boxTreeVisible.value = true;
 
   } catch (err) {
@@ -123,7 +142,7 @@ const loadBoxFolder = async (node) => {
   }
 };
 
-const handleBoxFileSelection = () => {
+const handleBoxFileSelection = async () => {
   const selectedItems = [];
 
   const collectSelectedNodes = (nodes) => {
@@ -135,7 +154,6 @@ const handleBoxFileSelection = () => {
           type: node.data?.type,
         });
       }
-
       if (node.children) {
         collectSelectedNodes(node.children);
       }
@@ -149,42 +167,43 @@ const handleBoxFileSelection = () => {
     return;
   }
 
-  console.log("✅ Selected Box items:", selectedItems);
+  const file_ids = selectedItems.map((item) => item.id);
+  const file_names = selectedItems.map((item) => item.name);
 
-  // Example: Do something with selectedItems
-  // await axios.post(`${API_URL}/api/box/import`, selectedItems)
+  try {
+    loading.value = true;
 
-  boxTreeVisible.value = false;
-  error.value = null;
+    const token = await session.value.id; 
+    const user_id = session.value.user.id;       
+
+    const res = await fetch(`${API_URL}/api/box/files`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`, 
+      },
+      body: JSON.stringify({
+        file_ids,
+        file_names,
+        user_id,
+      }),
+    });
+
+    const result = await res.json();
+
+    if (!res.ok) {
+      throw new Error(result.detail || "Box upload failed");
+    }
+
+    await fetchFiles(); // Refresh file liste = false;
+    error.value = null;
+  } catch (err) {
+    console.error("Box upload failed:", err);
+    error.value = err.message || "Failed to upload selected Box files.";
+  } finally {
+    loading.value = false;
+  }
 };
-
-
-
-
-
-
-
-const visible = ref(false);
-const sheetName = ref("");
-const selectedFile = ref(null);
-const uploadedFiles = ref([]);
-const searchQuery = ref("");
-const loading = ref(false);
-const error = ref(null);
-const fileViewerUrl = ref(null);
-const showPreview = ref(false);
-const selectedPreviewFile = ref(null);
-const organizationId = ref(null);
-
-const API_URL = import.meta.env.VITE_API_URL;
-
-const { open, onChange } = useFileDialog({ accept: "*/*" });
-
-const userCache = ref(new Map()); // Cache to store user data
-
-onChange((files) => {
-  if (files?.[0]) selectedFile.value = files[0];
-});
 
 const handleDrop = (e) => {
   e.preventDefault();
@@ -394,6 +413,15 @@ watch(
 </script>
 
 <template>
+
+  <tr
+  v-for="file in filteredFiles"
+  :key="file.name + file.date"
+  @click="handleFileClick(file)"
+  style="cursor: pointer"
+  :class="{ 'box-file': file.uploader_id === 'box_user' }"
+/>
+
 
   <Dialog 
   v-model:visible="boxTreeVisible" 
@@ -732,6 +760,10 @@ watch(
   gap: 1rem;
   padding-top: 1rem;
 }
+.box-file {
+  background-color: #f0f6ff;
+}
+
 
 
 </style>
