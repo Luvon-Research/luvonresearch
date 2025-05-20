@@ -479,7 +479,7 @@ async function flushUpdates() {
   });
 
   try {
-    const response = await fetch(`${API_URL}/api/sheets/rows/`, {
+    const response = await fetch(`${API_URL}/api/sheets/rows`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -141,7 +141,7 @@ watch(
 watch(
   () => selectedCells.value,
   (newCells, oldCells) => {
-    console.log(newCells, oldCells);
+    //console.log(newCells, oldCells);
     selectedCells.value = newCells;
   }
 );
