@@ -3,34 +3,39 @@ from config import settings
 from pydantic_ai import Agent, Tool, RunContext
 from models.ai import AIResponse, GraphAgentResponse, AIInput, GraphAgentFinalResponse, CodeFixAgent
 from fastapi import HTTPException, status
-from util.utils import generate_uuid, ensure_dir, run_r_script, fetch_sample_lines, strip_code_block
+from util.utils import generate_uuid, ensure_dir, run_r_script, fetch_sample_lines, strip_code_block, parse_table_json
 from services.sheet_service import SheetService
 import os
 from services.files_service import FilesService
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.azure import AzureProvider
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from services.pinecone_service import PineconeService
 from services.e2b_service import E2BService
+import json
+from json_repair import repair_json
+from typing import Optional, Dict
 
 @dataclass
 class SupportDependencies:  
     user_id: str
     org_id: str
     context_source: str 
+    sandbox: E2BService
+    selectedCells: Optional[dict] = field(default_factory=dict)
     
 class AIService:
-    def __init__(self, db: SupabaseService, pinecone: PineconeService, sbx: E2BService):
+    def __init__(self, db: SupabaseService, pinecone: PineconeService):
         self.db = db
         self.sheet_service = SheetService(self.db)
         self.files_service = FilesService(db, pinecone)
         self.retries = 3
-        self.sbx = sbx
+        # self.sbx = sbx
 
         # Unified system prompt describing available tools
         system_prompt = """
-        You are Luvon, an AI research assistant. Always respond in English. You have three tools:
+        You are Luvon, an AI research assistant. Always respond in English. You have three tools (call only one tool):
 
         1. graph (chart) (you can make any type of chart that exists)
         - Call `_tool_graph` tool and obtain `r_code` and `img_url`
@@ -38,18 +43,29 @@ class AIService:
         • First Include a small message on the output
         • Second Include the image url `img_url` in your response in `answer`.
         • Third Return the R code only (no comments or preamble) in `answer`. (You must give me r code as part of response)  
+        • Terminate and return output
 
 
         2. predict  
-        • Produce data predictions.
+        • If selectedCells are not included, give error message that cells must be highlighted and terminate here, do not call tool (important)
+        • Produce data predictions. And also run code to find details about the data
+        • Call `_tool_predict` once and do the following steps
+        • First Include a small message on the output
+        • Second include a data table with the values of the output (always have this in data table format)
+        • Third, create a action, where it takes the predictions and the original cells to predict
+            and maps it to replace those cells in the action format below. Target is "sheet" and action_type is "update"
+        • Action description should be "Apply to cells"
+        • If predict tool returns error, give user error message
+        • Terminate and return output
+        
 
         3. analysis  
         • Provide data analysis text.
 
         Your `answer` must be a VALID JSON array of objects, each with:
         {
-            "type": "message" | "image" | "code",
-            "value": "<text or URL or code>"
+            "type": "message" | "image" | "code" | "data_table | action",
+            "value": "<text or URL or code or data_table (format should be {headers: <list>, data: <data>}) or action (format should be {description: <description text of this action>, target: <target to apply to>, action_type: <type of action> data: [{x: <x>, y: <y>, val:<value>}]})>"
         }
 
         - For plain text answers use type "message".  
@@ -64,7 +80,6 @@ class AIService:
         }
         ]
         """
-
 
         # Define the three tools bound to internal methods
         tools = [
@@ -117,7 +132,7 @@ class AIService:
 
             # Local graph-only agent
             model = OpenAIModel(
-                'o3-mini',
+                'gpt-4.1-nano',
                 provider=AzureProvider(
                     azure_endpoint='https://admin-magg5801-eastus2.openai.azure.com/',
                     api_version='2024-12-01-preview',
@@ -153,8 +168,10 @@ class AIService:
                 tries = 0
                 success = False
                 
+                tool_sandbox = E2BService(id=uuid)
+                
                 # Adds csv file to sandbox
-                await self.sbx.add_file(csv_file_only_name, csv_data.getvalue())
+                await tool_sandbox.add_file(csv_file_only_name, csv_data.getvalue())
                 
                 while tries <= self.retries:
                     print(f"###### Retry: {tries}/{self.retries}")
@@ -165,9 +182,9 @@ class AIService:
                         
                         print("Wrote the code to R file, running...")
                         
-                        await self.sbx.add_file(script_file_only, r_code)
+                        await tool_sandbox.add_file(script_file_only, r_code)
                         
-                        output = await self.sbx.run_command(f"Rscript {script_file_only}")
+                        output = await tool_sandbox.run_command(f"Rscript {script_file_only}")
                         print(output)
                         code_gen_error = output
                         
@@ -184,13 +201,13 @@ class AIService:
                         img_url = None
                         img_filename = f'{uuid}.png'
                         
-                        file_content = await self.sbx.get_file(output_png_only, format="bytes")
+                        file_content = await tool_sandbox.get_file(output_png_only, format="bytes")
                         print("Got file content")
                 
                         out = await self.files_service.upload_file(ctx.deps.org_id, ctx.deps.user_id, file_content, img_filename, is_chart=True, r_code=r_code)
                         img_url = out['file_url']
                         
-                        await self.sbx.remove_files([script_file_only, output_png_only])
+                        await tool_sandbox.remove_files([script_file_only, output_png_only])
 
                         # Uploads the file
                         # TODO fill in the org id and everything
@@ -277,25 +294,144 @@ class AIService:
                 detail=str(e)
             )
 
-    async def _tool_predict(self, prompt: str) -> AIResponse:
-        # Local prediction-only agent
-        predict_agent = Agent(
-            model=settings.AI_MODEL,
-            system_prompt='''
-You are the prediction tool. Return predicted values in AIResponse format.
-''',
-            output_type=AIResponse
-        )
-        res = await predict_agent.run(prompt)
-        return res.output
+    async def _tool_code_execution(self, ctx: RunContext[str], code: str):
+        print("RUNNING CODE------: \n " + code)
+        output = await ctx.deps.sandbox.run_code(code, language="python")
+        print(output)
+        #print("ERROR", output.logs)
+        return output
+        
+    async def _tool_predict(self, ctx: RunContext[str], prompt: str) -> AIResponse:
+        uuid = generate_uuid()
+        csv_file_local = f"temp_files/{uuid}.csv"
+        csv_file_sandbox = f'/home/user/{uuid}.csv'
+
+        try:
+            print("Pulling CSV data")
+            csv_data = await self.sheet_service.get_sheet_data_csv_by_id(ctx.deps.context_source, False)
+                
+            print("Wrote CSV data")
+            with open(csv_file_local, 'w', newline="") as fp:
+                fp.write(csv_data.getvalue())
+                fp.close()
+            
+            sample_data = fetch_sample_lines(csv_file_local, lines=3)
+            header_row = fetch_sample_lines(csv_file_local, lines=1)
+            print(f"Got sample data {sample_data}")
+            
+            tools = [
+                Tool(name="code_executor", description="This code is connected to a sandbox where you can run any code you want", function=self._tool_code_execution),
+            ]
+            
+            model = OpenAIModel(
+                'gpt-4.1-nano',
+                provider=AzureProvider(
+                    azure_endpoint='https://admin-magg5801-eastus2.openai.azure.com/',
+                    api_version='2024-12-01-preview',
+                    api_key='EVK8DO7H0s7dRsQdTQzbAnDopoCUIDLQukfui89GSkIvlFHbPgbsJQQJ99BEACHYHv6XJ3w3AAAAACOGLFmQ',
+                ),
+            )
+            
+            totalCells = ((ctx.deps.selectedCells['right'] - ctx.deps.selectedCells['left'])+1) * (ctx.deps.selectedCells['bottom'] - ctx.deps.selectedCells['top'])
+            print("TOTAL CELLS", totalCells)
+            
+            # Local prediction-only agent
+            predict_agent = Agent(
+                model=settings.AI_MODEL,
+                system_prompt = f"""
+                If `{ctx.deps.selectedCells}` is empty, return an error message and terminate
+
+                You are a prediction tool that generates Python code for ML tasks using 
+                PyTorch, TensorFlow, scikit-learn, NumPy, and/or pandas.
+                
+                Prompt: {prompt}
+                Data schema (sample): {sample_data}
+
+                The CSV data is presented to the user as follows:
+                - Index: 1. | LABEL, LABEL, ...    (header row)
+                - Index: 2. | DATA, DATA, ...      (first data row; pandas DataFrame index 0 after dropping header)
+                - Index: 3. | DATA, DATA, ...      (DataFrame index 1)
+                - ...
+
+                When mapping row indices from the user (in the prompt or in `selectedCells`):
+                - User-provided indices are **1-based** and refer to the UI.
+                - Always **subtract 2** from each user index (after dropping the header) to convert to 0-based DataFrame indices.
+                - **Before using indices:**
+                - Never select indices outside the available data range.
+                - All index arithmetic and validation must be handled in the generated code before subsetting the DataFrame.
+
+                Instructions:
+                1. Load CSV from `{csv_file_sandbox}` into a pandas DataFrame.
+                    - Always drop the first row (the header).
+                2. Determine the train/test split:
+                    - If the prompt specifies certain rows or indices, use those as the test set (with index conversion).
+                    - Otherwise, use `{ctx.deps.selectedCells}` (a grid of user-selected cell ranges), applying the same index handling.
+                    - All other rows become the training set.
+                    
+                3. Identify the target column(s):
+                    - If specified in the prompt, predict only those.
+                    - Otherwise, infer missing/empty column(s) and predict them.
+                4. **Before training: Remove any rows from the training set where the target column(s) (e.g., Y) are NaN or missing.**
+                5. Generate Python code that:
+                    a. Safely converts, clamps, and validates user indices before splitting into train/test sets.
+                    b. Drops any training rows with NaN in the target column(s) before fitting the model.
+                    c. Trains an appropriate model on the cleaned training set.
+                    d. Predicts on the test set.
+                6. Execute the code via the provided tool. If execution fails, auto-fix and retry up to 3 times. On final failure, return an error message.
+                7. Output results as:
+                Table headers: [<col1>, <col2>, ...]
+                Table data: [ [row1_vals], [row2_vals], ... ]
+
+                **Always prioritize safe, index error-free code that handles all possible user index mistakes and excludes rows with missing target values during training.**
+                """,
+                output_type=AIResponse,
+                tools=tools,
+                deps_type=SupportDependencies,
+            )
+            
+            print("Init sandbox")
+            
+            tool_sandbox = E2BService(id=uuid)
+            
+            tool_ctx = SupportDependencies(
+                user_id= '',
+                org_id='',
+                context_source='',
+                sandbox=tool_sandbox
+            )
+            
+            print("Adding file to sandbox")
+            await tool_sandbox.add_file(csv_file_sandbox, csv_data)
+            
+            print("Added file to sandbox file")
+            res = await predict_agent.run(prompt, deps=tool_ctx)
+            
+            # Checks if data_table is in data            
+            print("ran agent")
+            
+            print(res)
+            
+            if os.path.exists(csv_file_local):
+                os.remove(csv_file_local)
+
+            return res.output
+
+        except Exception as e:
+            if os.path.exists(csv_file_local):
+                os.remove(csv_file_local)
+                
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(e)
+            )
 
     async def _tool_analysis(self, prompt: str) -> AIResponse:
         # Local analysis-only agent
         analysis_agent = Agent(
             model=settings.AI_MODEL,
             system_prompt='''
-You are the analysis tool. Provide detailed analysis in AIResponse format.
-''',
+            You are the analysis tool. Provide detailed analysis in AIResponse format.
+            ''',
             output_type=AIResponse
         )
         res = await analysis_agent.run(prompt)
@@ -311,7 +447,36 @@ You are the analysis tool. Provide detailed analysis in AIResponse format.
                 user_id= user_id,
                 org_id=org_id,
                 context_source=input.context_source,
+                sandbox=None,
+                selectedCells=input.selectedCells
         )
+        adjusted_input_cells = None
         
-        result = await self.agent.run(input.prompt, deps=ctx)
-        return result.output
+        if(input.selectedCells):
+            adjusted_input_cells = {
+                'left': input.selectedCells['left'],
+                'right': input.selectedCells['right'],
+                'top': input.selectedCells['top']-1,
+                'bottom': input.selectedCells['bottom']-1,
+            }
+        
+        result = await self.agent.run(input.prompt + f"Selected cells: {adjusted_input_cells}", deps=ctx)
+        
+        #print(result.output.answer)
+        print("MODEL DUMP", result.output.model_dump())
+        model_dumped = result.output.model_dump()
+        answer_response = json.loads(repair_json(model_dumped['answer']))
+        
+        for msg in answer_response:
+            print("MESSAGE", msg)
+            if(msg['type'] == 'data_table'):
+                table_data = msg['value']
+                table_formatted = {
+                    "headers": table_data["headers"],
+                    "data": parse_table_json(table_data['headers'], table_data['data'])
+                }
+                msg['value'] = table_formatted
+        print(answer_response)
+        
+        model_dumped['answer'] = answer_response
+        return model_dumped

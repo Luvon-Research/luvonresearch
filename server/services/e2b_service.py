@@ -7,45 +7,45 @@ from dotenv import load_dotenv
 from e2b_code_interpreter import Sandbox
 
 class E2BService:
-    def __init__(self):
+    def __init__(self, id):
         load_dotenv()
-        self._sandboxes_file = "sandboxes.txt"
+        # self._sandboxes_file = "sandboxes.txt"
         self.sbx_template_id = "potaq3k9ta9l28671h7j"
 
-        # 1) Load any previously‐used sandbox IDs
-        if os.path.exists(self._sandboxes_file):
-            with open(self._sandboxes_file, "r") as f:
-                sandbox_ids = [line.strip() for line in f if line.strip()]
-        else:
-            sandbox_ids = []
+        # # 1) Load any previously‐used sandbox IDs
+        # if os.path.exists(self._sandboxes_file):
+        #     with open(self._sandboxes_file, "r") as f:
+        #         sandbox_ids = [line.strip() for line in f if line.strip()]
+        # else:
+        #     sandbox_ids = []
 
-        active_sbx = None
-        updated_ids = []
+        # active_sbx = None
+        # updated_ids = []
 
-        # 2) Try each ID in turn
-        for sbx_id in sandbox_ids:
-            try:
-                sbx = Sandbox(sandbox_id=sbx_id)      # attach to existing
-                if sbx.is_running():       # check health
-                    active_sbx = sbx
-                    updated_ids.append(sbx_id)
-                    break
-            except Exception:
-                # Either invalid ID or not accessible → skip
-                pass
+        # # 2) Try each ID in turn
+        # for sbx_id in sandbox_ids:
+        #     try:
+        #         sbx = Sandbox(sandbox_id=sbx_id)      # attach to existing
+        #         if sbx.is_running():       # check health
+        #             active_sbx = sbx
+        #             updated_ids.append(sbx_id)
+        #             break
+        #     except Exception:
+        #         # Either invalid ID or not accessible → skip
+        #         pass
 
-        # 3) If none was active, spin up a new one
-        if active_sbx is None:
-            # create from template
-            active_sbx = Sandbox(template=self.sbx_template_id)
-            # It will have a new .id property
-            updated_ids = sandbox_ids + [active_sbx.sandbox_id]
+        # # 3) If none was active, spin up a new one
+        # if active_sbx is None:
+        #     # create from template
+        #     active_sbx = Sandbox(template=self.sbx_template_id)
+        #     # It will have a new .id property
+        #     updated_ids = sandbox_ids + [active_sbx.sandbox_id]
 
-        # 4) Persist the cleaned+updated list
-        with open(self._sandboxes_file, "w") as f:
-            f.write("\n".join(updated_ids))
+        # # 4) Persist the cleaned+updated list
+        # with open(self._sandboxes_file, "w") as f:
+        #     f.write("\n".join(updated_ids))
         
-        self.sbx = active_sbx
+        self.sbx = Sandbox(self.sbx_template_id, timeout=240, metadata={'id': id})
     
     async def add_file(self, filename, data):
         if(not self.sbx.is_running()):
@@ -68,6 +68,10 @@ class E2BService:
     async def remove_files(self, files):
         for file in files:
             self.sbx.files.remove(file)
+            
+    async def run_code(self, code, language="python"):
+        execution = self.sbx.run_code(code, language=language)
+        return execution
 
 
     async def upload_file(self, org_id: str, uploader_id: str, file: bytes, file_name: str, is_chart: bool = False, r_code: str = ''):

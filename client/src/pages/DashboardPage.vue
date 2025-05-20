@@ -35,6 +35,8 @@ let API_URL = import.meta.env.VITE_API_URL;
 const sheets = ref([]);
 const selectedSheetId = ref(null);
 const loading = ref(true);
+const selectedCells = ref([])
+const action = ref({})
 
 // Function to fetch sheets from API
 async function fetchSheets() {
@@ -136,6 +138,14 @@ watch(
   }
 );
 
+watch(
+  () => selectedCells.value,
+  (newCells, oldCells) => {
+    console.log(newCells, oldCells);
+    selectedCells.value = newCells;
+  }
+);
+
 // Handle sheet created event from CreateSheetButton
 function handleSheetCreated(newSheet) {
   // Assuming event passes the new sheet data
@@ -209,6 +219,11 @@ const filteredSheets = computed(() => {
     sheet.name.toLowerCase().includes(term)
   );
 });
+
+function updateAction(val){
+  console.log("updating error", val)
+  action.value = val;
+}
 </script>
 
 <template>
@@ -290,7 +305,7 @@ const filteredSheets = computed(() => {
           <div v-if="!loading">
             <div v-if="selectedPage === 'sheets'">
               <div v-if="sheets.length !== 0">
-                <SheetBlock :sheet-id="selectedSheetId" />
+                <SheetBlock :sheet-id="selectedSheetId" :setSelectedCells="val => selectedCells = val" :action="action"/>
               </div>
               <div v-if="sheets.length === 0">
                 <center style="margin-top: 10vh">
@@ -336,6 +351,8 @@ const filteredSheets = computed(() => {
           :context-name="selectedSheetName"
           :context-type="selectedPage"
           @close="toggleChat"
+          :selectedCells="selectedCells"
+          :action="(val) => {updateAction(val)}"
         />
       </transition>
     </main>
@@ -382,7 +399,7 @@ const filteredSheets = computed(() => {
 .dashboard-layout {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 98vh;
 }
 
 .dashboard-content {
