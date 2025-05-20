@@ -38,6 +38,7 @@ const fileViewerUrl = ref(null);
 const showPreview = ref(false);
 const selectedPreviewFile = ref(null);
 const organizationId = ref(null);
+const boxLoading = ref(false);
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -116,6 +117,14 @@ const redirectToBoxLogin = async () => {
   }
 };
 
+watch(boxTreeVisible, (val) => {
+  handleBoxDialogClose(val)
+})
+function handleBoxDialogClose(val){
+  if(val === false){
+    selectedBoxKeys.value = []
+  }
+}
 const loadBoxFolder = async (node) => {
   const folderId = node.key;
   const token = node.data.access_token;
@@ -172,6 +181,7 @@ const handleBoxFileSelection = async () => {
 
   try {
     loading.value = true;
+    boxLoading.value = true;
 
     const token = await session.value.id; 
     const user_id = session.value.user.id;       
@@ -192,16 +202,20 @@ const handleBoxFileSelection = async () => {
     const result = await res.json();
 
     if (!res.ok) {
+      boxLoading.value = false;
       throw new Error(result.detail || "Box upload failed");
     }
 
     await fetchFiles(); // Refresh file liste = false;
     error.value = null;
   } catch (err) {
-    console.error("Box upload failed:", err);
+    //console.error("Box upload failed:", err);
     error.value = err.message || "Failed to upload selected Box files.";
   } finally {
     loading.value = false;
+    boxLoading.value = false;
+    boxTreeVisible.value = false;
+    visible.value = false;
   }
 };
 
@@ -427,8 +441,11 @@ watch(
   v-model:visible="boxTreeVisible" 
   modal 
   header="Select Files from Box" 
+  :closable="!boxLoading"
   :style="{ width: '40vw', maxHeight: '90vh' }"
 >
+<div v-if="error" class="error-message">{{ error }}</div>
+
   <div class="box-tree-container">
     <Tree
   v-model:selectionKeys="selectedBoxKeys"
@@ -444,10 +461,12 @@ watch(
         label="Cancel"
         icon="pi pi-times"
         severity="secondary"
+        :disabled="boxLoading"
         @click="boxTreeVisible = false"
       />
       <Button 
         label="Select"
+        :loading="boxLoading"
         icon="pi pi-check"
         class="confirm-button"
         @click="handleBoxFileSelection"
