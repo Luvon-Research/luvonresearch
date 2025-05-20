@@ -43,21 +43,29 @@ class AIService:
         • First Include a small message on the output
         • Second Include the image url `img_url` in your response in `answer`.
         • Third Return the R code only (no comments or preamble) in `answer`. (You must give me r code as part of response)  
+        • Terminate and return output
 
 
         2. predict  
+        • If selectedCells are not included, give error message that cells must be highlighted and terminate here, do not call tool (important)
         • Produce data predictions. And also run code to find details about the data
+        • Call `_tool_predict` once and do the following steps
         • First Include a small message on the output
         • Second include a data table with the values of the output (always have this in data table format)
+        • Third, create a action, where it takes the predictions and the original cells to predict
+            and maps it to replace those cells in the action format below. Target is "sheet" and action_type is "update"
+        • Action description should be "Apply to cells"
         • If predict tool returns error, give user error message
+        • Terminate and return output
+        
 
         3. analysis  
         • Provide data analysis text.
 
         Your `answer` must be a VALID JSON array of objects, each with:
         {
-            "type": "message" | "image" | "code" | "data_table",
-            "value": "<text or URL or code or data_table (format should be {headers: <list>, data: <data>})>"
+            "type": "message" | "image" | "code" | "data_table | action",
+            "value": "<text or URL or code or data_table (format should be {headers: <list>, data: <data>}) or action (format should be {description: <description text of this action>, target: <target to apply to>, action_type: <type of action> data: [{x: <x>, y: <y>, val:<value>}]})>"
         }
 
         - For plain text answers use type "message".  
@@ -324,13 +332,18 @@ class AIService:
                 ),
             )
             
+            totalCells = ((ctx.deps.selectedCells['right'] - ctx.deps.selectedCells['left'])+1) * (ctx.deps.selectedCells['bottom'] - ctx.deps.selectedCells['top'])
+            print("TOTAL CELLS", totalCells)
+            
             # Local prediction-only agent
             predict_agent = Agent(
                 model=settings.AI_MODEL,
                 system_prompt = f"""
+                If `{ctx.deps.selectedCells}` is empty, return an error message and terminate
+
                 You are a prediction tool that generates Python code for ML tasks using 
                 PyTorch, TensorFlow, scikit-learn, NumPy, and/or pandas.
-
+                
                 Prompt: {prompt}
                 Data schema (sample): {sample_data}
 
@@ -354,6 +367,7 @@ class AIService:
                     - If the prompt specifies certain rows or indices, use those as the test set (with index conversion).
                     - Otherwise, use `{ctx.deps.selectedCells}` (a grid of user-selected cell ranges), applying the same index handling.
                     - All other rows become the training set.
+                    
                 3. Identify the target column(s):
                     - If specified in the prompt, predict only those.
                     - Otherwise, infer missing/empty column(s) and predict them.
@@ -436,8 +450,17 @@ class AIService:
                 sandbox=None,
                 selectedCells=input.selectedCells
         )
+        adjusted_input_cells = None
         
-        result = await self.agent.run(input.prompt, deps=ctx)
+        if(input.selectedCells):
+            adjusted_input_cells = {
+                'left': input.selectedCells['left'],
+                'right': input.selectedCells['right'],
+                'top': input.selectedCells['top']-1,
+                'bottom': input.selectedCells['bottom']-1,
+            }
+        
+        result = await self.agent.run(input.prompt + f"Selected cells: {adjusted_input_cells}", deps=ctx)
         
         #print(result.output.answer)
         print("MODEL DUMP", result.output.model_dump())

@@ -98,6 +98,11 @@
               ></Column>
             </DataTable>
           </div>
+
+          <div v-if="msg.type === 'action'">
+            <p>Click the button to apply the action</p>
+            <Button icon="pi pi-check" :label="msg.text['description']" class="action-btn" icon-pos="right" @click="() => applyAction(msg.text)"/>
+          </div>
           <i class="pi pi-sparkles"></i> Generated in {{ msg.generationTime }}s
         </div>
       </div>
@@ -161,7 +166,6 @@ import Column from 'primevue/column';
 import ColumnGroup from 'primevue/columngroup';   // optional
 import Row from 'primevue/row';                   // optional
 
-
 const { organization } = useOrganization();
 const emit = defineEmits(["close"]);
 const { session } = useSession();
@@ -187,6 +191,9 @@ const props = defineProps({
   selectedCells: {
     type: Map,
     default: {}
+  },
+  action: {
+    type: Function
   }
 });
 
@@ -326,6 +333,10 @@ function displayText(
 //   });
 // }
 
+async function applyAction(val){
+  console.log(JSON.parse(JSON.stringify(val)))
+  props.action(JSON.parse(JSON.stringify(val)))
+}
 // — pull‐out the fetch logic —
 async function loadChats(page = 1, prepend = false) {
   loadingChats.value = true;
@@ -722,5 +733,9 @@ onBeforeUnmount(() => {
   color: gray;
   font-size: 12px;
   text-align: center;
+}
+
+.action-btn{
+  font-size: 12px;
 }
 </style>

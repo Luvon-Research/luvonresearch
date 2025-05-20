@@ -62,6 +62,10 @@ const props = defineProps({
   setSelectedCells: {
     type: Function,
   },
+  action: {
+    type: Object,
+    default: null,
+  },
 });
 const API_URL = import.meta.env.VITE_API_URL;
 const YJS_URL = import.meta.env.VITE_YJS_SERVER_URL;
@@ -392,6 +396,20 @@ async function loadSheetData() {
   }
 }
 
+function handleActionFromAI(action){
+  if(!sheet) return;
+
+  if(action['action_type'] === 'update' && action['target'] === 'sheet'){
+    action['data'].forEach(val => {
+      console.log(val)
+      sheet.setValueFromCoords(val['x'], val['y'], val['val'], true)
+    })
+  } else {
+    console.log("ACTION NOT SUPPORTED")
+    return
+  }
+}
+
 // Watch for changes in sheetId prop
 watch(
   () => props.sheetId,
@@ -403,6 +421,15 @@ watch(
   },
   { immediate: true }
 ); // Load data immediately when component mounts
+
+watch(
+  () => props.action,
+  (newAction, oldAction) => {
+    console.log("ACTION REACHED", newAction);
+    handleActionFromAI(newAction);
+  },
+  { immediate: true }
+);
 
 function scheduleFlush() {
   if (!allowUpdates) return; // Don't schedule if updates are disallowed (e.g., during initial load)
@@ -566,8 +593,8 @@ onMounted(async () => {
       props.setSelectedCells({
         left: leftIndex,
         right: rightIndex,
-        top: topIndex,
-        bottom: bottomIndex,
+        top: topIndex + 1,
+        bottom: bottomIndex + 1,
       });
     },
     onblur: (instance) => {

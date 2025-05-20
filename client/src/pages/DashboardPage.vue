@@ -36,6 +36,7 @@ const sheets = ref([]);
 const selectedSheetId = ref(null);
 const loading = ref(true);
 const selectedCells = ref([])
+const action = ref({})
 
 // Function to fetch sheets from API
 async function fetchSheets() {
@@ -218,6 +219,11 @@ const filteredSheets = computed(() => {
     sheet.name.toLowerCase().includes(term)
   );
 });
+
+function updateAction(val){
+  console.log("updating error", val)
+  action.value = val;
+}
 </script>
 
 <template>
@@ -299,7 +305,7 @@ const filteredSheets = computed(() => {
           <div v-if="!loading">
             <div v-if="selectedPage === 'sheets'">
               <div v-if="sheets.length !== 0">
-                <SheetBlock :sheet-id="selectedSheetId" :setSelectedCells="val => selectedCells = val"/>
+                <SheetBlock :sheet-id="selectedSheetId" :setSelectedCells="val => selectedCells = val" :action="action"/>
               </div>
               <div v-if="sheets.length === 0">
                 <center style="margin-top: 10vh">
@@ -346,6 +352,7 @@ const filteredSheets = computed(() => {
           :context-type="selectedPage"
           @close="toggleChat"
           :selectedCells="selectedCells"
+          :action="(val) => {updateAction(val)}"
         />
       </transition>
     </main>
