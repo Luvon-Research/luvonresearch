@@ -311,6 +311,9 @@ class AIService:
             csv_data = await self.sheet_service.get_sheet_data_csv_by_id(ctx.deps.context_source, False)
                 
             print("Writing CSV data")
+            if not os.path.exists("temp_files"):
+                os.makedirs("temp_files")
+                
             with open(csv_file_local, 'w', newline="") as fp:
                 fp.write(csv_data.getvalue())
             
