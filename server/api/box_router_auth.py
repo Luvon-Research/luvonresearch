@@ -3,11 +3,13 @@ from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 import httpx
-from services.box_service import exchange_code_for_token
+from services.box_service import exchange_code_for_token, upload_files_to_supabase
 from services.supabase_service import SupabaseService
 from services.user_service import UserService
 import os
 from dotenv import load_dotenv
+from services.files_service import FilesService
+from models.box import BoxFiles
 load_dotenv()
 
 
@@ -17,6 +19,9 @@ supabase = SupabaseService()
 
 def get_user_service() -> UserService:
     return UserService(supabase)
+
+def get_files_service() -> FilesService:
+    return FilesService(supabase)
 
 
 class TokenExchangeRequest(BaseModel):
@@ -103,19 +108,46 @@ async def has_box_integration(
         raise HTTPException(
             status_code=500, detail=f"Box integration check failed: {str(e)}")
         
-
-
-
     
-@router.get("/files/{user_id}")
-async def get_box_files(user_id: str):
-    access_token = "Rsg5EG3y3G3iwypQF9OOA0kkKzxWnulX"
-    headers = {"Authorization": f"Bearer {access_token}"}
-    async with httpx.AsyncClient() as client:
-        res = await client.get("https://api.box.com/2.0/folders/0/items", headers=headers)
-    return res.json()
+# @router.get("/files/{user_id}")
+# async def get_box_files(user_id: str):
+#     access_token = "Rsg5EG3y3G3iwypQF9OOA0kkKzxWnulX"
+#     headers = {"Authorization": f"Bearer {access_token}"}
+#     async with httpx.AsyncClient() as client:
+#         res = await client.get("https://api.box.com/2.0/folders/0/items", headers=headers)
+#     return res.json()
 
+@router.post("/files")
+async def upload_fox_files(
+    body: BoxFiles,
+    request: Request,
+    user_service: UserService = Depends(get_user_service),
+    files_service: FilesService = Depends(get_files_service)
+    ):
+    try:
+        user_id, org_id = await user_service.verify_user_token(request)
+        token_info = await user_service.get_box_token_record(user_id)
+        
+        print(token_info)
 
+        if(user_id != body.user_id):
+            raise HTTPException(status_code=401, detail="Unauthorized user")
+        
+        output = await upload_files_to_supabase(body.file_ids, body.file_names, org_id, user_id, files_service, token_info['token'])
+        
+        return output
+    
+    except Exception as e:
+        print(e)
+        raise HTTPException(
+            status_code=500, detail=f"Box integration check failed: {str(e)}")
+        
+
+    # access_token = "Rsg5EG3y3G3iwypQF9OOA0kkKzxWnulX"
+    #headers = {"Authorization": f"Bearer {access_token}"}
+    #async with httpx.AsyncClient() as client:
+        #res = await client.get("https://api.box.com/2.0/folders/0/items", headers=headers)
+    #return res.json()
 
 
 

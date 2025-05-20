@@ -29,6 +29,7 @@ const boxFiles = ref([]);
 const boxFilesVisible = ref(false);
 
 const redirectToBoxLogin = async () => {
+  console.log(session.value.id)
   if (!session.value?.id) {
     error.value = "You must be logged in to connect Box.";
     return;

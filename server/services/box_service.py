@@ -4,6 +4,8 @@ import os
 import httpx
 from dotenv import load_dotenv
 from services.supabase_service import SupabaseService
+from services.files_service import FilesService
+import requests
 
 load_dotenv()
 supabase = SupabaseService()
@@ -51,3 +53,37 @@ async def list_user_files(user_id: str):
         raise Exception(f"Box API error: {response.text}")
 
     return response.json()
+
+
+async def upload_files_to_supabase(file_ids: list, file_names: list, org_id: str, user_id:str, files_service: FilesService, access_token: str):
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    for i, file_id in enumerate(file_ids):
+        url = f"https://api.box.com/2.0/files/{file_id}/content"
+        response = requests.get(url, headers=headers, allow_redirects=False)  # Don't follow redirect automatically
+
+        print(response.status_code)
+        print(response)
+        print(response.headers)
+
+        if response.status_code == 302:
+            # Box responds with a redirect; file location is in 'Location' header
+            redirect_url = response.headers.get("Location")
+            if redirect_url:
+                file_response = requests.get(redirect_url)
+                print(file_response.status_code)
+                # file_response.content contains the binary file data
+                
+                file_data = file_response.content
+                
+                print(file_names[i])
+                
+                res = await files_service.upload_file(org_id=org_id, 
+                                          uploader_id=user_id, 
+                                          file=file_data,
+                                          file_name=file_names[i],
+                                          is_chart=False)
+
+                # #print(file_response.content)  # Print first 100 bytes as sample
+            else:
+                print("No redirect URL found in response.")
