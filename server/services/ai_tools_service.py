@@ -335,9 +335,9 @@ class AIService:
                 Data schema (sample): {sample_data}
 
                 The CSV data is presented to the user as follows:
-                - Index: 0. | LABEL, LABEL, ...    (header row)
-                - Index: 1. | DATA, DATA, ...      (first data row; pandas DataFrame index 0 after dropping header)
-                - Index: 2. | DATA, DATA, ...      (DataFrame index 1)
+                - Index: 1. | LABEL, LABEL, ...    (header row)
+                - Index: 2. | DATA, DATA, ...      (first data row; pandas DataFrame index 0 after dropping header)
+                - Index: 3. | DATA, DATA, ...      (DataFrame index 1)
                 - ...
 
                 When mapping row indices from the user (in the prompt or in `selectedCells`):
@@ -349,20 +349,20 @@ class AIService:
 
                 Instructions:
                 1. Load CSV from `{csv_file_sandbox}` into a pandas DataFrame.
-                - Always drop the first row (the header).
+                    - Always drop the first row (the header).
                 2. Determine the train/test split:
-                - If the prompt specifies certain rows or indices, use those as the test set (with index conversion and clamping as above).
-                - Otherwise, use `{ctx.deps.selectedCells}` (a grid of user-selected cell ranges), applying the same index handling.
-                - All other rows become the training set.
+                    - If the prompt specifies certain rows or indices, use those as the test set (with index conversion).
+                    - Otherwise, use `{ctx.deps.selectedCells}` (a grid of user-selected cell ranges), applying the same index handling.
+                    - All other rows become the training set.
                 3. Identify the target column(s):
-                - If specified in the prompt, predict only those.
-                - Otherwise, infer missing/empty column(s) and predict them.
+                    - If specified in the prompt, predict only those.
+                    - Otherwise, infer missing/empty column(s) and predict them.
                 4. **Before training: Remove any rows from the training set where the target column(s) (e.g., Y) are NaN or missing.**
                 5. Generate Python code that:
-                a. Safely converts, clamps, and validates user indices before splitting into train/test sets.
-                b. Drops any training rows with NaN in the target column(s) before fitting the model.
-                c. Trains an appropriate model on the cleaned training set.
-                d. Predicts on the test set.
+                    a. Safely converts, clamps, and validates user indices before splitting into train/test sets.
+                    b. Drops any training rows with NaN in the target column(s) before fitting the model.
+                    c. Trains an appropriate model on the cleaned training set.
+                    d. Predicts on the test set.
                 6. Execute the code via the provided tool. If execution fails, auto-fix and retry up to 3 times. On final failure, return an error message.
                 7. Output results as:
                 Table headers: [<col1>, <col2>, ...]
