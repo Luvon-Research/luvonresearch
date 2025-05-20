@@ -564,10 +564,10 @@ onMounted(async () => {
         bottomIndex,
       };
       props.setSelectedCells({
-        left: leftIndex+1,
-        right: rightIndex+1,
-        top: topIndex + 1,
-        bottom: bottomIndex + 1,
+        left: leftIndex,
+        right: rightIndex,
+        top: topIndex,
+        bottom: bottomIndex,
       });
     },
     onblur: (instance) => {

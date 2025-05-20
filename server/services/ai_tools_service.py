@@ -48,7 +48,7 @@ class AIService:
         2. predict  
         • Produce data predictions. And also run code to find details about the data
         • First Include a small message on the output
-        • Second include a data table with the values of the output
+        • Second include a data table with the values of the output (always have this in data table format)
         • If predict tool returns error, give user error message
 
         3. analysis  
@@ -329,46 +329,46 @@ class AIService:
                 model=settings.AI_MODEL,
                 system_prompt = f"""
                 You are a prediction tool that generates Python code for ML tasks using 
-                PyTorch, TensorFlow, scikit-learn, NumPy, and pandas.
+                PyTorch, TensorFlow, scikit-learn, NumPy, and/or pandas.
 
                 Prompt: {prompt}
-
                 Data schema (sample): {sample_data}
 
-                The CSV data is presented to the user in this format:
-                Index: 1. | LABEL, LABEL, ...    (header row)
-                Index: 2. | DATA, DATA, ...      (first data row; DataFrame row 1 after dropping header)
-                Index: 3. | DATA, DATA, ...     (DataFrame row 2)
-                ...
+                The CSV data is presented to the user as follows:
+                - Index: 0. | LABEL, LABEL, ...    (header row)
+                - Index: 1. | DATA, DATA, ...      (first data row; pandas DataFrame index 0 after dropping header)
+                - Index: 2. | DATA, DATA, ...      (DataFrame index 1)
+                - ...
 
-                When handling row indices from the user (either from the prompt or from the `selectedCells` variable):
-                - User-provided indices are 1-based and refer to the UI.
-                - After dropping the header row, subtract 2 from the user's indices to map them to pandas DataFrame row indices.
-                - Clamp the resulting indices to ensure they are within [0, len(df)-1] to prevent out-of-bounds errors.
-                - If the resulting `top` index is greater than `bottom`, swap them to maintain a valid range.
-                - Always validate and fix indices before using them to subset the DataFrame.
+                When mapping row indices from the user (in the prompt or in `selectedCells`):
+                - User-provided indices are **1-based** and refer to the UI.
+                - Always **subtract 2** from each user index (after dropping the header) to convert to 0-based DataFrame indices.
+                - **Before using indices:**
+                - Never select indices outside the available data range.
+                - All index arithmetic and validation must be handled in the generated code before subsetting the DataFrame.
 
                 Instructions:
                 1. Load CSV from `{csv_file_sandbox}` into a pandas DataFrame.
-                    - Drop the first row if it contains headers.
+                - Always drop the first row (the header).
                 2. Determine the train/test split:
-                    - If the prompt names specific rows or indices, use those as the test set (with the above 
-                        index conversion and validation).
-                    - Otherwise, use `{ctx.deps.selectedCells}` (a grid of user-selected cell ranges) to
-                        identify the test rows, applying the same index conversion and validation.
-                    - All other rows become the training set.
+                - If the prompt specifies certain rows or indices, use those as the test set (with index conversion and clamping as above).
+                - Otherwise, use `{ctx.deps.selectedCells}` (a grid of user-selected cell ranges), applying the same index handling.
+                - All other rows become the training set.
                 3. Identify the target column(s):
-                    - If specified in the prompt, predict only those.
-                    - Otherwise, infer missing/empty column(s) and predict them.
-                4. Generate Python code to:
-                    a. Split the DataFrame into train/test according to step 2.
-                    b. Train an appropriate model.
-                    c. Run predictions on the test set.
-                5. Execute the code via the provided tool. Check logs for results. If execution fails, 
-                    auto-fix and retry up to 3 times. On final failure, return an error message.
-                6. Output results as:
-                Table headers: [<col1>, <col2>, …]  
-                Table data: [ [row1_vals], [row2_vals], … ]
+                - If specified in the prompt, predict only those.
+                - Otherwise, infer missing/empty column(s) and predict them.
+                4. **Before training: Remove any rows from the training set where the target column(s) (e.g., Y) are NaN or missing.**
+                5. Generate Python code that:
+                a. Safely converts, clamps, and validates user indices before splitting into train/test sets.
+                b. Drops any training rows with NaN in the target column(s) before fitting the model.
+                c. Trains an appropriate model on the cleaned training set.
+                d. Predicts on the test set.
+                6. Execute the code via the provided tool. If execution fails, auto-fix and retry up to 3 times. On final failure, return an error message.
+                7. Output results as:
+                Table headers: [<col1>, <col2>, ...]
+                Table data: [ [row1_vals], [row2_vals], ... ]
+
+                **Always prioritize safe, index error-free code that handles all possible user index mistakes and excludes rows with missing target values during training.**
                 """,
                 output_type=AIResponse,
                 tools=tools,
