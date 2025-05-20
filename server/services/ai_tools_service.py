@@ -310,10 +310,13 @@ class AIService:
             print("Pulling CSV data")
             csv_data = await self.sheet_service.get_sheet_data_csv_by_id(ctx.deps.context_source, False)
                 
-            print("Wrote CSV data")
+            print("Writing CSV data")
             with open(csv_file_local, 'w', newline="") as fp:
                 fp.write(csv_data.getvalue())
-                fp.close()
+            
+            print("Wrote csv data")
+            
+            print("temp files", os.listdir("temp_files"))
             
             sample_data = fetch_sample_lines(csv_file_local, lines=3)
             header_row = fetch_sample_lines(csv_file_local, lines=1)
