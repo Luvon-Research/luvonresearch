@@ -10,9 +10,8 @@ import IconField from "primevue/iconfield";
 import InputIcon from "primevue/inputicon";
 import Avatar from "primevue/avatar";
 import ProgressSpinner from "primevue/progressspinner";
-import axios from 'axios';
+import axios from "axios";
 import Tree from "primevue/tree";
-
 
 const { organization } = useOrganization();
 const { session } = useSession();
@@ -21,9 +20,9 @@ const { clerk } = useClerk();
 const CLIENT_ID = "x08evj9jxdq775u7d324j0dxmizaqfsx";
 const REDIRECT_URI = "http://localhost:5173/callback";
 
-const boxTreeVisible = ref(false);     
-const boxTreeNodes = ref([]);          
-const selectedBoxKeys = ref({});       
+const boxTreeVisible = ref(false);
+const boxTreeNodes = ref([]);
+const selectedBoxKeys = ref({});
 
 const boxFiles = ref([]);
 const boxFilesVisible = ref(false);
@@ -49,7 +48,6 @@ onChange((files) => {
   if (files?.[0]) selectedFile.value = files[0];
 });
 
-
 const deleteSingleFile = async (file) => {
   const confirmed = confirm(`Are you sure you want to delete "${file.name}"?`);
   if (!confirmed) return;
@@ -57,18 +55,28 @@ const deleteSingleFile = async (file) => {
   try {
     loading.value = true;
     const token = session.value.id;
-    
-    console.log(token)
 
-    await axios.delete(`${API_URL}/api/files/delete-single/${file.id}`, {
-  headers: {
-    Authorization: `Bearer ${token}`,
-  },
-  
-}).then(()=>{fetchFiles()});
+    console.log(token);
 
+    fetch(`${API_URL}/api/files/delete-single/${file.id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }).then(async (res) => {
+      if(!res.ok){
+        console.log("Sm went wrong")
+        return;
+      }
 
-    selectedFileIdsToDelete.value = selectedFileIdsToDelete.value.filter(id => id !== file.id);
+      setTimeout(() => {
+        fetchFiles();
+      }, 200);
+    })
+
+    selectedFileIdsToDelete.value = selectedFileIdsToDelete.value.filter(
+      (id) => id !== file.id
+    );
   } catch (err) {
     console.error("Delete failed:", err);
     error.value = "Failed to delete the file.";
@@ -77,40 +85,35 @@ const deleteSingleFile = async (file) => {
   }
 };
 
-
-
-
 const redirectToBoxLogin = async () => {
-  console.log(session.value.id)
+  console.log(session.value.id);
   if (!session.value?.id) {
     error.value = "You must be logged in to connect Box.";
     return;
   }
-  console.log("WOrking type shi")
+  console.log("WOrking type shi");
 
   try {
- 
     const token = session.value.id;
-
 
     const res = await fetch(`${API_URL}/api/box/has_integration/`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
-    
 
     if (!res.ok) throw new Error("Integration check failed");
 
     const { has_integration, access_token } = await res.json();
 
-   
     if (!has_integration) {
-      const authUrl = `https://account.box.com/api/oauth2/authorize?response_type=code&client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=box_login`;
+      const authUrl = `https://account.box.com/api/oauth2/authorize?response_type=code&client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(
+        REDIRECT_URI
+      )}&state=box_login`;
       window.location.href = authUrl;
       return;
     }
-    console.log(access_token)
+    console.log(access_token);
 
     const boxRes = await fetch("https://api.box.com/2.0/folders/0/items", {
       headers: {
@@ -124,23 +127,20 @@ const redirectToBoxLogin = async () => {
     console.log("Box response:", boxData);
 
     boxTreeNodes.value = boxData.entries.map((item) => ({
-  key: String(item.id),
-  label: item.name,
-  icon: item.type === "folder" ? "pi pi-folder" : "pi pi-file",
-  leaf: item.type !== "folder",
-  data: {
-    type: item.type,
-    access_token,
-  },
-  children: [],  
-}));
-
+      key: String(item.id),
+      label: item.name,
+      icon: item.type === "folder" ? "pi pi-folder" : "pi pi-file",
+      leaf: item.type !== "folder",
+      data: {
+        type: item.type,
+        access_token,
+      },
+      children: [],
+    }));
 
     console.log("Tree nodes:", boxTreeNodes.value);
 
-   
     boxTreeVisible.value = true;
-
   } catch (err) {
     console.error("Failed to check Box integration:", err);
     error.value = "Box integration check failed.";
@@ -152,11 +152,14 @@ const loadBoxFolder = async (node) => {
   const token = node.data.access_token;
 
   try {
-    const res = await fetch(`https://api.box.com/2.0/folders/${folderId}/items`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const res = await fetch(
+      `https://api.box.com/2.0/folders/${folderId}/items`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
     const data = await res.json();
 
@@ -204,14 +207,14 @@ const handleBoxFileSelection = async () => {
   try {
     loading.value = true;
 
-    const token = await session.value.id; 
-    const user_id = session.value.user.id;       
+    const token = await session.value.id;
+    const user_id = session.value.user.id;
 
     const res = await fetch(`${API_URL}/api/box/files`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`, 
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         file_ids,
@@ -266,17 +269,16 @@ const handleCreate = async () => {
   }
 
   const formData = new FormData();
-  formData.append('file', selectedFile.value);
-  formData.append('org_id', organizationId.value);
-  formData.append('is_chart', false);
-
+  formData.append("file", selectedFile.value);
+  formData.append("org_id", organizationId.value);
+  formData.append("is_chart", false);
 
   try {
     loading.value = true;
     await axios.post(`${API_URL}/api/files/upload`, formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
-        'Authorization': `Bearer ${session.value.id}`
+        "Content-Type": "multipart/form-data",
+        Authorization: `Bearer ${session.value.id}`,
       },
     });
     await fetchFiles(); // Refresh the file list
@@ -285,7 +287,7 @@ const handleCreate = async () => {
     error.value = null;
   } catch (err) {
     console.error("Upload error:", err);
-    error.value = 'Failed to upload file.';
+    error.value = "Failed to upload file.";
   } finally {
     loading.value = false;
   }
@@ -304,24 +306,24 @@ const getUserData = async (userId) => {
   if (userCache.value.has(userId)) {
     return userCache.value.get(userId);
   }
-  
+
   try {
     // Since Clerk is not available, just format the user ID
     // Format the user ID to be more readable
     const userData = {
-      fullName: userId.replace('user_', ''),
-      imageUrl: '',
+      fullName: userId.replace("user_", ""),
+      imageUrl: "",
     };
-    
+
     // Cache the result
     userCache.value.set(userId, userData);
     return userData;
   } catch (err) {
     console.error(`Error processing user data for ${userId}:`, err);
     // Return a fallback object
-    return { 
-      fullName: userId.replace('user_', ''), 
-      imageUrl: '' 
+    return {
+      fullName: userId.replace("user_", ""),
+      imageUrl: "",
     };
   }
 };
@@ -329,60 +331,63 @@ const getUserData = async (userId) => {
 const fetchFiles = async () => {
   if (!organizationId.value) return;
 
+  uploadedFiles.value = [];
   try {
     loading.value = true;
-    let response = await fetch(`${API_URL}/api/files/${organizationId.value}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.value.id}`,
-          "is_chart": false,
-        }
-      }
-    );
+    let response = await fetch(`${API_URL}/api/files/${organizationId.value}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.value.id}`,
+        is_chart: false,
+      },
+    });
 
     if (!response.ok) throw new Error("Fetch failed");
     const data = await response.json();
     console.log(data);
-    
+
     // Process files first
-    const processedFiles = data.map(file => {
-      const fileName = file.file_path ? file.file_path.split('/').pop() : 'Unnamed File';
-      
+    const processedFiles = data.map((file) => {
+      const fileName = file.file_path
+        ? file.file_path.split("/").pop()
+        : "Unnamed File";
+
       return {
-        id: file.id || '',
+        id: file.id || "",
         name: fileName,
         file_path: file.file_path, // Store the original file_path
         size: formatFileSize(file.size || 0),
-        uploader_id: file.uploader_id || 'Unknown',
-        date: file.created_at ? new Date(file.created_at).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        }) : 'Unknown date'
+        uploader_id: file.uploader_id || "Unknown",
+        date: file.created_at
+          ? new Date(file.created_at).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })
+          : "Unknown date",
       };
     });
-    
+
     // Set files first so UI can render
     uploadedFiles.value = processedFiles;
-    
+
     // Then fetch user data for each file
     for (const file of processedFiles) {
-      if (file.uploader_id && file.uploader_id !== 'Unknown') {
+      if (file.uploader_id && file.uploader_id !== "Unknown") {
         const userData = await getUserData(file.uploader_id);
         file.uploader_name = userData.fullName;
         file.uploader_image = userData.imageUrl;
       } else {
-        file.uploader_name = 'Unknown User';
-        file.uploader_image = '';
+        file.uploader_name = "Unknown User";
+        file.uploader_image = "";
       }
     }
-    
+
     console.log("Processed files with user data:", uploadedFiles.value);
   } catch (err) {
     console.error("Error fetching files:", err);
-    error.value = 'Failed to fetch files.';
+    error.value = "Failed to fetch files.";
   } finally {
     loading.value = false;
   }
@@ -392,23 +397,26 @@ const fetchFiles = async () => {
 const getSignedUrl = async (filePath) => {
   try {
     // Extract just the filename from the path
-    const fileName = filePath.split('/').pop();
-    
+    const fileName = filePath.split("/").pop();
+
     // Encode just the filename
     const encodedFileName = encodeURIComponent(fileName);
     console.log("Requesting signed URL for:", encodedFileName);
-    
-    const response = await axios.get(`${API_URL}/api/files/signed-url/${encodedFileName}`, {
-      headers: {
-        'Authorization': `Bearer ${session.value.id}`
+
+    const response = await axios.get(
+      `${API_URL}/api/files/signed-url/${encodedFileName}`,
+      {
+        headers: {
+          Authorization: `Bearer ${session.value.id}`,
+        },
       }
-    });
-    
+    );
+
     console.log("Signed URL response:", response.data);
-    return response.data.signed_url || response.data.url; 
+    return response.data.signed_url || response.data.url;
   } catch (err) {
     console.error("Error getting signed URL:", err);
-    error.value = 'Failed to get file URL.';
+    error.value = "Failed to get file URL.";
     return null;
   }
 };
@@ -426,7 +434,7 @@ const handleFileClick = async (file) => {
     }
   } catch (err) {
     console.error("Error opening file:", err);
-    error.value = 'Failed to open file.';
+    error.value = "Failed to open file.";
   } finally {
     loading.value = false;
   }
@@ -435,69 +443,62 @@ const handleFileClick = async (file) => {
 watch(
   () => organization.value?.id,
   (newOrgId) => {
-    if (!newOrgId) return;   // guard against undefined
+    if (!newOrgId) return; // guard against undefined
     organizationId.value = newOrgId;
-    fetchFiles();            // now safe to call
+    fetchFiles(); // now safe to call
   },
-  { immediate: true }        // also run on first mount when org.value.id is ready
+  { immediate: true } // also run on first mount when org.value.id is ready
 );
 </script>
 
 <template>
-
   <tr
-  v-for="file in filteredFiles"
-  :key="file.name + file.date"
-  @click="handleFileClick(file)"
-  style="cursor: pointer"
-  :class="{ 'box-file': file.uploader_id === 'box_user' }"
-/>
+    v-for="file in filteredFiles"
+    :key="file.name + file.date"
+    @click="handleFileClick(file)"
+    style="cursor: pointer"
+    :class="{ 'box-file': file.uploader_id === 'box_user' }"
+  />
 
-
-  <Dialog 
-  v-model:visible="boxTreeVisible" 
-  modal 
-  header="Select Files from Box" 
-  :style="{ width: '40vw', maxHeight: '90vh' }"
->
-  <div class="box-tree-container">
-    <Tree
-  v-model:selectionKeys="selectedBoxKeys"
-  :value="boxTreeNodes"
-  selectionMode="checkbox"
-  :lazy="true"
-  @nodeExpand="loadBoxFolder"
-  class="box-tree"
-/>
-
-    <div class="tree-footer">
-      <Button 
-        label="Cancel"
-        icon="pi pi-times"
-        severity="secondary"
-        @click="boxTreeVisible = false"
+  <Dialog
+    v-model:visible="boxTreeVisible"
+    modal
+    header="Select Files from Box"
+    :style="{ width: '40vw', maxHeight: '90vh' }"
+  >
+    <div class="box-tree-container">
+      <Tree
+        v-model:selectionKeys="selectedBoxKeys"
+        :value="boxTreeNodes"
+        selectionMode="checkbox"
+        :lazy="true"
+        @nodeExpand="loadBoxFolder"
+        class="box-tree"
       />
-      <Button 
-        label="Select"
-        icon="pi pi-check"
-        class="confirm-button"
-        @click="handleBoxFileSelection"
-      />
+
+      <div class="tree-footer">
+        <Button
+          label="Cancel"
+          icon="pi pi-times"
+          severity="secondary"
+          @click="boxTreeVisible = false"
+        />
+        <Button
+          label="Select"
+          icon="pi pi-check"
+          class="confirm-button"
+          @click="handleBoxFileSelection"
+        />
+      </div>
     </div>
-  </div>
-</Dialog>
+  </Dialog>
 
-
-
-  
   <!-- Show loading spinner when loading -->
   <div v-if="loading" class="loading-container">
     <ProgressSpinner />
     <p>Loading files...</p>
   </div>
 
-  
-  
   <!-- Show empty state only when not loading and no files -->
   <div v-else-if="uploadedFiles.length === 0" class="empty-state">
     <div class="upload-cta-box">
@@ -531,71 +532,72 @@ watch(
 
     <div class="uploaded-list">
       <table class="file-table">
-        <div style="margin-top: 1rem; text-align: right">
- 
-</div>
+        <div style="margin-top: 1rem; text-align: right"></div>
 
         <thead>
-  <tr>
-    <th>Select</th>
-    <th>File Name</th>
-    <th>Size</th>
-    <th>Uploaded By</th>
-    <th>Date</th>
-    <th>Actions</th>
-  </tr>
-</thead>
-<tbody>
-  <tr
-    v-for="file in filteredFiles"
-    :key="file.name + file.date"
-    :class="{ 'box-file': file.uploader_id === 'box_user' }"
-  >
-    <td>
-      <input
-        type="checkbox"
-        :value="file.id"
-        v-model="selectedFileIdsToDelete"
-        @click.stop
-      />
-    </td>
-    <td @click="handleFileClick(file)" style="cursor: pointer">
-      {{ file.name }}
-    </td>
-    <td @click="handleFileClick(file)" style="cursor: pointer">
-      {{ file.size }}
-    </td>
-    <td @click="handleFileClick(file)" class="uploader-cell" style="cursor: pointer">
-      <Avatar 
-        v-if="file.uploader_image" 
-        :image="file.uploader_image" 
-        shape="circle" 
-        size="small" 
-        class="uploader-avatar"
-      />
-      <span>{{ file.uploader_name || file.uploader_id }}</span>
-    </td>
-    <td @click="handleFileClick(file)" style="cursor: pointer">
-      {{ file.date }}
-    </td>
-    <td>
-      <Button
-        icon="pi pi-trash"
-        severity="danger"
-        size="small"
-        @click.stop="deleteSingleFile(file)"
-      />
-    </td>
-  </tr>
-</tbody>
-
+          <tr>
+            <th>Select</th>
+            <th>File Name</th>
+            <th>Size</th>
+            <th>Uploaded By</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="file in filteredFiles"
+            :key="file.name + file.date"
+            :class="{ 'box-file': file.uploader_id === 'box_user' }"
+          >
+            <td>
+              <input
+                type="checkbox"
+                :value="file.id"
+                v-model="selectedFileIdsToDelete"
+                @click.stop
+              />
+            </td>
+            <td @click="handleFileClick(file)" style="cursor: pointer">
+              {{ file.name }}
+            </td>
+            <td @click="handleFileClick(file)" style="cursor: pointer">
+              {{ file.size }}
+            </td>
+            <td
+              @click="handleFileClick(file)"
+              class="uploader-cell"
+              style="cursor: pointer"
+            >
+              <Avatar
+                v-if="file.uploader_image"
+                :image="file.uploader_image"
+                shape="circle"
+                size="small"
+                class="uploader-avatar"
+              />
+              <span>{{ file.uploader_name || file.uploader_id }}</span>
+            </td>
+            <td @click="handleFileClick(file)" style="cursor: pointer">
+              {{ file.date }}
+            </td>
+            <td>
+              <Button
+                icon="pi pi-trash"
+                severity="danger"
+                size="small"
+                @click.stop="deleteSingleFile(file)"
+              />
+            </td>
+          </tr>
+        </tbody>
       </table>
     </div>
 
-    <Dialog 
-      v-model:visible="showPreview" 
-      modal 
-      :header="selectedPreviewFile ? selectedPreviewFile.name : 'File Preview'" 
+    <Dialog
+      v-model:visible="showPreview"
+      modal
+      :header="selectedPreviewFile ? selectedPreviewFile.name : 'File Preview'"
       :style="{ width: '85vw', height: '90vh' }"
     >
       <iframe
@@ -822,7 +824,4 @@ watch(
 .box-file {
   background-color: #f0f6ff;
 }
-
-
-
 </style>
