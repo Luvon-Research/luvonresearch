@@ -196,4 +196,33 @@ class SheetService:
                 detail=str(e),
             )
         
+    async def delete_sheet(self, sheet_id: str):
+        """
+        Delete a sheet and all its associated data
+        """
+        try:
+            client = self.db.get_client()
+            
+            # First delete all sheet data
+            data_response = client.table("sheet_data").delete().eq("sheet_id", sheet_id).execute()
+            
+            # Then delete the sheet itself
+            sheet_response = client.table("sheets").delete().eq("id", sheet_id).execute()
+            
+            # Check if sheet was found and deleted
+            if not sheet_response.data:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Sheet not found"
+                )
+                
+            return True
+            
+        except Exception as e:
+            print(f"Error in delete_sheet: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(e)
+            )
+        
         

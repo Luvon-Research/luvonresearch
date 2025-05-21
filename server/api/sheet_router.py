@@ -70,6 +70,22 @@ async def get_user(sheet_id: str, service: SheetService = Depends(get_sheet_serv
     data = await service.get_sheet_data_csv_by_id(sheet_id)
     return data
 
+@router.delete("/{sheet_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_sheet(
+    sheet_id: str,
+    request: Request,
+    service: SheetService = Depends(get_sheet_service),
+    user_service: UserService = Depends(get_user_service)
+):
+    # Verify the user is authenticated
+    try:
+        user_id, org_id = await user_service.verify_user_token(request)
+    except HTTPException:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    # Delete the sheet and its data
+    await service.delete_sheet(sheet_id)
+    return None
 
 # # TODO
 # @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
