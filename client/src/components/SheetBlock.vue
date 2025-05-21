@@ -11,10 +11,11 @@
       />
       <Button
         type="button"
+        variant="outlined"
         label="Delete Sheet"
         icon="pi pi-trash"
-        severity="danger"
         class="delete-btn"
+        :loading="deleteLoading"
         @click="deleteSheet"
       />
     </div>
@@ -93,6 +94,7 @@ const savingIndicator = ref(false);
 const lastSaved = ref(formatDate());
 const error = ref(null);
 const selectedCellsLocal = ref({});
+const deleteLoading = ref(false);
 
 let sheet = null;
 let ydoc = null;
@@ -529,14 +531,17 @@ async function flushUpdates() {
 
 async function deleteSheet() {
   if (!confirm('Are you sure you want to delete this sheet?')) return;
+  deleteLoading.value = true;
   
   try {
-    const response = await fetch(`${API_URL}/api/sheets/${props.sheetId}`, {
+    const response = await fetch(`${API_URL}/api/sheets/${props.sheetId}/`, {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${session.value.id}`,
       },
     });
+
+    deleteLoading.value = false;
 
     if (!response.ok) {
       throw new Error('Failed to delete sheet');
@@ -545,6 +550,7 @@ async function deleteSheet() {
     // Emit event to notify parent that sheet was deleted
     emit('sheet-deleted', props.sheetId);
   } catch (err) {
+    deleteLoading.value = false;
     console.error('Error deleting sheet:', err);
     alert('Failed to delete sheet. Please try again.');
   }
