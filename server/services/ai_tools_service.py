@@ -30,7 +30,7 @@ class AIService:
         self.db = db
         self.sheet_service = SheetService(self.db)
         self.files_service = FilesService(db, pinecone)
-        self.retries = 3
+        self.MAX_RETRIES = 3
         # self.sbx = sbx
 
         # Unified system prompt describing available tools
@@ -173,8 +173,8 @@ class AIService:
                 # Adds csv file to sandbox
                 await tool_sandbox.add_file(csv_file_only_name, csv_data.getvalue())
                 
-                while tries <= self.retries:
-                    print(f"###### Retry: {tries}/{self.retries}")
+                while tries <= self.MAX_RETRIES:
+                    print(f"###### Retry: {tries}/{self.MAX_RETRIES}")
                     try:
                         # with open(run_script_name, 'w', newline="") as fp:
                         #     fp.write(r_code)
@@ -295,11 +295,39 @@ class AIService:
             )
 
     async def _tool_code_execution(self, ctx: RunContext[str], code: str):
-        print("RUNNING CODE------: \n " + code)
-        output = await ctx.deps.sandbox.run_code(code, language="python")
-        print(output)
-        #print("ERROR", output.logs)
-        return output
+        code_agent = Agent(
+            model=settings.AI_MODEL,
+            system_prompt=f'''
+            You are an expert Python code fixer.
+            Given the original code and the runtime error message, 
+            fix the code, and return only the corrected Python script.
+            Do not include any explanation, comments, 
+            or extra output—just return the corrected code block.
+            ''',
+            output_type=AIResponse
+        )
+                    
+        for i in range(self.MAX_RETRIES):
+            print(f"RUNNING CODE------ Retry: {i}: \n {code}")
+            output = await ctx.deps.sandbox.run_code(code, language="python")
+            print(output)
+            #print(output.logs)
+            #print(output.logs.stderr)
+            #print(output.logs.stdout)
+            output_error = output.logs.stderr
+            output_logs = output.logs.stdout
+            
+            if(len(output_logs) != 0):
+                print("Run is successful!")
+                return output_logs
+            
+            res = await code_agent.run(f"Code:\n{code}\nOutput Error: {output_error}")
+            print("CODE AGENT OUTPUT", res.output)
+        
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate the code for this prompt..."
+        )
         
     async def _tool_predict(self, ctx: RunContext[str], prompt: str) -> AIResponse:
         uuid = generate_uuid()
@@ -385,8 +413,9 @@ class AIService:
                     d. Predicts on the test set.
                 6. Execute the code via the provided tool. If execution fails, auto-fix and retry up to 3 times. On final failure, return an error message.
                 7. Output results as:
-                Table headers: [<col1>, <col2>, ...]
-                Table data: [ [row1_vals], [row2_vals], ... ]
+                print({{ "headers" : [<col1>, <col2>, ...]
+                   "data" : [ [row1_vals], [row2_vals], ... ]
+                }})
 
                 **Always prioritize safe, index error-free code that handles all possible user index mistakes and excludes rows with missing target values during training.**
                 """,
@@ -476,7 +505,7 @@ class AIService:
         for msg in answer_response:
             print("MESSAGE", msg)
             if(msg['type'] == 'data_table'):
-                table_data = msg['value']
+                table_data = json.loads(repair_json(str(msg['value'])))
                 table_formatted = {
                     "headers": table_data["headers"],
                     "data": parse_table_json(table_data['headers'], table_data['data'])

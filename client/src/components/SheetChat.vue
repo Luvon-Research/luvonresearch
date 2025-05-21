@@ -101,7 +101,7 @@
 
           <div v-if="msg.type === 'action'">
             <p>Click the button to apply the action</p>
-            <Button icon="pi pi-check" :label="msg.text['description']" class="action-btn" icon-pos="right" @click="() => applyAction(msg.text)"/>
+            <Button icon="pi pi-check" :label="JSON.parse(msg.text)['description']" class="action-btn" icon-pos="right" @click="() => applyAction(JSON.parse(msg.text))"/>
           </div>
           <i class="pi pi-sparkles"></i> Generated in {{ msg.generationTime }}s
         </div>
