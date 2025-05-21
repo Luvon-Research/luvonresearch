@@ -38,7 +38,6 @@ const fileViewerUrl = ref(null);
 const showPreview = ref(false);
 const selectedPreviewFile = ref(null);
 const organizationId = ref(null);
-const boxLoading = ref(false);
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -49,6 +48,37 @@ const userCache = ref(new Map()); // Cache to store user data
 onChange((files) => {
   if (files?.[0]) selectedFile.value = files[0];
 });
+
+
+const deleteSingleFile = async (file) => {
+  const confirmed = confirm(`Are you sure you want to delete "${file.name}"?`);
+  if (!confirmed) return;
+
+  try {
+    loading.value = true;
+    const token = session.value.id;
+    
+    console.log(token)
+
+    await axios.delete(`${API_URL}/api/files/delete-single/${file.id}`, {
+  headers: {
+    Authorization: `Bearer ${token}`,
+  },
+  
+}).then(()=>{fetchFiles()});
+
+
+    selectedFileIdsToDelete.value = selectedFileIdsToDelete.value.filter(id => id !== file.id);
+  } catch (err) {
+    console.error("Delete failed:", err);
+    error.value = "Failed to delete the file.";
+  } finally {
+    loading.value = false;
+  }
+};
+
+
+
 
 const redirectToBoxLogin = async () => {
   console.log(session.value.id)
@@ -117,14 +147,6 @@ const redirectToBoxLogin = async () => {
   }
 };
 
-watch(boxTreeVisible, (val) => {
-  handleBoxDialogClose(val)
-})
-function handleBoxDialogClose(val){
-  if(val === false){
-    selectedBoxKeys.value = []
-  }
-}
 const loadBoxFolder = async (node) => {
   const folderId = node.key;
   const token = node.data.access_token;
@@ -181,7 +203,6 @@ const handleBoxFileSelection = async () => {
 
   try {
     loading.value = true;
-    boxLoading.value = true;
 
     const token = await session.value.id; 
     const user_id = session.value.user.id;       
@@ -202,20 +223,16 @@ const handleBoxFileSelection = async () => {
     const result = await res.json();
 
     if (!res.ok) {
-      boxLoading.value = false;
       throw new Error(result.detail || "Box upload failed");
     }
 
     await fetchFiles(); // Refresh file liste = false;
     error.value = null;
   } catch (err) {
-    //console.error("Box upload failed:", err);
+    console.error("Box upload failed:", err);
     error.value = err.message || "Failed to upload selected Box files.";
   } finally {
     loading.value = false;
-    boxLoading.value = false;
-    boxTreeVisible.value = false;
-    visible.value = false;
   }
 };
 
@@ -441,11 +458,8 @@ watch(
   v-model:visible="boxTreeVisible" 
   modal 
   header="Select Files from Box" 
-  :closable="!boxLoading"
   :style="{ width: '40vw', maxHeight: '90vh' }"
 >
-<div v-if="error" class="error-message">{{ error }}</div>
-
   <div class="box-tree-container">
     <Tree
   v-model:selectionKeys="selectedBoxKeys"
@@ -461,12 +475,10 @@ watch(
         label="Cancel"
         icon="pi pi-times"
         severity="secondary"
-        :disabled="boxLoading"
         @click="boxTreeVisible = false"
       />
       <Button 
         label="Select"
-        :loading="boxLoading"
         icon="pi pi-check"
         class="confirm-button"
         @click="handleBoxFileSelection"
@@ -519,36 +531,64 @@ watch(
 
     <div class="uploaded-list">
       <table class="file-table">
+        <div style="margin-top: 1rem; text-align: right">
+ 
+</div>
+
         <thead>
-          <tr>
-            <th>File Name</th>
-            <th>Size</th>
-            <th>Uploaded By</th>
-            <th>Date</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="file in filteredFiles"
-            :key="file.name + file.date"
-            @click="handleFileClick(file)"
-            style="cursor: pointer"
-          >
-            <td>{{ file.name }}</td>
-            <td>{{ file.size }}</td>
-            <td class="uploader-cell">
-              <Avatar 
-                v-if="file.uploader_image" 
-                :image="file.uploader_image" 
-                shape="circle" 
-                size="small" 
-                class="uploader-avatar"
-              />
-              <span>{{ file.uploader_name || file.uploader_id }}</span>
-            </td>
-            <td>{{ file.date }}</td>
-          </tr>
-        </tbody>
+  <tr>
+    <th>Select</th>
+    <th>File Name</th>
+    <th>Size</th>
+    <th>Uploaded By</th>
+    <th>Date</th>
+    <th>Actions</th>
+  </tr>
+</thead>
+<tbody>
+  <tr
+    v-for="file in filteredFiles"
+    :key="file.name + file.date"
+    :class="{ 'box-file': file.uploader_id === 'box_user' }"
+  >
+    <td>
+      <input
+        type="checkbox"
+        :value="file.id"
+        v-model="selectedFileIdsToDelete"
+        @click.stop
+      />
+    </td>
+    <td @click="handleFileClick(file)" style="cursor: pointer">
+      {{ file.name }}
+    </td>
+    <td @click="handleFileClick(file)" style="cursor: pointer">
+      {{ file.size }}
+    </td>
+    <td @click="handleFileClick(file)" class="uploader-cell" style="cursor: pointer">
+      <Avatar 
+        v-if="file.uploader_image" 
+        :image="file.uploader_image" 
+        shape="circle" 
+        size="small" 
+        class="uploader-avatar"
+      />
+      <span>{{ file.uploader_name || file.uploader_id }}</span>
+    </td>
+    <td @click="handleFileClick(file)" style="cursor: pointer">
+      {{ file.date }}
+    </td>
+    <td>
+      <Button
+        icon="pi pi-trash"
+        severity="danger"
+        size="small"
+        @click.stop="deleteSingleFile(file)"
+      />
+    </td>
+  </tr>
+</tbody>
+
       </table>
     </div>
 

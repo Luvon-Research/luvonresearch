@@ -4,8 +4,15 @@ from services.service_provider import ServiceProvider
 from services.user_service import UserService
 from typing import Optional
 from util.utils import parse_boolean_string
+from pydantic import BaseModel
+from services.user_service import UserService
+from services.files_service import FilesService
+from services.supabase_service import SupabaseService
+from fastapi import Query
 
 router = APIRouter(prefix="/api/files", tags=["files"])
+supabase = SupabaseService()
+
 
 def get_files_service() -> FilesService:
     return ServiceProvider().files
@@ -76,3 +83,54 @@ async def get_signed_url(
         raise e
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+
+class DeleteSingleFileRequest(BaseModel):
+    file_id: str
+
+
+
+@router.delete("/delete-single/{file_id}")
+async def delete_single_file(
+    request: Request,
+    file_id: str,
+    user_service: UserService = Depends(get_user_service),
+    files_service: FilesService = Depends(get_files_service)
+):
+    try:
+        
+        user_id, org_id = await user_service.verify_user_token(request)
+
+        
+        client = supabase.get_client()
+        file_result = client.table("files_data") \
+            .select("file_path, org_id") \
+            .eq("id", file_id).execute()
+
+        if not file_result.data or file_result.data[0]["org_id"] != org_id:
+            raise HTTPException(status_code=403, detail="You are not authorized to delete this file")
+
+        file_path = file_result.data[0]["file_path"]
+
+        
+        remove_result = client.storage.from_("files").remove([file_path])
+        print(remove_result)
+        if not remove_result or isinstance(remove_result, list) and len(remove_result) == 0:
+            raise HTTPException(status_code=500, detail="Storage deletion failed or file not found.")
+        
+       
+        client.table("files_data").delete().eq("id", file_id).execute()
+        print(file_id)
+
+        return {"message": "File deleted successfully"}
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        print("Error deleting file:", e)
+        raise HTTPException(status_code=500, detail=f"Failed to delete file: {str(e)}")
+
+
+
+
