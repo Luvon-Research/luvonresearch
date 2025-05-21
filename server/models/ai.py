@@ -6,6 +6,10 @@ class AIResponse(BaseModel):
     answer: str = Field(description='list of messages')
     #img_path: str = Field(description="Only use this feild for chart responses or else leave blank")
     #extra_metadata: str = Field(description="Leave this blank by default unless specified, or else include code here")
+
+class CodeFixAgentResponsePython(BaseModel):
+    status: str = Field(description="'success' or 'failed'")
+    code: str = Field(description='The fixed code')
     
 class GraphAgentResponse(BaseModel):
     status: str = Field(description="'success' or 'failed'")
@@ -19,6 +23,7 @@ class GraphAgentFinalResponse(BaseModel):
 class AIInput(BaseModel):
     prompt: str
     context_source: str
+    selectedCells: Optional[dict] = {}
 
 class MainAgentResponse(BaseModel):
     status: str = Field(description="'success' or 'failed'")

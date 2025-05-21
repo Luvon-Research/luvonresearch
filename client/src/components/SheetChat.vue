@@ -88,6 +88,21 @@
             >
             </CodeBlock>
           </div>
+
+          <div v-if="msg.type === 'data_table'">
+            <DataTable :value="msg.text['data']">
+              <Column
+                v-for="col of msg.text['headers']"
+                :field="col"
+                :header="col"
+              ></Column>
+            </DataTable>
+          </div>
+
+          <div v-if="msg.type === 'action'">
+            <p>Click the button to apply the action</p>
+            <Button icon="pi pi-check" :label="msg.text['description']" class="action-btn" icon-pos="right" @click="() => applyAction(msg.text)"/>
+          </div>
           <i class="pi pi-sparkles"></i> Generated in {{ msg.generationTime }}s
         </div>
       </div>
@@ -138,7 +153,6 @@ import {
   nextTick,
   onMounted,
   onBeforeUnmount,
-  defineProps,
   unref,
 } from "vue";
 import Skeleton from "primevue/skeleton";
@@ -147,6 +161,10 @@ import Button from "primevue/button";
 import { CodeBlock } from "vuejs-code-block";
 import { ProgressSpinner } from "primevue";
 import { useFetch } from "@vueuse/core";
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import ColumnGroup from 'primevue/columngroup';   // optional
+import Row from 'primevue/row';                   // optional
 
 const { organization } = useOrganization();
 const emit = defineEmits(["close"]);
@@ -170,12 +188,19 @@ const props = defineProps({
     type: String,
     default: null,
   },
+  selectedCells: {
+    type: Map,
+    default: {}
+  },
+  action: {
+    type: Function
+  }
 });
 
 onMounted(async () => {
   console.log(session.value.id);
   console.log(props.sheetId);
-  console.log(organization.value.imageUrl);
+
   console.log(session.value.user.id);
   orgImgUrl.value = organization.value.imageUrl;
   orgName.value = organization.value.name;
@@ -274,7 +299,7 @@ function displayText(
     messages.push({
       from: from,
       type: type,
-      text: `${text}`,
+      text: text,
       timestamp: timestamp,
       generationTime: generationTime,
     });
@@ -325,6 +350,10 @@ function displayText(
 //   });
 // }
 
+async function applyAction(val){
+  console.log(JSON.parse(JSON.stringify(val)))
+  props.action(JSON.parse(JSON.stringify(val)))
+}
 // — pull‐out the fetch logic —
 async function loadChats(page = 1, prepend = false) {
   loadingChats.value = true;
@@ -438,9 +467,10 @@ async function send() {
       prompt: txt,
       session_id: session.value.id,
       context_source: unref(props.sheetId),
+      selectedCells: props.selectedCells
     })
     .json();
-
+    
   // save its abort fn
   abortFetch.value = fetcher.abort;
 
@@ -475,6 +505,11 @@ async function send() {
 
     
   } catch (e) {
+    console.log(e)
+    const elapsedSec = (Date.now() - start) / 1000;
+    displayText(e.toString(), "assistant", "message", elapsedSec);
+    messages.pop();
+    loading.value = false;
   } finally {
     // loading.value = false;
     // abortFetch.value = null;
@@ -746,5 +781,9 @@ onBeforeUnmount(() => {
   color: gray;
   font-size: 12px;
   text-align: center;
+}
+
+.action-btn{
+  font-size: 12px;
 }
 </style>

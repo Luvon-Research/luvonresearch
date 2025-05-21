@@ -38,4 +38,4 @@ env/
 .env/
 ENV/
 
-server/temp_files/
+server

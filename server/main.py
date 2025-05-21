@@ -11,6 +11,12 @@ import time
 from api.files_router import router as files_router
 from api.chat_history_router import router as chat_history_router
 from api.box_router_auth import router as box_router
+from services.pinecone_service import PineconeService
+from fastapi import FastAPI, UploadFile, File, HTTPException, status
+from pydantic import BaseModel
+from typing import Optional, Dict, Any, List
+from models.pinecone import QueryRequest, QueryResponse, QueryResult
+from api.pinecone_router import router as pinecone_router
 
 app = FastAPI()
 
@@ -35,6 +41,7 @@ app.include_router(webhooks_router)
 app.include_router(ai_router)
 app.include_router(files_router)
 app.include_router(chat_history_router)
+app.include_router(pinecone_router)
 
 @app.get("/")
 async def read_root():
@@ -76,3 +83,55 @@ def fake_video_streamer():
 @app.get("/test")
 async def main():
     return EventSourceResponse(fake_video_streamer())
+
+
+@app.get("/create-index")
+async def create_index():
+    service = PineconeService()
+    res = service.create_index('test')
+    print(res)
+    return {"status": "success"}
+
+
+@app.post("/upload-pinecone-file")
+async def upload_file(file: UploadFile = File(...)):
+    """
+    Accepts a single PDF (or any file) upload and sends it
+    to PineconeService.process_and_upload_file.
+    """
+    # 1) Basic content‐type check (optional)
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only PDF files are supported."
+        )
+
+    # 2) Read file bytes
+    print("1")
+    data = await file.read()
+
+    # 3) Call your service
+    service = PineconeService()
+    print("2")
+    try:
+        # Change your service signature to accept (bytes, filename)
+        res = await service.process_and_upload_file(data, file.filename, 'test')
+        print("3")
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Upload failed: {e}"
+        )
+
+    return {
+        "status":  "success",
+        "detail":  res
+    }
+    
+pinecone_svc = PineconeService()
+DEFAULT_INDEX = "test"
+
+@app.post("/query-pinecone", response_model=QueryResponse)
+async def query_pinecone(q: QueryRequest):
+    return await PineconeService().query_vectors(q.prompt, namespace=q.namespace)
+    

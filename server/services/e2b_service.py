@@ -1,17 +1,78 @@
 from supabase import create_client, Client
 from fastapi import HTTPException, status
 from config import settings
-from services.supabase_service import SupabaseService
-from services.pinecone_service import PineconeService
+import os
 from util.utils import generate_uuid
+from dotenv import load_dotenv
+from e2b_code_interpreter import Sandbox
 
-class FilesService:
-    def __init__(self, db: SupabaseService, pinecone: PineconeService):
-        self.db = db
-        self.pinecone = pinecone
+class E2BService:
+    def __init__(self, id):
+        load_dotenv()
+        # self._sandboxes_file = "sandboxes.txt"
+        self.sbx_template_id = "potaq3k9ta9l28671h7j"
 
-    def get_client(self) -> Client:
-        return self.db.get_client()
+        # # 1) Load any previously‐used sandbox IDs
+        # if os.path.exists(self._sandboxes_file):
+        #     with open(self._sandboxes_file, "r") as f:
+        #         sandbox_ids = [line.strip() for line in f if line.strip()]
+        # else:
+        #     sandbox_ids = []
+
+        # active_sbx = None
+        # updated_ids = []
+
+        # # 2) Try each ID in turn
+        # for sbx_id in sandbox_ids:
+        #     try:
+        #         sbx = Sandbox(sandbox_id=sbx_id)      # attach to existing
+        #         if sbx.is_running():       # check health
+        #             active_sbx = sbx
+        #             updated_ids.append(sbx_id)
+        #             break
+        #     except Exception:
+        #         # Either invalid ID or not accessible → skip
+        #         pass
+
+        # # 3) If none was active, spin up a new one
+        # if active_sbx is None:
+        #     # create from template
+        #     active_sbx = Sandbox(template=self.sbx_template_id)
+        #     # It will have a new .id property
+        #     updated_ids = sandbox_ids + [active_sbx.sandbox_id]
+
+        # # 4) Persist the cleaned+updated list
+        # with open(self._sandboxes_file, "w") as f:
+        #     f.write("\n".join(updated_ids))
+        
+        self.sbx = Sandbox(self.sbx_template_id, timeout=240, metadata={'id': id})
+    
+    async def add_file(self, filename, data):
+        if(not self.sbx.is_running()):
+            self.sbx = Sandbox(self.sbx_template_id)
+        
+        self.sbx.files.write(filename, data)
+    
+    async def run_command(self, command):
+        return self.sbx.commands.run(command)
+
+    async def get_file(self, filename, format="bytes"):
+        if(format == 'bytes'):
+            return bytes(self.sbx.files.read(filename, format="bytes"))
+        else:
+            return self.sbx.files.read(filename)
+    
+    async def remove_file(self, filename):
+        self.sbx.files.remove(filename)
+    
+    async def remove_files(self, files):
+        for file in files:
+            self.sbx.files.remove(file)
+            
+    async def run_code(self, code, language="python"):
+        execution = self.sbx.run_code(code, language=language)
+        return execution
+
 
     async def upload_file(self, org_id: str, uploader_id: str, file: bytes, file_name: str, is_chart: bool = False, r_code: str = ''):
         try:
@@ -75,49 +136,3 @@ class FilesService:
         except Exception as e:
             print(e)
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-    async def get_files_by_org_id(self, org_id: str, is_chart=False):
-        try:
-            client = self.get_client()
-            table_name = "charts" if is_chart else "files_data"
-            print("Charts....", org_id)
-            response = client.table(table_name).select("*").eq("org_id", org_id).execute()
-            files = response.data or []
-            return files
-        except Exception as e:
-            print(e)
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-    async def get_signed_url(self, file_path: str):
-        try:
-            client = self.get_client()
-            # Remove "files/" prefix if present
-            if file_path.startswith("files/"):
-                file_path = file_path[len("files/"):]
-                
-            signed_url_response = client.storage.from_('files').create_signed_url(
-                file_path,
-                expires_in=315576000 # 10 Years
-            )
-            return {"signed_url": signed_url_response['signedURL']}
-        except Exception as e:
-            print(e) 
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-        
-    async def get_files_by_filename(self, filename: str):
-        try:
-            client = self.get_client()
-
-            signed_url_response = client.storage.from_('files').create_signed_url(
-                filename, 
-                expires_in=315576000 # 10 years
-            )
-            print(f"Signed URL: {signed_url_response['signedURL']}")
-            return signed_url_response['signedURL']
-
-        except Exception as e:
-            print(e)
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-            
-            
-            

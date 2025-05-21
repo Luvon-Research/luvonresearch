@@ -96,3 +96,19 @@ def parse_boolean_string(s: str) -> bool:
     if not is_boolean_string(s):
         raise ValueError(f"Cannot convert {s!r} to bool")
     return s.strip().lower() == "true"
+
+
+def parse_table_json(headers, data):
+    # Ensure data is properly formatted
+    if not headers or not data:
+        return []
+        
+    # Create list of dictionaries where each dict represents a row
+    formatted_data = []
+    for row in data:
+        row_dict = {}
+        for i, header in enumerate(headers):
+            row_dict[header] = row[i] if i < len(row) else None
+        formatted_data.append(row_dict)
+        
+    return formatted_data

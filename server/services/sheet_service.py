@@ -90,12 +90,15 @@ class SheetService:
             rows = modelJSON['row_data']
             
             for row in rows:
-                #print(row)
-                if all(value == "" for value in row['row_data']): # Deletes the row from the db then
+                print(row)
+                if all(value == "" for value in row['row_data']) or all(value['val'] == None for value in row['row_data']): # Deletes the row from the db then
                     response = client.table("sheet_data").delete().eq("row_id", row['row_id']).eq("sheet_id", modelJSON['sheet_id']).execute()
                 else:
                     insert_data = row
                     insert_data['sheet_id'] = modelJSON['sheet_id']
+                    insert_data['row_data'] = [cell for cell in row['row_data']
+                                               if cell.get('val') is not None]
+                    print(insert_data)
                     
                     response = client.table('sheet_data').upsert(insert_data).execute()
                 val = response.data
@@ -191,6 +194,35 @@ class SheetService:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(e),
+            )
+        
+    async def delete_sheet(self, sheet_id: str):
+        """
+        Delete a sheet and all its associated data
+        """
+        try:
+            client = self.db.get_client()
+            
+            # First delete all sheet data
+            data_response = client.table("sheet_data").delete().eq("sheet_id", sheet_id).execute()
+            
+            # Then delete the sheet itself
+            sheet_response = client.table("sheets").delete().eq("id", sheet_id).execute()
+            
+            # Check if sheet was found and deleted
+            if not sheet_response.data:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Sheet not found"
+                )
+                
+            return True
+            
+        except Exception as e:
+            print(f"Error in delete_sheet: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(e)
             )
         
         
