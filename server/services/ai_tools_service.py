@@ -1,9 +1,9 @@
 from services.supabase_service import SupabaseService
 from config import settings
 from pydantic_ai import Agent, Tool, RunContext
-from models.ai import AIResponse, GraphAgentResponse, AIInput, GraphAgentFinalResponse, CodeFixAgent
-from fastapi import HTTPException, status
-from util.utils import generate_uuid, ensure_dir, run_r_script, fetch_sample_lines, strip_code_block, parse_table_json
+from models.ai import AIResponse, GraphAgentResponse, AIInput, GraphAgentFinalResponse, CodeFixAgent, CodeFixAgentResponsePython
+from fastapi import HTTPException, status, Request
+from util.utils import generate_uuid, ensure_dir, run_r_script, fetch_sample_lines, strip_code_block, check_user_connected, parse_table_json
 from services.sheet_service import SheetService
 import os
 from services.files_service import FilesService
@@ -22,6 +22,7 @@ class SupportDependencies:
     user_id: str
     org_id: str
     context_source: str 
+    request: Request
     sandbox: E2BService
     selectedCells: Optional[dict] = field(default_factory=dict)
     
@@ -100,6 +101,7 @@ class AIService:
         
 
     async def _tool_graph(self, ctx: RunContext[str], prompt: str) -> GraphAgentFinalResponse:
+        await check_user_connected(ctx.deps.request)
         print("SHEET ID", ctx.deps.context_source)
         # Loads the CSV data
         ensure_dir('temp_files')
@@ -129,6 +131,9 @@ class AIService:
             
             sample_data = fetch_sample_lines(csv_file_name, lines=3)
             print(f"Got sample data {sample_data}")
+            
+            await check_user_connected(ctx.deps.request)
+
 
             # Local graph-only agent
             model = OpenAIModel(
@@ -162,6 +167,8 @@ class AIService:
             res = res.output
             print(res)
             
+            await check_user_connected(ctx.deps.request)
+            
             if(res.status == 'success'):
                 print("code generation success")
                 r_code = strip_code_block(res.r_code)
@@ -174,6 +181,7 @@ class AIService:
                 await tool_sandbox.add_file(csv_file_only_name, csv_data.getvalue())
                 
                 while tries <= self.MAX_RETRIES:
+                    await check_user_connected(ctx.deps.request)
                     print(f"###### Retry: {tries}/{self.MAX_RETRIES}")
                     try:
                         # with open(run_script_name, 'w', newline="") as fp:
@@ -304,18 +312,17 @@ class AIService:
             Do not include any explanation, comments, 
             or extra output—just return the corrected code block.
             ''',
-            output_type=AIResponse
+            output_type=CodeFixAgentResponsePython
         )
                     
         for i in range(self.MAX_RETRIES):
+            await check_user_connected(ctx.deps.request)
             print(f"RUNNING CODE------ Retry: {i}: \n {code}")
             output = await ctx.deps.sandbox.run_code(code, language="python")
             print(output)
-            #print(output.logs)
-            #print(output.logs.stderr)
-            #print(output.logs.stdout)
-            output_error = output.logs.stderr
+            output_error = f"{output.logs.stderr} \n {output.error}"
             output_logs = output.logs.stdout
+            print("----OUTPUT ERROR: ", output_error)
             
             if(len(output_logs) != 0):
                 print("Run is successful!")
@@ -323,6 +330,10 @@ class AIService:
             
             res = await code_agent.run(f"Code:\n{code}\nOutput Error: {output_error}")
             print("CODE AGENT OUTPUT", res.output)
+            
+            if(res.output):
+                code = res.output.code
+            else: break
         
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -333,6 +344,8 @@ class AIService:
         uuid = generate_uuid()
         csv_file_local = f"temp_files/{uuid}.csv"
         csv_file_sandbox = f'/home/user/{uuid}.csv'
+        
+        await check_user_connected(ctx.deps.request)
 
         try:
             print("Pulling CSV data")
@@ -348,9 +361,8 @@ class AIService:
             print("Wrote csv data")
             
             print("temp files", os.listdir("temp_files"))
-            
+                        
             sample_data = fetch_sample_lines(csv_file_local, lines=3)
-            header_row = fetch_sample_lines(csv_file_local, lines=1)
             print(f"Got sample data {sample_data}")
             
             tools = [
@@ -425,13 +437,14 @@ class AIService:
             )
             
             print("Init sandbox")
-            
+                        
             tool_sandbox = E2BService(id=uuid)
             
             tool_ctx = SupportDependencies(
                 user_id= '',
                 org_id='',
                 context_source='',
+                request=ctx.deps.request,
                 sandbox=tool_sandbox
             )
             
@@ -472,7 +485,7 @@ class AIService:
         res = await analysis_agent.run(prompt)
         return res.output
 
-    async def call(self, input: AIInput, user_id:str, org_id:str):
+    async def call(self, input: AIInput, user_id:str, org_id:str, req: Request):
         """
         Dispatch the prompt to the appropriate tool via the unified agent.
         Returns a MainAgentResponse with `answer_path` and tool output attached.
@@ -482,6 +495,7 @@ class AIService:
                 user_id= user_id,
                 org_id=org_id,
                 context_source=input.context_source,
+                request=req,
                 sandbox=None,
                 selectedCells=input.selectedCells
         )
@@ -497,13 +511,15 @@ class AIService:
         
         result = await self.agent.run(input.prompt + f"Selected cells: {adjusted_input_cells}", deps=ctx)
         
-        #print(result.output.answer)
         print("MODEL DUMP", result.output.model_dump())
         model_dumped = result.output.model_dump()
         answer_response = json.loads(repair_json(model_dumped['answer']))
         
         for msg in answer_response:
             print("MESSAGE", msg)
+            if(msg['type'] == 'action'):
+                msg['value'] = json.loads(repair_json(str(msg['value'])))
+                
             if(msg['type'] == 'data_table'):
                 table_data = json.loads(repair_json(str(msg['value'])))
                 table_formatted = {

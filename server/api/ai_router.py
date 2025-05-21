@@ -12,6 +12,7 @@ from json_repair import repair_json
 from models.chat_history import ChatHistoryUpload
 from services.chat_history_service import ChatHistoryService
 import time 
+from util.utils import check_user_connected
 from services.pinecone_service import PineconeService
 from services.e2b_service import E2BService
 
@@ -68,13 +69,15 @@ async def ai_prompt(
         
         start = time.time()
         # Store the project metadata
-        data = await ai_service.call(body, user, org)
+        data = await ai_service.call(body, user, org, request)
 
         print(data)
         
         #good_json_string = repair_json(data['answer'])
         
         #data['answer'] = json.loads(good_json_string)
+        
+        await check_user_connected(request)
         
         end = time.time()
         

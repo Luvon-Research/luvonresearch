@@ -101,7 +101,7 @@
 
           <div v-if="msg.type === 'action'">
             <p>Click the button to apply the action</p>
-            <Button icon="pi pi-check" :label="JSON.parse(msg.text)['description']" class="action-btn" icon-pos="right" @click="() => applyAction(JSON.parse(msg.text))"/>
+            <Button icon="pi pi-check" :label="msg.text['description']" class="action-btn" icon-pos="right" @click="() => applyAction(msg.text)"/>
           </div>
           <i class="pi pi-sparkles"></i> Generated in {{ msg.generationTime }}s
         </div>
@@ -117,9 +117,8 @@
         />
         <Button
           class="send-btn"
-          @click="send"
-          icon="pi pi-arrow-up"
-          :loading="loading"
+          @click="loading ? cancelPrompt() : send()"
+          :icon="loading ? 'pi pi-stop' : 'pi pi-arrow-up'"
         >
         </Button>
       </div>
@@ -161,6 +160,7 @@ import { useSession, useOrganization } from "@clerk/vue";
 import Button from "primevue/button";
 import { CodeBlock } from "vuejs-code-block";
 import { ProgressSpinner } from "primevue";
+import { useFetch } from "@vueuse/core";
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import ColumnGroup from 'primevue/columngroup';   // optional
@@ -239,6 +239,23 @@ const minWidth = 400; // Minimum width in pixels
 const currentPage = ref(1);
 const PAGE_SIZE = 6;
 const noMoreChats = ref(false);
+const abortFetch = ref(null);
+
+function cancelPrompt() {
+  console.log("BTN clicked");
+  if (abortFetch.value) {
+    console.log("Canceling...");
+    abortFetch.value();
+    loading.value = false;
+    if (
+      messages.length &&
+      messages[messages.length - 1].type === "skeleton-text"
+    ) {
+      messages.pop();
+    }
+    abortFetch.value = null;
+  }
+}
 
 function formatDateMMDDhhmm(dateInput = new Date()) {
   const d = new Date(dateInput);
@@ -422,51 +439,82 @@ async function send() {
   const txt = draft.value.trim();
   if (!txt) return;
 
+  console.log("SENDING....");
+
   displayText(txt, "user");
 
   displayText("Loading...", "assistant", "skeleton-text");
 
   const start = Date.now();
 
+  draft.value = '';
+
   loading.value = true;
 
-  fetch(`${API_URL}/api/ai/`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.value.id}`,
+  const fetcher = useFetch(
+    `${API_URL}/api/ai`,
+    {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.value.id}`,
+      },
     },
-    body: JSON.stringify({
+    {
+      immediate: false,
+    }
+  )
+    .post({
       prompt: txt,
       session_id: session.value.id,
       context_source: unref(props.sheetId),
       selectedCells: props.selectedCells
-    }),
-  }).then(async (res) => {
-    messages.pop();
+    })
+    .json();
+    
+  // save its abort fn
+  abortFetch.value = fetcher.abort;
 
-    console.log(res);
+  try {
+    // actually fire the request
+    let res = await fetcher.execute()
 
-    if (res.ok) {
-      let data = await res.json();
-      console.log(data);
-      const elapsedSec = (Date.now() - start) / 1000;
+    if(res !== null){
+      messages.pop();
+      console.log(res);
 
-      let answers = data["answer"];
+      if (res.ok) {
+        let data = await res.json();
+        console.log("GOT DATA")
+        console.log(data);
+        const elapsedSec = (Date.now() - start) / 1000;
 
-      answers.forEach((val) => {
-        displayText(val["value"], "assistant", val["type"], elapsedSec);
-      });
-    } else {
-      const elapsedSec = (Date.now() - start) / 1000;
-      let body = await res.json();
-      let errMsg = body["detail"];
-      displayText(errMsg, "assistant", "message", elapsedSec);
+        let answers = data["answer"];
+
+        answers.forEach((val) => {
+          displayText(val["value"], "assistant", val["type"], elapsedSec);
+        });
+      } else {
+        const elapsedSec = (Date.now() - start) / 1000;
+        let body = await res.json();
+        let errMsg = body["detail"];
+        displayText(errMsg, "assistant", "message", elapsedSec);
+      }
+
+      loading.value = false;
     }
 
+    
+  } catch (e) {
+    console.log(e)
+    const elapsedSec = (Date.now() - start) / 1000;
+    displayText(e.toString(), "assistant", "message", elapsedSec);
+    messages.pop();
     loading.value = false;
-  });
-  draft.value = "";
+  } finally {
+    // loading.value = false;
+    // abortFetch.value = null;
+    // draft.value = "";
+  }
 }
 
 function close() {
