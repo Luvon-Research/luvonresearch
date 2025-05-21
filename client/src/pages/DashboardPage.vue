@@ -156,6 +156,18 @@ function handleSheetCreated(newSheet) {
   // }
 }
 
+// Handle sheet deleted event from SheetBlock
+function handleSheetDeleted(sheetId) {
+  // Remove the sheet from the local list
+  sheets.value = sheets.value.filter(s => s.id !== sheetId);
+  
+  // If the deleted sheet was selected, select another sheet or clear selection
+  if (selectedSheetId.value === sheetId) {
+    selectedSheetId.value = sheets.value.length > 0 ? sheets.value[0].id : null;
+    window.localStorage.setItem("selectedSheet", selectedSheetId.value);
+  }
+}
+
 // Popover reference and toggle
 const op = ref();
 const toggle = (event) => {
@@ -224,6 +236,37 @@ function updateAction(val){
   console.log("updating error", val)
   action.value = val;
 }
+
+// Function to delete a sheet
+async function deleteSheet(sheetId, event) {
+  event.stopPropagation(); // Prevent sheet selection when clicking delete
+  if (!confirm('Are you sure you want to delete this sheet?')) return;
+  
+  try {
+    const response = await fetch(`${API_URL}/api/sheets/${sheetId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${session.value.id}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to delete sheet');
+    }
+
+    // Remove the sheet from the local list
+    sheets.value = sheets.value.filter(s => s.id !== sheetId);
+    
+    // If the deleted sheet was selected, select another sheet or clear selection
+    if (selectedSheetId.value === sheetId) {
+      selectedSheetId.value = sheets.value.length > 0 ? sheets.value[0].id : null;
+      window.localStorage.setItem("selectedSheet", selectedSheetId.value);
+    }
+  } catch (err) {
+    console.error('Error deleting sheet:', err);
+    alert('Failed to delete sheet. Please try again.');
+  }
+}
 </script>
 
 <template>
@@ -256,11 +299,20 @@ function updateAction(val){
                   <div
                     v-for="sheet in filteredSheets"
                     :key="sheet.id"
-                    class="d-flex align-items-center sheet-result"
+                    class="d-flex align-items-center justify-content-between sheet-result"
                     @click="setSelectPage('sheets', sheet.id)"
                   >
-                    <i class="pi pi-file sheet-result-icon"></i>
-                    <p class="sheet-result-name">{{ sheet.name }}</p>
+                    <div class="d-flex align-items-center">
+                      <i class="pi pi-file sheet-result-icon"></i>
+                      <p class="sheet-result-name">{{ sheet.name }}</p>
+                    </div>
+                    <button 
+                      class="delete-sheet-btn" 
+                      @click="(e) => deleteSheet(sheet.id, e)"
+                      title="Delete sheet"
+                    >
+                      <i class="pi pi-trash"></i>
+                    </button>
                   </div>
                   <p v-if="filteredSheets.length === 0" class="no-results">
                     No sheets found.
@@ -305,7 +357,12 @@ function updateAction(val){
           <div v-if="!loading">
             <div v-if="selectedPage === 'sheets'">
               <div v-if="sheets.length !== 0">
-                <SheetBlock :sheet-id="selectedSheetId" :setSelectedCells="val => selectedCells = val" :action="action"/>
+                <SheetBlock 
+                  :sheet-id="selectedSheetId" 
+                  :setSelectedCells="val => selectedCells = val" 
+                  :action="action"
+                  @sheet-deleted="handleSheetDeleted"
+                />
               </div>
               <div v-if="sheets.length === 0">
                 <center style="margin-top: 10vh">
@@ -512,5 +569,25 @@ function updateAction(val){
 .no-sheets-subtitle {
   color: gray;
   width: 30%;
+}
+
+.delete-sheet-btn {
+  background: none;
+  border: none;
+  color: #666;
+  padding: 0.25rem;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.sheet-result:hover .delete-sheet-btn {
+  opacity: 1;
+}
+
+.delete-sheet-btn:hover {
+  color: #dc3545;
+  background-color: rgba(220, 53, 69, 0.1);
 }
 </style>

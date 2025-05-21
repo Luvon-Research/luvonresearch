@@ -38,12 +38,10 @@ async def create_sheet(
     service: SheetService = Depends(get_sheet_service),
     user_service: UserService = Depends(get_user_service)
 ):
-    # Get the user ID from the authentication token
     try:
         user_id, org_id = await user_service.verify_user_token(request)
         sheet.owner_id = user_id
     except HTTPException:
-        # Continue without user ID if authentication fails
         pass
     
     return await service.create_sheet(sheet)
@@ -70,11 +68,20 @@ async def get_user(sheet_id: str, service: SheetService = Depends(get_sheet_serv
     data = await service.get_sheet_data_csv_by_id(sheet_id)
     return data
 
-
-# # TODO
-# @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-# async def delete_user(user_id: str, service: UserService = Depends(get_user_service)):
-#     # will raise if not found / error
-#     if not await service.get_by_id(user_id):
-#         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
-#     await service.delete(user_id)
+@router.delete("/{sheet_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_sheet(
+    sheet_id: str,
+    request: Request,
+    service: SheetService = Depends(get_sheet_service),
+    user_service: UserService = Depends(get_user_service)
+):
+    try:
+        user_id, org_id = await user_service.verify_user_token(request)
+        await service.delete_sheet(sheet_id)
+        return {}
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )

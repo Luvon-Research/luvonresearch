@@ -1,13 +1,24 @@
 <template>
   <div class="d-flex justify-content-between saving-indicator">
-    <Button
-      type="button"
-      label="Export Sheet"
-      icon="pi pi-download"
-      :loading="loading"
-      class="export-btn"
-      @click="donwnloadSheet"
-    />
+    <div class="d-flex gap-2">
+      <Button
+        type="button"
+        label="Export Sheet"
+        icon="pi pi-download"
+        :loading="loading"
+        class="export-btn"
+        @click="donwnloadSheet"
+      />
+      <Button
+        type="button"
+        variant="outlined"
+        label="Delete Sheet"
+        icon="pi pi-trash"
+        class="delete-btn"
+        :loading="deleteLoading"
+        @click="deleteSheet"
+      />
+    </div>
     <p v-if="savingIndicator">
       Saving Document to Cloud
       <ProgressSpinner
@@ -42,6 +53,11 @@
   margin-bottom: 0.5rem;
   font-size: 13px;
 }
+
+.delete-btn {
+  margin-bottom: 0.5rem;
+  font-size: 13px;
+}
 </style>
 
 <script setup>
@@ -53,6 +69,7 @@ import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import ProgressSpinner from "primevue/progressspinner";
 import { HistoryRecord } from "jspreadsheet-ce";
+import { useSession } from "@clerk/vue";
 
 const props = defineProps({
   sheetId: {
@@ -67,6 +84,9 @@ const props = defineProps({
     default: null,
   },
 });
+
+const emit = defineEmits(['sheet-deleted']);
+
 const API_URL = import.meta.env.VITE_API_URL;
 const YJS_URL = import.meta.env.VITE_YJS_SERVER_URL;
 
@@ -74,6 +94,7 @@ const savingIndicator = ref(false);
 const lastSaved = ref(formatDate());
 const error = ref(null);
 const selectedCellsLocal = ref({});
+const deleteLoading = ref(false);
 
 let sheet = null;
 let ydoc = null;
@@ -85,6 +106,8 @@ let flushTimer = null;
 const defaultCol = { type: "text", title: "", width: 100 };
 
 const loading = ref(false);
+
+const { session } = useSession();
 
 function donwnloadSheet() {
   loading.value = true;
@@ -367,7 +390,7 @@ async function loadSheetData() {
   try {
     const response = await fetch(`${API_URL}/api/sheets/${props.sheetId}`, {
       headers: {
-        Authorization: `Bearer ${""}`, // Add actual token here
+        Authorization: `Bearer ${session.value.id}`,
       },
     });
     if (!response.ok) {
@@ -483,7 +506,7 @@ async function flushUpdates() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${""}`, // Add actual token here
+        Authorization: `Bearer ${session.value.id}`,
       },
       body: JSON.stringify({ row_data: allRowsData, sheet_id: props.sheetId }),
     });
@@ -503,6 +526,33 @@ async function flushUpdates() {
     // Consider re-adding failed updates to the queue or showing a persistent error
   } finally {
     savingIndicator.value = false;
+  }
+}
+
+async function deleteSheet() {
+  if (!confirm('Are you sure you want to delete this sheet?')) return;
+  deleteLoading.value = true;
+  
+  try {
+    const response = await fetch(`${API_URL}/api/sheets/${props.sheetId}/`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${session.value.id}`,
+      },
+    });
+
+    deleteLoading.value = false;
+
+    if (!response.ok) {
+      throw new Error('Failed to delete sheet');
+    }
+
+    // Emit event to notify parent that sheet was deleted
+    emit('sheet-deleted', props.sheetId);
+  } catch (err) {
+    deleteLoading.value = false;
+    console.error('Error deleting sheet:', err);
+    alert('Failed to delete sheet. Please try again.');
   }
 }
 
