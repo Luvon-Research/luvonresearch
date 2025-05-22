@@ -49,6 +49,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 const showDetailDialog = ref(false);
 const showDeleteConfirmDialog = ref(false);
 const chartToDelete = ref(null);
+const chartDeleteLoading = ref(false);
 
 // Filter charts by search
 const filteredCharts = computed(() =>
@@ -321,6 +322,7 @@ const confirmDelete = (chart) => {
 
 const deleteChart = async () => {
   if (!chartToDelete.value) return;
+  chartDeleteLoading.value = true;
   
   try {
     const res = await fetch(`${API_URL}/api/files/${organization.value.id}/${chartToDelete.value.id}`, {
@@ -338,6 +340,7 @@ const deleteChart = async () => {
   } finally {
     showDeleteConfirmDialog.value = false;
     chartToDelete.value = null;
+    chartDeleteLoading.value = false;
   }
 };
 </script>
@@ -605,6 +608,7 @@ const deleteChart = async () => {
           <Button
             label="Delete"
             icon="pi pi-trash"
+            :loading="chartDeleteLoading"
             class="p-button-danger p-button-rounded"
             @click="deleteChart"
           />
