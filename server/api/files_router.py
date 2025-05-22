@@ -80,3 +80,50 @@ async def get_signed_url(
         raise e
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+@router.delete("/{org_id}/{file_id}")
+async def delete_file(
+    org_id: str,
+    file_id: str,
+    request: Request,
+    service: FilesService = Depends(get_files_service),
+    user_service: UserService = Depends(get_user_service)
+):
+    try:
+        # Get the user_id from the authenticated user
+        user_id, org_id_token = await user_service.verify_user_token(request)
+        
+        if(org_id_token != org_id):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized user")
+
+        # Get the file details first to get the file path
+        client = service.get_client()
+        is_chart = parse_boolean_string(request.headers.get("is_chart"))
+        table_name = "charts" if is_chart else "files_data"
+        
+        # Get file details
+        file_response = client.table(table_name).select("*").eq("id", file_id).execute()
+        if not file_response.data:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+        
+        file_data = file_response.data[0]
+        
+        # Delete from storage
+        try:
+            client.storage.from_('files').remove([file_data['file_path']])
+        except Exception as e:
+            print(f"Error deleting from storage: {e}")
+            # Continue with database deletion even if storage deletion fails
+        
+        # Delete from database
+        response = client.table(table_name).delete().eq("id", file_id).execute()
+        
+        if not response.data:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete file metadata")
+            
+        return {"status": "success", "message": "File deleted successfully"}
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

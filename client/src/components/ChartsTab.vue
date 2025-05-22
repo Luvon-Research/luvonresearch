@@ -311,6 +311,24 @@ function viewCodeClick() {
     el.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 }
+
+// Add deleteChart function
+const deleteChart = async (chart) => {
+  try {
+    const res = await fetch(`${API_URL}/api/files/${organization.value.id}/${chart.id}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.value.id}`,
+        is_chart: true,
+      },
+    });
+    if (!res.ok) throw new Error("Failed to delete chart");
+    await getCharts(); // Refresh the charts list
+  } catch (err) {
+    console.error("Error deleting chart:", err);
+  }
+};
 </script>
 
 <template>
@@ -327,8 +345,7 @@ function viewCodeClick() {
 
   <div class="chart-page" v-if="!loadingCharts">
     <!-- Header bar with search and create -->
-
-    <div class="d-flex justify-content-end">
+    <div v-if="filteredCharts.length > 0" class="search-container">
       <div class="search-box">
         <InputGroup>
           <InputText v-model="searchTerm" placeholder="Search charts..." />
@@ -354,7 +371,7 @@ function viewCodeClick() {
       </center>
     </div>
 
-    <!-- Charts grid: 3 per row -->
+    <!-- Charts grid: 4 per row -->
     <div class="chart-grid">
       <template v-if="filteredCharts.length">
         <div
@@ -378,13 +395,14 @@ function viewCodeClick() {
           <div class="chart-container-placeholder">
             <img :src="chart['file_url']" alt="Chart image" class="chart-img" />
           </div>
-          <!-- Original ChartContainer is commented out or removed for placeholder UI -->
-          <!-- 
-          <ChartContainer
-            :title="chart.title" 
-            :loading="!chart.dataSources" 
-          />
-          -->
+          <div class="delete-btn">
+            <Button
+              icon="pi pi-trash"
+              class="p-button-danger p-button-sm p-button-text"
+              v-tooltip.top="'Delete chart'"
+              @click.stop="deleteChart(chart)"
+            />
+          </div>
         </div>
       </template>
     </div>
@@ -547,7 +565,9 @@ function viewCodeClick() {
 
 <style scoped>
 .chart-img {
-  width: 95%;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 .code-block {
   width: 40vw;
@@ -596,16 +616,32 @@ function viewCodeClick() {
 
 .chart-page {
   padding: 2rem;
+  position: relative;
+  min-height: 100vh;
 }
 
-.search-input {
-  width: 400px;
+.search-container {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--surface-ground);
+  padding: 1rem 0;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--surface-border);
 }
+
+.search-box {
+  width: 20vw;
+  margin-left: auto;
+}
+
 .chart-grid {
   display: grid;
-  grid-template-columns: repeat(3, 0fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
-  margin-top: 2rem;
+  margin-top: 1rem;
+  width: 100%;
+  padding-bottom: 3rem; /* Add padding to ensure last row has space */
 }
 
 .chart-dialog .p-dialog-header {
@@ -890,17 +926,17 @@ function viewCodeClick() {
   cursor: pointer;
   background-color: var(--surface-card);
   border-radius: 12px;
-  padding: 2rem;
+  padding: 1.5rem;
   transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   aspect-ratio: 1 / 1;
   position: relative;
-  width: 25rem;
-  height: 25rem;
+  width: 100%;
+  height: auto;
 }
 .chart-card h3 {
   font-family: "Poppins", sans-serif;
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 600;
   color: var(--text-color);
   margin: 0 0 0.75rem 0;
@@ -910,9 +946,14 @@ function viewCodeClick() {
   transform: translateY(-5px);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
 }
-.chart-card .chart-container-placeholder {
+.chart-container-placeholder {
   border-radius: 8px;
   margin-top: 1rem;
+  width: 100%;
+  height: calc(100% - 3rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .detail-container {
@@ -1052,6 +1093,22 @@ function viewCodeClick() {
   top: 0.75rem;
   right: 0.75rem;
   z-index: 1;
+}
+
+.delete-btn {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 1;
+}
+
+.delete-btn .p-button {
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.delete-btn .p-button:hover {
+  opacity: 1;
 }
 </style>
 
