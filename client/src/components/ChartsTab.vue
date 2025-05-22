@@ -46,6 +46,9 @@ const selectedChartPoint = ref(null);
 const loadingCharts = ref(true);
 const charts = ref([]);
 const API_URL = import.meta.env.VITE_API_URL;
+const showDetailDialog = ref(false);
+const showDeleteConfirmDialog = ref(false);
+const chartToDelete = ref(null);
 
 // Filter charts by search
 const filteredCharts = computed(() =>
@@ -271,8 +274,6 @@ onUnmounted(() => {
   document.removeEventListener("keydown", handleKeyDown);
 });
 
-const showDetailDialog = ref(false);
-
 // Ref for the hidden file input
 const fileInputRef = ref(null);
 
@@ -313,9 +314,16 @@ function viewCodeClick() {
 }
 
 // Add deleteChart function
-const deleteChart = async (chart) => {
+const confirmDelete = (chart) => {
+  chartToDelete.value = chart;
+  showDeleteConfirmDialog.value = true;
+};
+
+const deleteChart = async () => {
+  if (!chartToDelete.value) return;
+  
   try {
-    const res = await fetch(`${API_URL}/api/files/${organization.value.id}/${chart.id}`, {
+    const res = await fetch(`${API_URL}/api/files/${organization.value.id}/${chartToDelete.value.id}`, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
@@ -327,6 +335,9 @@ const deleteChart = async (chart) => {
     await getCharts(); // Refresh the charts list
   } catch (err) {
     console.error("Error deleting chart:", err);
+  } finally {
+    showDeleteConfirmDialog.value = false;
+    chartToDelete.value = null;
   }
 };
 </script>
@@ -400,7 +411,7 @@ const deleteChart = async (chart) => {
               icon="pi pi-trash"
               class="p-button-danger p-button-sm p-button-text"
               v-tooltip.top="'Delete chart'"
-              @click.stop="deleteChart(chart)"
+              @click.stop="confirmDelete(chart)"
             />
           </div>
         </div>
@@ -559,6 +570,46 @@ const deleteChart = async (chart) => {
           </div>
         </div>
       </div> -->
+    </Dialog>
+
+    <!-- Add Delete Confirmation Dialog -->
+    <Dialog
+      v-model:visible="showDeleteConfirmDialog"
+      modal
+      :style="{ width: '30rem' }"
+      :draggable="false"
+      :resizable="false"
+      class="delete-confirm-dialog"
+    >
+      <template #header>
+        <div class="flex align-items-center gap-2">
+          <i class="pi pi-exclamation-triangle text-yellow-500" style="font-size: 1.5rem"></i>
+          <span class="font-bold">Confirm Deletion</span>
+        </div>
+      </template>
+      <div class="confirmation-content">
+        <div class="warning-icon">
+          <i class="pi pi-exclamation-circle"></i>
+        </div>
+        <h3>Delete Chart</h3>
+        <p>Are you sure you want to delete this chart? This action cannot be undone.</p>
+      </div>
+      <template #footer>
+        <div class="flex justify-content-end gap-3">
+          <Button
+            label="Cancel"
+            icon="pi pi-times"
+            class="p-button-text p-button-rounded"
+            @click="showDeleteConfirmDialog = false"
+          />
+          <Button
+            label="Delete"
+            icon="pi pi-trash"
+            class="p-button-danger p-button-rounded"
+            @click="deleteChart"
+          />
+        </div>
+      </template>
     </Dialog>
   </div>
 </template>
@@ -1109,6 +1160,85 @@ const deleteChart = async (chart) => {
 
 .delete-btn .p-button:hover {
   opacity: 1;
+}
+
+.delete-confirm-dialog :deep(.p-dialog-header) {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--surface-border);
+  background: var(--surface-ground);
+}
+
+.delete-confirm-dialog :deep(.p-dialog-content) {
+  padding: 0;
+}
+
+.confirmation-content {
+  padding: 2rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.confirmation-content .warning-icon {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  background: var(--yellow-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.confirmation-content .warning-icon i {
+  font-size: 2rem;
+  color: var(--yellow-500);
+}
+
+.confirmation-content h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.confirmation-content p {
+  margin: 0;
+  line-height: 1.5;
+  color: var(--text-color-secondary);
+  font-size: 1rem;
+}
+
+.delete-confirm-dialog :deep(.p-dialog-footer) {
+  padding: 1.5rem;
+  border-top: 1px solid var(--surface-border);
+  background: var(--surface-ground);
+}
+
+.delete-confirm-dialog :deep(.p-button) {
+  min-width: 6rem;
+  font-weight: 500;
+}
+
+.delete-confirm-dialog :deep(.p-button.p-button-danger) {
+  background: var(--red-500);
+  border-color: var(--red-500);
+}
+
+.delete-confirm-dialog :deep(.p-button.p-button-danger:hover) {
+  background: var(--red-600);
+  border-color: var(--red-600);
+}
+
+.delete-confirm-dialog :deep(.p-button.p-button-text) {
+  color: var(--text-color-secondary);
+}
+
+.delete-confirm-dialog :deep(.p-button.p-button-text:hover) {
+  background: var(--surface-hover);
+  color: var(--text-color);
 }
 </style>
 
