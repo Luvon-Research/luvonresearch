@@ -346,6 +346,15 @@ const deleteChart = async () => {
 </script>
 
 <template>
+      <div class="search-container">
+      <div class="search-box">
+        <InputGroup>
+          <InputText v-model="searchTerm" placeholder="Search charts..." />
+          <Button icon="pi pi-search" @click="openDialog" />
+        </InputGroup>
+      </div>
+    </div>
+
   <div v-if="loadingCharts" class="loading-div">
     <ProgressSpinner
       style="width: 40px; height: 40px"
@@ -359,14 +368,6 @@ const deleteChart = async () => {
 
   <div class="chart-page" v-if="!loadingCharts">
     <!-- Header bar with search and create -->
-    <div v-if="filteredCharts.length > 0" class="search-container">
-      <div class="search-box">
-        <InputGroup>
-          <InputText v-model="searchTerm" placeholder="Search charts..." />
-          <Button icon="pi pi-search" @click="openDialog" />
-        </InputGroup>
-      </div>
-    </div>
 
     <div v-if="filteredCharts.length === 0 && !loadingCharts">
       <center>
