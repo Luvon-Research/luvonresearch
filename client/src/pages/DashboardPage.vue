@@ -16,6 +16,7 @@ import InputGroup from "primevue/inputgroup";
 import Button from "primevue/button";
 import ChartsTab from "../components/ChartsTab.vue";
 import FilesTab from "../components/FilesTab.vue";
+import AnalyticsTab from "../components/AnalyticsTab.vue";
 
 const router = useRouter();
 const showChat = ref(false);
@@ -346,6 +347,11 @@ async function deleteSheet(sheetId, event) {
               <i class="pi pi-folder-open"></i>
               Files
             </button>
+
+            <button class="options-tab-btn" @click="setSelectPage('analytics')">
+              <i class="pi pi-chart-bar"></i>
+              Analytics
+            </button>
           </div>
 
           <div v-if="selectedPage === 'sheets'">
@@ -383,6 +389,9 @@ async function deleteSheet(sheetId, event) {
             </div>
             <div v-if="selectedPage === 'files'">
               <FilesTab />
+            </div>
+            <div v-if="selectedPage === 'analytics'">
+              <AnalyticsTab />
             </div>
           </div>
 
