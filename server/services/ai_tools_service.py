@@ -15,7 +15,8 @@ from services.pinecone_service import PineconeService
 from services.e2b_service import E2BService
 import json
 from json_repair import repair_json
-from typing import Optional, Dict
+from typing import Optional, Dict, List
+from pydantic import BaseModel # Added for SpreadsheetCodeResponse
 
 @dataclass
 class SupportDependencies:  
@@ -61,7 +62,7 @@ class AIService:
         
 
         3. analysis  
-        • Provide data analysis text.
+        • Provide data analysis text. Can also perform spreadsheet analysis by writing and executing Python code. If the request is about spreadsheet analysis, it will involve writing Python code to interact with a CSV file.
 
         Your `answer` must be a VALID JSON array of objects, each with:
         {
@@ -473,9 +474,91 @@ class AIService:
                 detail=str(e)
             )
 
-    async def _tool_analysis(self, prompt: str) -> AIResponse:
-        # Local analysis-only agent
-        analysis_agent = Agent(
+    async def _tool_analysis(self, ctx: RunContext[str], prompt: str) -> AIResponse:
+        # Keywords to detect spreadsheet-related prompts
+        spreadsheet_keywords = ["spreadsheet", "csv", "sheet", "column", "row", "excel", "data"]
+        
+        is_spreadsheet_request = any(keyword in prompt.lower() for keyword in spreadsheet_keywords)
+
+        if is_spreadsheet_request:
+            uuid = generate_uuid()
+            csv_file_local = f"temp_files/{uuid}.csv"
+            csv_file_sandbox = f'/home/user/{uuid}.csv'
+            tool_sandbox = None # Initialize tool_sandbox to None
+
+            try:
+                ensure_dir('temp_files')
+                
+                # Fetch CSV data
+                csv_data = await self.sheet_service.get_sheet_data_csv_by_id(ctx.deps.context_source, False)
+                
+                with open(csv_file_local, 'w', newline="") as fp:
+                    fp.write(csv_data.getvalue())
+                
+                tool_sandbox = E2BService(id=uuid)
+                await tool_sandbox.add_file(csv_file_sandbox, csv_data.getvalue()) # Use csv_data.getvalue()
+                
+                sample_data = fetch_sample_lines(csv_file_local, lines=3)
+
+                # Create a code generation agent for spreadsheet analysis
+                spreadsheet_code_agent = Agent(
+                    model=settings.AI_MODEL,
+                    system_prompt=f'''
+                    You are a Python code generation tool for spreadsheet analysis.
+                    The user wants to perform the following task: {prompt}
+                    The data is available in a CSV file located at: {csv_file_sandbox}
+                    Sample data from the CSV:
+                    {sample_data}
+
+                    Your task is to generate Python code that uses the pandas library to read the CSV and perform the requested analysis.
+                    The Python code should output its results using print statements (e.g., print(df.describe()), print(f"Mean of column X: {{mean_val}}")).
+                    Return only the raw Python code, no explanations or markdown.
+                    Ensure the python code uses the correct file path '{csv_file_sandbox}' when reading the csv.
+                    ''',
+                    output_type=SpreadsheetCodeResponse 
+                )
+
+                generated_code_response = await spreadsheet_code_agent.run(prompt)
+                generated_code = generated_code_response.output.code
+                
+                # Execute the generated Python code
+                code_exec_ctx = SupportDependencies(
+                    user_id=ctx.deps.user_id,
+                    org_id=ctx.deps.org_id,
+                    context_source=ctx.deps.context_source, 
+                    request=ctx.deps.request,
+                    sandbox=tool_sandbox, # Pass the initialized sandbox
+                    selectedCells=ctx.deps.selectedCells 
+                )
+                
+                code_output = await self._tool_code_execution(code_exec_ctx, generated_code)
+                
+                # Format output
+                response_json_list = [
+                    {"type": "message", "value": "Spreadsheet analysis complete."},
+                    {"type": "message", "value": code_output} 
+                ]
+                
+                return AIResponse(status="success", answer=json.dumps(response_json_list))
+
+            except Exception as e:
+                # Log the error or handle it more gracefully
+                print(f"Error during spreadsheet analysis: {e}")
+                # Fallback to a generic error message or re-raise
+                error_response = [
+                    {"type": "message", "value": f"An error occurred during spreadsheet analysis: {str(e)}"}
+                ]
+                # Ensure AIResponse is used for error returns as well, matching expected output_type
+                return AIResponse(status="error", answer=json.dumps(error_response))
+            finally:
+                if os.path.exists(csv_file_local):
+                    os.remove(csv_file_local)
+                if tool_sandbox: # Ensure sandbox is closed if initialized
+                    await tool_sandbox.close() 
+
+        else:
+            # Existing behavior for non-spreadsheet analysis
+            analysis_agent = Agent( # This agent is called when it is not a spreadsheet request
             model=settings.AI_MODEL,
             system_prompt='''
             You are the analysis tool. Provide detailed analysis in AIResponse format.
@@ -484,6 +567,9 @@ class AIService:
         )
         res = await analysis_agent.run(prompt)
         return res.output
+
+class SpreadsheetCodeResponse(BaseModel):
+    code: str
 
     async def call(self, input: AIInput, user_id:str, org_id:str, req: Request):
         """
