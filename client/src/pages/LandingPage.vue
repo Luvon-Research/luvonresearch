@@ -14,38 +14,58 @@ import { Button } from "primevue";
 import { onMounted, onBeforeUnmount } from "vue";
 import LandingPageInfoCard from "@/components/LandingPageInfoCard.vue";
 
-let targetY = window.scrollY;
-let currentY = window.scrollY;
-let rafId: number | null = null;
+// Remove or comment out the custom smooth scrolling code
+// let targetY = window.scrollY;
+// let currentY = window.scrollY;
+// let rafId: number | null = null;
 
-// 0 < EASE < 1 — closer to 0 is softer, closer to 1 is snappier
-const EASE = 0.1;
+// const EASE = 0.1;
 
-function onWheel(e: WheelEvent): void {
-  e.preventDefault();
-  const maxScroll = document.body.scrollHeight - window.innerHeight;
-  targetY = Math.min(Math.max(0, targetY + e.deltaY), maxScroll);
-  if (rafId === null) rafId = requestAnimationFrame(smoothScroll);
-}
+// function onWheel(e: WheelEvent): void {
+//   e.preventDefault();
+//   const maxScroll = document.body.scrollHeight - window.innerHeight;
+//   targetY = Math.min(Math.max(0, targetY + e.deltaY), maxScroll);
+//   if (rafId === null) rafId = requestAnimationFrame(smoothScroll);
+// }
 
-function smoothScroll(): void {
-  currentY += (targetY - currentY) * EASE;
-  window.scrollTo(0, currentY);
+// function smoothScroll(): void {
+//   currentY += (targetY - currentY) * EASE;
+//   window.scrollTo(0, currentY);
 
-  if (Math.abs(targetY - currentY) > 0.5) {
-    rafId = requestAnimationFrame(smoothScroll);
-  } else {
-    rafId = null;
-  }
-}
+//   if (Math.abs(targetY - currentY) > 0.5) {
+//     rafId = requestAnimationFrame(smoothScroll);
+//   } else {
+//     rafId = null;
+//   }
+// }
 
 onMounted(() => {
-  window.addEventListener("wheel", onWheel, { passive: false });
+  // Remove the custom wheel event listener
+  // window.addEventListener("wheel", onWheel, { passive: false });
+  
+  const vh = window.innerHeight;
+
+  onScroll = () => {
+    if (!section.value) return;
+    const top = section.value.offsetTop;
+    const scrollY = window.scrollY;
+
+    let progress = scrollY - top;
+    const max = steps.length * vh - vh;
+    progress = Math.max(0, Math.min(progress, max));
+    activeStep.value = Math.floor(progress / vh);
+  };
+
+  window.addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener("wheel", onWheel);
-  if (rafId !== null) cancelAnimationFrame(rafId);
+  // Remove the custom wheel event cleanup
+  // window.removeEventListener("wheel", onWheel);
+  // if (rafId !== null) cancelAnimationFrame(rafId);
+  
+  window.removeEventListener("scroll", onScroll);
 });
 
 interface Step {
@@ -77,35 +97,53 @@ const activeStep = ref(0);
 
 let onScroll: () => void;
 
-onMounted(() => {
-  const vh = window.innerHeight;
-
-  onScroll = () => {
-    if (!section.value) return;
-    const top = section.value.offsetTop;
-    const scrollY = window.scrollY;
-
-    // how far we have scrolled INTO this section
-    let progress = scrollY - top;
-
-    // clamp 0 .. totalHeight - vh
-    const max = steps.length * vh - vh;
-    progress = Math.max(0, Math.min(progress, max));
-
-    // each step = one viewport
-    activeStep.value = Math.floor(progress / vh);
+// Particle animation functions
+function getParticleStyle(index: number) {
+  const delay = Math.random() * 20;
+  const duration = 15 + Math.random() * 10;
+  const size = 2 + Math.random() * 4;
+  const left = Math.random() * 100;
+  const opacity = 0.3 + Math.random() * 0.7;
+  
+  return {
+    left: `${left}%`,
+    animationDelay: `${delay}s`,
+    animationDuration: `${duration}s`,
+    width: `${size}px`,
+    height: `${size}px`,
+    opacity: opacity
   };
+}
 
-  window.addEventListener("scroll", onScroll, { passive: true });
-  onScroll();
-});
-
-onBeforeUnmount(() => {
-  window.removeEventListener("scroll", onScroll);
-});
+function getStarStyle(index: number) {
+  const delay = Math.random() * 5;
+  const duration = 2 + Math.random() * 3;
+  const left = Math.random() * 100;
+  const top = Math.random() * 100;
+  const size = 1 + Math.random() * 2;
+  
+  return {
+    left: `${left}%`,
+    top: `${top}%`,
+    animationDelay: `${delay}s`,
+    animationDuration: `${duration}s`,
+    width: `${size}px`,
+    height: `${size}px`
+  };
+}
 </script>
 
 <template class="landing-container">
+  <!-- Animated background particles -->
+  <div class="particles-container">
+    <div class="particle" v-for="n in 50" :key="n" :style="getParticleStyle(n)"></div>
+  </div>
+  
+  <!-- Twinkling stars -->
+  <div class="stars-container">
+    <div class="star" v-for="n in 30" :key="n" :style="getStarStyle(n)"></div>
+  </div>
+
   <section class="sticky-navbar">
     <div class="d-flex justify-content-between">
       <div class="d-flex align-items-center">
@@ -350,7 +388,7 @@ onBeforeUnmount(() => {
     </div>
 
     <section ref="section" class="how-it-works">
-      <!-- this container’s height = steps * 100vh -->
+      <!-- this container's height = steps * 100vh -->
       <div
         class="scroll-container"
         :style="{ height: `${steps.length * 100}vh` }"
@@ -955,7 +993,7 @@ h1 {
 
 /* -------------- Buttons -------------- */
 
-/* -------------- “Get Started” Navbar Button -------------- */
+/* -------------- "Get Started" Navbar Button -------------- */
 /* .actions .get-started-btn {
   font-size: 0.875rem;
   font-weight: 700;
@@ -970,4 +1008,51 @@ h1 {
 /* button:focus {
   outline: none;
 } */
+
+/* Option 1: Smooth CSS scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Option 2: Custom smooth scrolling with CSS transitions */
+* {
+  font-family: "DM Sans", sans-serif;
+}
+
+/* Add momentum scrolling for webkit browsers */
+body {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Smooth scroll with custom timing */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem; /* Account for fixed navbar */
+}
+
+/* Optional: Add a subtle scroll snap effect for sections */
+.landing-container {
+  /* Remove the old scroll-behavior: smooth; since we're setting it on html */
+}
+
+/* Add smooth transitions to elements that animate on scroll */
+.section-2,
+.meet-luvon-section,
+.how-it-works-section,
+.get-started-section {
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+/* Optional: Add scroll snap for a more polished feel */
+.title-section,
+.section-2,
+.meet-luvon-section,
+.how-it-works-section,
+.get-started-section {
+  scroll-snap-align: start;
+}
+
+.landing-container {
+  scroll-snap-type: y proximity; /* Use 'proximity' for subtle snapping */
+}
 </style>
