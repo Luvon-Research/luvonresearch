@@ -8,6 +8,11 @@ import PrimeVue from 'primevue/config';
 import Lara from '@primeuix/themes/lara';
 import 'bootstrap/dist/css/bootstrap.min.css'
 import { definePreset } from '@primeuix/themes';
+// ① Import the directive
+import AnimateOnScroll from 'primevue/animateonscroll'
+// ② (Optional) bring in PrimeFlex or your own CSS with fade-in/keyframes
+import 'primeflex/primeflex.css'
+
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ?? process.env.VITE_CLERK_PUBLISHABLE_KEY
 const API_URL  = import.meta.env.VITE_API_URL ?? process.env.VITE_API_URL
@@ -67,4 +72,7 @@ app.use(PrimeVue, {
         }
     }
 });
+
+app.directive('animateonscroll', AnimateOnScroll)
+
 app.mount('#app')

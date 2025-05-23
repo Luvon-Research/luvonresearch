@@ -3,6 +3,8 @@ import LandingPage from '../pages/LandingPage.vue'
 // 1. Import the DashboardPage
 import DashboardPage from '../pages/DashboardPage.vue'
 import BoxCallback from '../pages/BoxCallback.vue'
+import TestPage from '../pages/Test.vue'
+import Login from '../pages/Login.vue'
 
 const routes = [
   {
@@ -22,7 +24,16 @@ const routes = [
     name: 'BoxCallback',
     component: BoxCallback
   },
-  
+  {
+    path: '/test',
+    name: 'Test',
+    component: TestPage
+  },
+  {
+    path: '/login',
+    name: 'Login',
+    component: Login
+  }
   // Add more routes here later
 ]
 
