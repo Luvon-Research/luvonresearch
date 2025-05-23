@@ -3,46 +3,39 @@ import { watchEffect, ref } from "vue";
 import { SignInButton, useAuth, useSession } from "@clerk/vue";
 import { useRouter } from "vue-router";
 import { Button } from "primevue";
-
-// // 1️⃣ Grab your env var here:
-// const API_URL = import.meta.env.VITE_API_URL as string;
-
-// const { isLoaded, isSignedIn } = useAuth();
-// const { session } = useSession();
-// const router = useRouter();
-
 import { onMounted, onBeforeUnmount } from "vue";
 import LandingPageInfoCard from "@/components/LandingPageInfoCard.vue";
 
-// Remove or comment out the custom smooth scrolling code
-// let targetY = window.scrollY;
-// let currentY = window.scrollY;
-// let rafId: number | null = null;
-
-// const EASE = 0.1;
-
-// function onWheel(e: WheelEvent): void {
-//   e.preventDefault();
-//   const maxScroll = document.body.scrollHeight - window.innerHeight;
-//   targetY = Math.min(Math.max(0, targetY + e.deltaY), maxScroll);
-//   if (rafId === null) rafId = requestAnimationFrame(smoothScroll);
-// }
-
-// function smoothScroll(): void {
-//   currentY += (targetY - currentY) * EASE;
-//   window.scrollTo(0, currentY);
-
-//   if (Math.abs(targetY - currentY) > 0.5) {
-//     rafId = requestAnimationFrame(smoothScroll);
-//   } else {
-//     rafId = null;
-//   }
-// }
+// Add Vanta.js initialization
+let vantaEffect: any = null;
 
 onMounted(() => {
-  // Remove the custom wheel event listener
-  // window.addEventListener("wheel", onWheel, { passive: false });
-  
+  // Initialize Vanta.js dots effect
+  if (window.VANTA && window.VANTA.DOTS) {
+    vantaEffect = window.VANTA.DOTS({
+      el: "#vanta-background",
+      mouseControls: true,
+      touchControls: true,
+      gyroControls: false,
+      minHeight: 200.00,
+      minWidth: 200.00,
+      scale: 1.20,
+      scaleMobile: 1.00,
+      color: 0x5158c7,
+      color2: 0x7784ec,
+      backgroundColor: 0xffffff,
+      size: 2.00,
+      spacing: 25.00,
+      showLines: false,
+      speed: 0.5,
+      verticalSpeed: 0.3,
+      horizontalSpeed: 0.3,
+      forceAnimate: true,
+      maxDistance: 20.0,
+      minDistance: 10.0
+    });
+  }
+
   const vh = window.innerHeight;
 
   onScroll = () => {
@@ -61,9 +54,10 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-  // Remove the custom wheel event cleanup
-  // window.removeEventListener("wheel", onWheel);
-  // if (rafId !== null) cancelAnimationFrame(rafId);
+  // Clean up Vanta effect
+  if (vantaEffect) {
+    vantaEffect.destroy();
+  }
   
   window.removeEventListener("scroll", onScroll);
 });
@@ -134,15 +128,8 @@ function getStarStyle(index: number) {
 </script>
 
 <template class="landing-container">
-  <!-- Animated background particles -->
-  <div class="particles-container">
-    <div class="particle" v-for="n in 50" :key="n" :style="getParticleStyle(n)"></div>
-  </div>
-  
-  <!-- Twinkling stars -->
-  <div class="stars-container">
-    <div class="star" v-for="n in 30" :key="n" :style="getStarStyle(n)"></div>
-  </div>
+  <!-- Vanta.js background -->
+  <div id="vanta-background" class="vanta-container"></div>
 
   <section class="sticky-navbar">
     <div class="d-flex justify-content-between">
@@ -462,13 +449,16 @@ function getStarStyle(index: number) {
 
 .landing-container {
   scroll-behavior: smooth;
+  position: relative;
+  overflow-x: hidden;
 }
 .sticky-navbar {
   position: fixed;
   top: 0;
   height: 5rem;
   width: 100vw;
-  background-color: white;
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
   z-index: 9999;
 }
 
@@ -541,6 +531,9 @@ function getStarStyle(index: number) {
 
 .section-2 {
   margin-top: 10vh;
+  position: relative;
+  z-index: 2;
+  background: transparent;
 }
 
 .subheading {
@@ -1054,5 +1047,57 @@ html {
 
 .landing-container {
   scroll-snap-type: y proximity; /* Use 'proximity' for subtle snapping */
+}
+
+/* Add Vanta background styles */
+.vanta-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 200vh;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Three.js sphere overlay */
+.three-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+/* Ensure content stays above both backgrounds */
+.sticky-navbar {
+  position: fixed;
+  top: 0;
+  height: 5rem;
+  width: 100vw;
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  z-index: 9999;
+}
+
+.title-section,
+.section-2 {
+  position: relative;
+  z-index: 2;
+  background: transparent;
+}
+
+/* Remove the gradient overlay that might be interfering */
+.section-2::after {
+  display: none;
+}
+
+/* Ensure the landing container doesn't cause shifting */
+.landing-container {
+  position: relative;
+  overflow-x: hidden;
 }
 </style>
