@@ -1,51 +1,80 @@
 <script setup lang="ts">
-import { watchEffect, ref } from "vue";
-import { SignInButton, useAuth, useSession } from "@clerk/vue";
+import { watchEffect, ref, onMounted } from "vue";
+import { SignInButton, useAuth, useSession, Waitlist } from "@clerk/vue";
 import { useRouter } from "vue-router";
 import { Button } from "primevue";
-
-// // 1️⃣ Grab your env var here:
-// const API_URL = import.meta.env.VITE_API_URL as string;
-
-// const { isLoaded, isSignedIn } = useAuth();
-// const { session } = useSession();
-// const router = useRouter();
-
-import { onMounted, onBeforeUnmount } from "vue";
+import { onBeforeUnmount } from "vue";
 import LandingPageInfoCard from "@/components/LandingPageInfoCard.vue";
+import Dialog from "primevue/dialog";
 
-let targetY = window.scrollY;
-let currentY = window.scrollY;
-let rafId: number | null = null;
-
-// 0 < EASE < 1 — closer to 0 is softer, closer to 1 is snappier
-const EASE = 0.1;
-
-function onWheel(e: WheelEvent): void {
-  e.preventDefault();
-  const maxScroll = document.body.scrollHeight - window.innerHeight;
-  targetY = Math.min(Math.max(0, targetY + e.deltaY), maxScroll);
-  if (rafId === null) rafId = requestAnimationFrame(smoothScroll);
-}
-
-function smoothScroll(): void {
-  currentY += (targetY - currentY) * EASE;
-  window.scrollTo(0, currentY);
-
-  if (Math.abs(targetY - currentY) > 0.5) {
-    rafId = requestAnimationFrame(smoothScroll);
-  } else {
-    rafId = null;
-  }
-}
+// Remove AOS imports and any animation-related code
+let vantaEffect: any = null;
+const isScrolled = ref(false);
 
 onMounted(() => {
-  window.addEventListener("wheel", onWheel, { passive: false });
+  // Remove AOS initialization, keep other onMounted code
+  if (window.VANTA && window.VANTA.DOTS) {
+    vantaEffect = window.VANTA.DOTS({
+      el: "#vanta-background",
+      mouseControls: true,
+      touchControls: true,
+      gyroControls: false,
+      minHeight: 200.00,
+      minWidth: 200.00,
+      scale: 1.20,
+      scaleMobile: 1.00,
+      color: 0x5158c7,
+      color2: 0x7784ec,
+      backgroundColor: 0xffffff,
+      size: 2.00,
+      spacing: 25.00,
+      showLines: false,
+      speed: 0.5,
+      verticalSpeed: 0.3,
+      horizontalSpeed: 0.3,
+      forceAnimate: true,
+      maxDistance: 20.0,
+      minDistance: 10.0
+    });
+  }
+
+  const vh = window.innerHeight;
+
+  // Add scroll listener for navbar
+  const handleScroll = () => {
+    isScrolled.value = window.scrollY > 50;
+  };
+
+  window.addEventListener("scroll", handleScroll, { passive: true });
+
+  onScroll = () => {
+    if (!section.value) return;
+    const top = section.value.offsetTop;
+    const scrollY = window.scrollY;
+
+    let progress = scrollY - top;
+    const max = steps.length * vh - vh;
+    progress = Math.max(0, Math.min(progress, max));
+    activeStep.value = Math.floor(progress / vh);
+  };
+
+  window.addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
+
+  // Cleanup function
+  const cleanup = () => {
+    window.removeEventListener("scroll", handleScroll);
+    window.removeEventListener("scroll", onScroll);
+  };
+
+  onBeforeUnmount(cleanup);
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener("wheel", onWheel);
-  if (rafId !== null) cancelAnimationFrame(rafId);
+  // Clean up Vanta effect
+  if (vantaEffect) {
+    vantaEffect.destroy();
+  }
 });
 
 interface Step {
@@ -56,20 +85,30 @@ interface Step {
 
 const steps: Step[] = [
   {
-    title: "Create a Org/Project",
-    description: "You can import your files from multiple providers.",
+    title: "Create your research workspace",
+    description: "Set up a dedicated space for your research project and invite your team members to collaborate.",
     side: "left",
   },
   {
-    title: "Upload your files",
-    description: "You can import your files from multiple providers.",
+    title: "Import your research data",
+    description: "Seamlessly import data from various sources including PDFs, spreadsheets, and databases into one centralized location.",
     side: "right",
   },
   {
-    title: "Luvon is all set up",
-    description: "You can import your files from multiple providers.",
+    title: "Analyze and collaborate",
+    description: "Use our powerful tools to analyze your data, create visualizations, and collaborate with your team in real-time.",
     side: "left",
   },
+  {
+    title: "Generate insights",
+    description: "Leverage AI-powered features to extract meaningful insights and patterns from your research data.",
+    side: "right",
+  },
+  {
+    title: "Share your findings",
+    description: "Create professional reports and presentations to effectively communicate your research findings with stakeholders.",
+    side: "left",
+  }
 ];
 
 const section = ref<HTMLElement | null>(null);
@@ -77,36 +116,55 @@ const activeStep = ref(0);
 
 let onScroll: () => void;
 
-onMounted(() => {
-  const vh = window.innerHeight;
-
-  onScroll = () => {
-    if (!section.value) return;
-    const top = section.value.offsetTop;
-    const scrollY = window.scrollY;
-
-    // how far we have scrolled INTO this section
-    let progress = scrollY - top;
-
-    // clamp 0 .. totalHeight - vh
-    const max = steps.length * vh - vh;
-    progress = Math.max(0, Math.min(progress, max));
-
-    // each step = one viewport
-    activeStep.value = Math.floor(progress / vh);
+// Particle animation functions
+function getParticleStyle(index: number) {
+  const delay = Math.random() * 20;
+  const duration = 15 + Math.random() * 10;
+  const size = 2 + Math.random() * 4;
+  const left = Math.random() * 100;
+  const opacity = 0.3 + Math.random() * 0.7;
+  
+  return {
+    left: `${left}%`,
+    animationDelay: `${delay}s`,
+    animationDuration: `${duration}s`,
+    width: `${size}px`,
+    height: `${size}px`,
+    opacity: opacity
   };
+}
 
-  window.addEventListener("scroll", onScroll, { passive: true });
-  onScroll();
-});
+function getStarStyle(index: number) {
+  const delay = Math.random() * 5;
+  const duration = 2 + Math.random() * 3;
+  const left = Math.random() * 100;
+  const top = Math.random() * 100;
+  const size = 1 + Math.random() * 2;
+  
+  return {
+    left: `${left}%`,
+    top: `${top}%`,
+    animationDelay: `${delay}s`,
+    animationDuration: `${duration}s`,
+    width: `${size}px`,
+    height: `${size}px`
+  };
+}
 
-onBeforeUnmount(() => {
-  window.removeEventListener("scroll", onScroll);
-});
+// Add smooth scroll function
+const scrollToWaitlist = () => {
+  const waitlistSection = document.querySelector('.waitlist-section');
+  if (waitlistSection) {
+    waitlistSection.scrollIntoView({ behavior: 'smooth' });
+  }
+};
 </script>
 
 <template class="landing-container">
-  <section class="sticky-navbar">
+  <!-- Vanta.js background -->
+  <div id="vanta-background" class="vanta-container"></div>
+
+  <section class="sticky-navbar" :class="{ 'scrolled': isScrolled }">
     <div class="d-flex justify-content-between">
       <div class="d-flex align-items-center">
         <img class="logo" src="@/assets/logo.svg" />
@@ -114,13 +172,14 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="d-flex align-items-center">
-        <a class="book-demo-btn">Book a Demo</a>
+        <a href="https://calendly.com/veyyakulashabd/30min" target="_blank" class="book-demo-btn">Book a Demo</a>
         <Button
           variant="outlined"
           iconPos="right"
           label="Join Waitlist"
           icon="pi pi-list-check"
           class="join-waitlist-btn-outlined"
+          @click="scrollToWaitlist"
         />
       </div>
     </div>
@@ -135,19 +194,20 @@ onBeforeUnmount(() => {
     </div>
     <div class="d-flex justify-content-center">
       <p class="subtitle">
-        With luvon, you have all the best tools blah blah blah. We simplify your
-        experience of gooning.
+        Streamline your research workflow with Luvon's AI-powered platform. From data collection to analysis,
+        we help scientists focus on what matters most - making discoveries.
       </p>
     </div>
 
     <div class="d-flex justify-content-center">
       <div class="d-flex align-items-center">
-        <a class="book-demo-btn">Book a Demo</a>
+        <a href="https://calendly.com/veyyakulashabd/30min" target="_blank" class="book-demo-btn">Book a Demo</a>
         <Button
           iconPos="right"
           label="Join Waitlist"
           icon="pi pi-list-check"
           class="join-waitlist-btn"
+          @click="scrollToWaitlist"
         />
       </div>
     </div>
@@ -159,56 +219,32 @@ onBeforeUnmount(() => {
 
   <section id="section-2" class="section-2">
     <div class="d-flex justify-content-center">
-      <h2
-        class="subheading"
-        v-animateonscroll="{
-          enterClass: 'fadeindown',
-          leaveClass: 'fadeinup',
-          delay: 400,
-          duration: 800,
-          threshold: 0.3,
-        }"
-      >
+      <h2 class="subheading">
         Data entry shouldn't <br />
         feel like a drag
       </h2>
-    </div>
-    <div class="d-flex justify-content-center">
-      <p
-        class="subtitle"
-        v-animateonscroll="{
-          enterClass: 'fadeindown',
-          leaveClass: 'fadeinup',
-          delay: 1000,
-          duration: 800,
-          threshold: 0.3,
-        }"
-      >
-        With luvon, you have all the best tools blah blah blah. We simplify your
-        experience of gooning.
-      </p>
     </div>
 
     <div class="d-flex justify-content-center section-2-cards">
       <div class="row gap-4 justify-content-center">
         <LandingPageInfoCard
-          title="Data Inconsistencies"
-          description="Use our integrated live-collaborative spreadhsheets, or upload your own csv files."
+          title="Live Collaboration" 
+          description="Work together in real-time with your team using our integrated collaborative spreadsheets."
           img="https://framerusercontent.com/images/yeqACn9LkszdOq5t3gWkxc7pdU.png?scale-down-to=1024"
         />
         <LandingPageInfoCard
-          title="Manual Data Analysis"
-          description="Creating graphs for your data is easy as ever! Just a quick prompt and a few clicks "
+          title="AI-Powered Analysis"
+          description="Let AI do the heavy lifting. Our intelligent assistant analyzes your data automatically."
           img="https://framerusercontent.com/images/yeqACn9LkszdOq5t3gWkxc7pdU.png?scale-down-to=1024"
         />
         <LandingPageInfoCard
-          title="Missing Data"
-          description="There is often missing data and stuff blah blah.There is often missing data and stuff blah blah."
+          title="Smart Data Completion"
+          description="Never worry about incomplete datasets again. Our AI can detect and fill missing values intelligently while maintaining data integrity."
           img="https://framerusercontent.com/images/yeqACn9LkszdOq5t3gWkxc7pdU.png?scale-down-to=1024"
         />
         <LandingPageInfoCard
-          title="Chart Creation"
-          description="Chart creation is hard..."
+          title="Instant Visualizations"
+          description="Transform your data into beautiful charts and graphs with a single prompt. No more wrestling with complex charting tools."
           img="https://framerusercontent.com/images/yeqACn9LkszdOq5t3gWkxc7pdU.png?scale-down-to=1024"
         />
       </div>
@@ -235,16 +271,16 @@ onBeforeUnmount(() => {
         research with <span class="meet-luvon-img-badge">AI</span>
       </h4>
       <p class="meet-luvon-img-subhead">
-        With luvon, you can accelerate your research time by 3.14x and achieve
-        great results so easily!
+        With Luvon's advanced AI capabilities, you can accelerate your research process by up to 3.14x while maintaining the highest quality standards. Our intelligent platform automates tedious tasks, provides real-time insights, and helps you uncover hidden patterns in your data. Experience seamless collaboration, powerful analytics, and breakthrough discoveries - all in one intuitive workspace.
       </p>
       <div class="meet-luvon-img-actions align-items-center">
-        <a class="book-demo-btn">Book a Demo</a>
+        <a href="https://calendly.com/veyyakulashabd/30min" target="_blank" class="book-demo-btn">Book a Demo</a>
         <Button
           iconPos="right"
           label="Join Waitlist"
           icon="pi pi-list-check"
           class="join-waitlist-btn"
+          @click="scrollToWaitlist"
         />
       </div>
     </div>
@@ -264,93 +300,33 @@ onBeforeUnmount(() => {
         great results so easily!
       </p>
       <div class="meet-luvon-img-actions align-items-center">
-        <a class="book-demo-btn">Book a Demo</a>
+        <a href="https://calendly.com/veyyakulashabd/30min" target="_blank" class="book-demo-btn">Book a Demo</a>
         <Button
           iconPos="right"
           label="Join Waitlist"
           icon="pi pi-list-check"
           class="join-waitlist-btn"
+          @click="scrollToWaitlist"
         />
       </div>
     </div>
 
-    <div class="d-flex justify-content-center section-2-cards">
-      <div class="row gap-4 justify-content-center">
-        <LandingPageInfoCard
-          title="Integrated Spreadsheets"
-          description="Use our integrated live-collaborative spreadhsheets, or upload your own csv files."
-          img="https://framerusercontent.com/images/yeqACn9LkszdOq5t3gWkxc7pdU.png?scale-down-to=1024"
-        />
-        <LandingPageInfoCard
-          title="Complex Analysis"
-          description="Creating graphs for your data is easy as ever! Just a quick prompt and a few clicks "
-          img="https://framerusercontent.com/images/yeqACn9LkszdOq5t3gWkxc7pdU.png?scale-down-to=1024"
-        />
-        <LandingPageInfoCard
-          title="Making Graphs"
-          description="There is often missing data and stuff blah blah.There is often missing data and stuff blah blah."
-          img="https://framerusercontent.com/images/yeqACn9LkszdOq5t3gWkxc7pdU.png?scale-down-to=1024"
-        />
-        <LandingPageInfoCard
-          title="Realtime Analytics"
-          description="Chart creation is hard..."
-          img="https://framerusercontent.com/images/yeqACn9LkszdOq5t3gWkxc7pdU.png?scale-down-to=1024"
-        />
-
-        <LandingPageInfoCard
-          title="Realtime Analytics"
-          description="Chart creation is hard..."
-          img="https://framerusercontent.com/images/yeqACn9LkszdOq5t3gWkxc7pdU.png?scale-down-to=1024"
-        />
-
-        <LandingPageInfoCard
-          title="Context Aware Chatbot"
-          description="Chart creation is hard..."
-          img="https://framerusercontent.com/images/yeqACn9LkszdOq5t3gWkxc7pdU.png?scale-down-to=1024"
-        />
-
-        <LandingPageInfoCard
-          title="File Integrations"
-          description="Chart creation is hard..."
-          img="https://framerusercontent.com/images/yeqACn9LkszdOq5t3gWkxc7pdU.png?scale-down-to=1024"
-        />
-      </div>
-    </div>
   </section>
 
   <section id="how-it-works" class="how-it-works-section">
     <div class="d-flex justify-content-center">
-      <h2
-        class="subheading"
-        v-animateonscroll="{
-          enterClass: 'fadeindown',
-          leaveClass: 'fadeinup',
-          delay: 400,
-          duration: 800,
-          threshold: 0.3,
-        }"
-      >
+      <h2 class="subheading">
         How it works
       </h2>
     </div>
     <div class="d-flex justify-content-center">
-      <p
-        class="subtitle"
-        v-animateonscroll="{
-          enterClass: 'fadeindown',
-          leaveClass: 'fadeinup',
-          delay: 1000,
-          duration: 800,
-          threshold: 0.3,
-        }"
-      >
-        With luvon, you have all the best tools blah blah blah. We simplify your
-        experience of gooning.
+      <p>
+        With Luvon, you can streamline your research workflow with powerful AI-assisted tools for data analysis, collaboration, and insight generation - all in one integrated platform.
       </p>
     </div>
 
     <section ref="section" class="how-it-works">
-      <!-- this container’s height = steps * 100vh -->
+      <!-- this container's height = steps * 100vh -->
       <div
         class="scroll-container"
         :style="{ height: `${steps.length * 100}vh` }"
@@ -381,28 +357,21 @@ onBeforeUnmount(() => {
     </section>
   </section>
 
+    <!-- Add Waitlist component here -->
+  <div class="waitlist-section">
+    <Waitlist />
+  </div>
+
   <section id="get-started-section" class="get-started-section">
     <div class="getting-started-card">
-      <!-- New content wrapper -->
       <div class="getting-started-content">
-        <!-- optional icon -->
         <p class="getting-started-icon">✧˖°.</p>
-
-        <!-- your headline -->
         <h2 class="getting-started-title">
           Get researching<br />
           with Luvon today!
         </h2>
-
-        <!-- actions -->
         <div class="getting-started-actions">
-          <a class="book-demo-btn">Book a Demo</a>
-          <Button
-            iconPos="right"
-            label="Join Waitlist"
-            icon="pi pi-list-check"
-            class="join-waitlist-btn"
-          />
+          <a href="https://calendly.com/veyyakulashabd/30min" target="_blank" class="book-demo-btn">Book a Demo</a>
         </div>
       </div>
     </div>
@@ -424,14 +393,57 @@ onBeforeUnmount(() => {
 
 .landing-container {
   scroll-behavior: smooth;
+  position: relative;
+  overflow-x: hidden;
 }
 .sticky-navbar {
   position: fixed;
   top: 0;
   height: 5rem;
   width: 100vw;
-  background-color: white;
+  background-color: rgba(255, 255, 255, 0.95);
   z-index: 9999;
+}
+
+.sticky-navbar.scrolled {
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.sticky-navbar.scrolled .logo-title {
+  color: #5158c7;
+}
+
+.sticky-navbar.scrolled .book-demo-btn {
+  color: #5158c7;
+}
+
+.sticky-navbar.scrolled .join-waitlist-btn-outlined {
+  color: #5158c7;
+  border-color: #5158c7;
+}
+
+.sticky-navbar.scrolled .join-waitlist-btn-outlined:hover {
+  background-color: #5158c7 !important;
+  color: white !important;
+}
+
+@keyframes bounceIn {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(10px);
+    opacity: 1;
+  }
+  80% {
+    transform: translateY(-5px);
+  }
+  100% {
+    transform: translateY(0);
+  }
 }
 
 .logo {
@@ -488,6 +500,7 @@ onBeforeUnmount(() => {
   margin-right: 1rem;
   color: white;
   background-color: #5158c7;
+  cursor: pointer;
 }
 .join-waitlist-btn:hover {
   background-color: #7784ec !important;
@@ -503,6 +516,9 @@ onBeforeUnmount(() => {
 
 .section-2 {
   margin-top: 10vh;
+  position: relative;
+  z-index: 2;
+  background: transparent;
 }
 
 .subheading {
@@ -522,12 +538,17 @@ onBeforeUnmount(() => {
 
 .meet-luvon-section {
   margin-top: 10vh;
+  position: relative;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 2rem;
 }
 
 .meet-luvon-header {
   font-size: 120px;
   font-weight: 500;
   text-align: center;
+  color: black;
 }
 
 .mask-wrapper {
@@ -541,19 +562,16 @@ onBeforeUnmount(() => {
 .mask-text {
   font-size: inherit;
   font-weight: bold;
-
-  /* make the text transparent and back‐clip the bg */
-  color: transparent;
+  
+  /* Only the Luvon text gets the parallax background */
   -webkit-text-fill-color: transparent;
   background-clip: text;
   -webkit-background-clip: text;
-
-  /* THIS is the key: only the text sees this fixed image */
   background-image: url("https://i.pinimg.com/564x/02/0b/15/020b15b5f5af324af93bed131b47a34c.jpg");
   background-repeat: no-repeat;
   background-position: center center;
   background-size: cover;
-  background-attachment: fixed;
+  background-attachment: fixed; /* Parallax effect only on the text */
 }
 
 .meet-luvon-info-img {
@@ -713,6 +731,7 @@ onBeforeUnmount(() => {
 
 .get-started-section {
   padding: 4rem 0;
+  margin-bottom: 4rem;
 }
 
 .getting-started-card {
@@ -955,7 +974,7 @@ h1 {
 
 /* -------------- Buttons -------------- */
 
-/* -------------- “Get Started” Navbar Button -------------- */
+/* -------------- "Get Started" Navbar Button -------------- */
 /* .actions .get-started-btn {
   font-size: 0.875rem;
   font-weight: 700;
@@ -970,4 +989,334 @@ h1 {
 /* button:focus {
   outline: none;
 } */
+
+/* Option 1: Smooth CSS scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Option 2: Custom smooth scrolling with CSS transitions */
+* {
+  font-family: "DM Sans", sans-serif;
+}
+
+/* Add momentum scrolling for webkit browsers */
+body {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Smooth scroll with custom timing */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem; /* Account for fixed navbar */
+}
+
+/* Optional: Add a subtle scroll snap effect for sections */
+.landing-container {
+  /* Remove the old scroll-behavior: smooth; since we're setting it on html */
+}
+
+/* Add smooth transitions to elements that animate on scroll */
+.section-2,
+.meet-luvon-section,
+.how-it-works-section,
+.get-started-section {
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+/* Optional: Add scroll snap for a more polished feel */
+.title-section,
+.section-2,
+.meet-luvon-section,
+.how-it-works-section,
+.get-started-section {
+  scroll-snap-align: start;
+}
+
+.landing-container {
+  scroll-snap-type: y proximity; /* Use 'proximity' for subtle snapping */
+}
+
+/* Add Vanta background styles */
+.vanta-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 200vh;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Three.js sphere overlay */
+.three-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+/* Ensure content stays above both backgrounds */
+.sticky-navbar {
+  position: fixed;
+  top: 0;
+  height: 5rem;
+  width: 100vw;
+  background-color: rgba(255, 255, 255, 0.95);
+  z-index: 9999;
+}
+
+.title-section,
+.section-2 {
+  position: relative;
+  z-index: 2;
+  background: transparent;
+}
+
+/* Remove the gradient overlay that might be interfering */
+.section-2::after {
+  display: none;
+}
+
+/* Ensure the landing container doesn't cause shifting */
+.landing-container {
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Waitlist component styling */
+.waitlist-wrapper {
+  margin-left: 1rem;
+  margin-right: 1rem;
+}
+
+/* Style the waitlist cards to be inline */
+:deep(.waitlist-card-navbar),
+:deep(.waitlist-card-main),
+:deep(.waitlist-card-meet),
+:deep(.waitlist-card-final) {
+  display: inline-block;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+/* Style the waitlist buttons to match your existing design */
+:deep(.waitlist-btn-navbar),
+:deep(.waitlist-btn-main),
+:deep(.waitlist-btn-meet),
+:deep(.waitlist-btn-final) {
+  background-color: #5158c7 !important;
+  color: white !important;
+  border: none !important;
+  padding: 0.75rem 1.5rem !important;
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: background-color 0.2s ease !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+}
+
+:deep(.waitlist-btn-navbar):hover,
+:deep(.waitlist-btn-main):hover,
+:deep(.waitlist-btn-meet):hover,
+:deep(.waitlist-btn-final):hover {
+  background-color: #7784ec !important;
+}
+
+/* For the outlined version in navbar */
+:deep(.waitlist-btn-navbar) {
+  background-color: transparent !important;
+  color: #5158c7 !important;
+  border: 1px solid #5158c7 !important;
+}
+
+:deep(.waitlist-btn-navbar):hover {
+  background-color: #5158c7 !important;
+  color: white !important;
+}
+
+/* Ensure the waitlist form appears as a modal/popup */
+:deep(.cl-waitlistForm) {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10000;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  padding: 2rem;
+  max-width: 400px;
+  width: 90vw;
+}
+
+/* Add backdrop */
+:deep(.cl-waitlistForm)::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: -1;
+}
+
+/* Waitlist Modal Styling */
+:deep(.waitlist-modal .p-dialog) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+:deep(.waitlist-modal .p-dialog-content) {
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+:deep(.waitlist-modal .p-dialog-header) {
+  display: none !important;
+}
+
+:deep(.waitlist-modal .p-dialog-close-button) {
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  z-index: 1000 !important;
+  background: rgba(0, 0, 0, 0.5) !important;
+  color: white !important;
+  border-radius: 50% !important;
+  width: 30px !important;
+  height: 30px !important;
+}
+
+:deep(.waitlist-card-modal) {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+:deep(.waitlist-btn-modal) {
+  background-color: #5158c7 !important;
+  color: white !important;
+  border: none !important;
+  padding: 0.75rem 1.5rem !important;
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: background-color 0.2s ease !important;
+  width: 100% !important;
+}
+
+:deep(.waitlist-btn-modal):hover {
+  background-color: #7784ec !important;
+}
+
+/* Ensure no scrollbars appear */
+:deep(.waitlist-modal .p-dialog) {
+  overflow: hidden;
+}
+
+:deep(.waitlist-modal .cl-waitlistForm) {
+  overflow: hidden;
+}
+
+/* Keep your existing button styles */
+.join-waitlist-btn-outlined {
+  margin-left: 1rem;
+  margin-right: 1rem;
+  color: #5158c7;
+  border-color: #5158c7;
+}
+
+.join-waitlist-btn-outlined:hover {
+  background-color: #5158c7 !important;
+  color: white !important;
+}
+
+.join-waitlist-btn {
+  margin-left: 1rem;
+  margin-right: 1rem;
+  color: white;
+  background-color: #5158c7;
+  cursor: pointer;
+}
+
+.join-waitlist-btn:hover {
+  background-color: #7784ec !important;
+}
+
+/* Add styles for the new waitlist section */
+.waitlist-section {
+  max-width: 500px;
+  margin: 4rem auto;
+  padding: 2rem;
+}
+
+:deep(.waitlist-card-bottom) {
+  background: transparent;
+  border: none;
+  box-shadow: none !important;
+  padding: 0;
+}
+
+:deep(.cl-waitlistForm) {
+  box-shadow: none !important;
+}
+
+:deep(.cl-card) {
+  box-shadow: none !important;
+}
+
+:deep(.waitlist-btn-bottom) {
+  background-color: #5158c7 !important;
+  color: white !important;
+  border: none !important;
+  padding: 0.75rem 1.5rem !important;
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: background-color 0.2s ease !important;
+  width: 100% !important;
+  box-shadow: none !important;
+}
+
+/* Add AOS fade-up animation override for smoother animations */
+[data-aos="fade-up"] {
+  transform: translate3d(0, 30px, 0);
+}
+
+[data-aos="fade-right"] {
+  transform: translate3d(-30px, 0, 0);
+}
+
+[data-aos="fade-left"] {
+  transform: translate3d(30px, 0, 0);
+}
+
+/* Optional: Add custom animations */
+@keyframes floatAnimation {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.floating {
+  animation: floatAnimation 3s ease-in-out infinite;
+}
 </style>
