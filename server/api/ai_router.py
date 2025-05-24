@@ -15,6 +15,8 @@ import time
 from util.utils import check_user_connected
 from services.pinecone_service import PineconeService
 from services.e2b_service import E2BService
+from fastapi.responses import StreamingResponse
+
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -38,48 +40,9 @@ def get_user_service() -> UserService:
 def get_chat_history_service() -> ChatHistoryService:
     return ChatHistoryService(supabase)
 
-@router.post("/", status_code=status.HTTP_200_OK) # response_model=AIResponse,
-async def ai_prompt(
-    request: Request,
-    body: AIInput, 
-    ai_service: AIService = Depends(get_ai_service),
-    user_service: UserService = Depends(get_user_service),
-    chat_history_service: ChatHistoryService = Depends(get_chat_history_service)
-):
-    
-from fastapi.responses import StreamingResponse
-
-async def stream_ai_response(request_obj: Request, ai_service_call_generator, chat_history_service, org, user, start_time):
-    accumulated_response_chunks = []
-    try:
-        async for chunk in ai_service_call_generator:
-            accumulated_response_chunks.append(chunk)
-            yield json.dumps(chunk) + "\n"
-            # It's generally not recommended to run authentication checks per streamed chunk due to overhead.
-            # This check is kept here as per previous logic but consider if it's essential for every chunk.
-            # If the connection drops, FastAPI would handle it.
-            await check_user_connected(request_obj)
-    finally:
-        # This block executes when the stream is closing, either normally or due to an error.
-        end_time = time.time()
-        # Save the accumulated response to chat history
-        if accumulated_response_chunks:
-            assistant_chat = ChatHistoryUpload(
-                org_id=org,
-                user_id=user,
-                message=accumulated_response_chunks, # Save the list of chunks
-                generation_time=end_time - start_time,
-                from_type='assistant',
-                chat_id="TODO" # chat_id still needs to be handled
-            )
-            try:
-                await chat_history_service.save_chat(assistant_chat)
-            except Exception as e:
-                print(f"Failed to save chat history: {e}")
-
 @router.post("/", status_code=status.HTTP_200_OK)
 async def ai_prompt(
-    request: Request, # Keep original request for user verification and potentially for check_user_connected
+    request: Request,
     body: AIInput, 
     ai_service: AIService = Depends(get_ai_service),
     user_service: UserService = Depends(get_user_service),
@@ -130,3 +93,26 @@ async def ai_prompt(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
+
+async def stream_ai_response(request_obj: Request, ai_service_call_generator, chat_history_service, org, user, start_time):
+    accumulated_response_chunks = []
+    try:
+        async for chunk in ai_service_call_generator:
+            accumulated_response_chunks.append(chunk)
+            yield json.dumps(chunk) + "\n"
+            await check_user_connected(request_obj)
+    finally:
+        end_time = time.time()
+        if accumulated_response_chunks:
+            assistant_chat = ChatHistoryUpload(
+                org_id=org,
+                user_id=user,
+                message=accumulated_response_chunks,
+                generation_time=end_time - start_time,
+                from_type='assistant',
+                chat_id="TODO"
+            )
+            try:
+                await chat_history_service.save_chat(assistant_chat)
+            except Exception as e:
+                print(f"Failed to save chat history: {e}")
