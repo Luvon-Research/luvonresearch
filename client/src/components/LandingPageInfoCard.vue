@@ -5,22 +5,12 @@ const props = defineProps<{
   description: string;
 }>();
 
-
-// Compute a usable image URL:
-// - If 'img' is already a module import (string URL), use it directly.
-// - If it's a relative path, resolve via import.meta.url.
-const imageSrc = props.img
-  ? (props.img.startsWith('http') || props.img.startsWith('/')
-      ? props.img
-      : new URL(props.img, import.meta.url).href)
-  : '';
-
 </script>
 
 <template>
   <div class="section-2-card" >
     <!-- if you have an image, it goes here: -->
-    <img v-if="props.img" :src="imageSrc" alt="Image" class="card-image" />
+    <img v-if="props.img" :src="props.img" alt="Image" class="card-image" />
 
     <!-- this wrapper is auto-pushed to the bottom -->
     <div class="content-wrapper">
