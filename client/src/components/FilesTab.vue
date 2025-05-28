@@ -11,6 +11,7 @@ import InputIcon from "primevue/inputicon";
 import Avatar from "primevue/avatar";
 import ProgressSpinner from "primevue/progressspinner";
 import axios from 'axios';
+import InputGroup from "primevue/inputgroup";
 
 const { organization } = useOrganization();
 const { session } = useSession();
@@ -281,17 +282,19 @@ watch(
   <!-- Show file list when not loading and files exist -->
   <div v-else>
     <h3 class="table-title">Uploaded Files</h3>
-    <div class="top-actions">
-      <IconField iconPosition="left" class="search-input">
-        <InputIcon class="pi pi-search" />
-        <InputText v-model="searchQuery" placeholder="Search files..." />
-      </IconField>
+    <div class="search-container">
       <Button
         class="create-sheet-btn"
         label="Upload File"
         icon="pi pi-upload"
         @click="visible = true"
       />
+      <div class="search-box">
+        <InputGroup>
+          <InputText v-model="searchQuery" placeholder="Search files..." />
+          <Button icon="pi pi-search" />
+        </InputGroup>
+      </div>
     </div>
 
     <div class="uploaded-list">
@@ -427,17 +430,21 @@ watch(
   font-weight: bold;
 }
 
-.top-actions {
+.search-container {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--surface-ground);
+  padding: 1rem 0;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--surface-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
-  gap: 1rem;
 }
 
-.search-input {
-  flex-grow: 1;
-  max-width: 300px;
+.search-box {
+  width: 20vw;
 }
 
 .create-sheet-btn {

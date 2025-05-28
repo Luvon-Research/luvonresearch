@@ -109,6 +109,16 @@ const steps: Step[] = [
       "Create professional reports and presentations to effectively communicate your research findings with stakeholders.",
     side: "left",
   },
+  {
+    title: "Generate insights",
+    description: "Leverage AI-powered features to extract meaningful insights and patterns from your research data.",
+    side: "right",
+  },
+  {
+    title: "Share your findings",
+    description: "Create professional reports and presentations to effectively communicate your research findings with stakeholders.",
+    side: "left",
+  }
 ];
 
 const section = ref<HTMLElement | null>(null);
@@ -123,7 +133,6 @@ function getParticleStyle(index: number) {
   const size = 2 + Math.random() * 4;
   const left = Math.random() * 100;
   const opacity = 0.3 + Math.random() * 0.7;
-
   return {
     left: `${left}%`,
     animationDelay: `${delay}s`,
@@ -609,7 +618,6 @@ const scrollToWaitlist = () => {
 .mask-text {
   font-size: inherit;
   font-weight: bold;
-
   /* Only the Luvon text gets the parallax background */
   -webkit-text-fill-color: transparent;
   background-clip: text;
