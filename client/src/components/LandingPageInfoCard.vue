@@ -38,6 +38,7 @@ const props = defineProps<{
   object-fit: cover;
   flex-shrink: 0;
   margin-top: 1rem;
+  border-radius: 10px;
 }
 
 /* this is what sits at the bottom */
