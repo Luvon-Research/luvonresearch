@@ -250,22 +250,22 @@ const scrollToWaitlist = () => {
         <LandingPageInfoCard
           title="Live Collaboration"
           description="Work together in real-time with your team using our integrated collaborative spreadsheets."
-          img="src/assets\luvon-collaboration.png"
+          img="../assets/luvon-collaboration.png"
         />
         <LandingPageInfoCard
           title="AI-Powered Analysis"
           description="Let AI do the heavy lifting. Our intelligent assistant analyzes your data automatically."
-          img="src/assets\luvon-ai-analysis.png"
+          img="../assets/luvon-ai-analysis.png"
         />
         <LandingPageInfoCard
           title="Smart Data Completion"
           description="Never worry about incomplete datasets again. Our AI can detect and fill missing values while maintaining data integrity."
-          img="src/assets\luvon-smart-complete.png"
+          img="../assets/luvon-smart-complete.png"
         />
         <LandingPageInfoCard
           title="Instant Visualizations"
           description="Transform your data into beautiful charts/graphs with a single prompt. No more wrestling with complex charting tools."
-          img="src/assets\luvon-graph.png"
+          img="../assets/luvon-graph.png"
         />
       </div>
     </div>
