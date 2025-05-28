@@ -16,25 +16,20 @@ onMounted(() => {
   if (window.VANTA && window.VANTA.DOTS) {
     vantaEffect = window.VANTA.DOTS({
       el: "#vanta-background",
+      showLines: false,
       mouseControls: true,
       touchControls: true,
       gyroControls: false,
-      minHeight: 200.00,
-      minWidth: 200.00,
-      scale: 1.20,
-      scaleMobile: 1.00,
+      minHeight: 200.0,
+      minWidth: 200.0,
+      speed: 1.0,
+      verticalSpeed: 2,
+      horizontalSpeed: 2,
+      scale: 1.0,
+      scaleMobile: 1.0,
       color: 0x5158c7,
       color2: 0x7784ec,
       backgroundColor: 0xffffff,
-      size: 2.00,
-      spacing: 25.00,
-      showLines: false,
-      speed: 0.5,
-      verticalSpeed: 0.3,
-      horizontalSpeed: 0.3,
-      forceAnimate: true,
-      maxDistance: 20.0,
-      minDistance: 10.0
     });
   }
 
@@ -86,17 +81,32 @@ interface Step {
 const steps: Step[] = [
   {
     title: "Create your research workspace",
-    description: "Set up a dedicated space for your research project and invite your team members to collaborate.",
+    description:
+      "Set up a dedicated space for your research project and invite your team members to collaborate.",
     side: "left",
   },
   {
     title: "Import your research data",
-    description: "Seamlessly import data from various sources including PDFs, spreadsheets, and databases into one centralized location.",
+    description:
+      "Seamlessly import data from various sources including PDFs, spreadsheets, and databases into one centralized location.",
     side: "right",
   },
   {
     title: "Analyze and collaborate",
-    description: "Use our powerful tools to analyze your data, create visualizations, and collaborate with your team in real-time.",
+    description:
+      "Use our powerful tools to analyze your data, create visualizations, and collaborate with your team in real-time.",
+    side: "left",
+  },
+  {
+    title: "Generate insights",
+    description:
+      "Leverage AI-powered features to extract meaningful insights and patterns from your research data.",
+    side: "right",
+  },
+  {
+    title: "Share your findings",
+    description:
+      "Create professional reports and presentations to effectively communicate your research findings with stakeholders.",
     side: "left",
   },
   {
@@ -123,14 +133,13 @@ function getParticleStyle(index: number) {
   const size = 2 + Math.random() * 4;
   const left = Math.random() * 100;
   const opacity = 0.3 + Math.random() * 0.7;
-  
   return {
     left: `${left}%`,
     animationDelay: `${delay}s`,
     animationDuration: `${duration}s`,
     width: `${size}px`,
     height: `${size}px`,
-    opacity: opacity
+    opacity: opacity,
   };
 }
 
@@ -140,22 +149,22 @@ function getStarStyle(index: number) {
   const left = Math.random() * 100;
   const top = Math.random() * 100;
   const size = 1 + Math.random() * 2;
-  
+
   return {
     left: `${left}%`,
     top: `${top}%`,
     animationDelay: `${delay}s`,
     animationDuration: `${duration}s`,
     width: `${size}px`,
-    height: `${size}px`
+    height: `${size}px`,
   };
 }
 
 // Add smooth scroll function
 const scrollToWaitlist = () => {
-  const waitlistSection = document.querySelector('.waitlist-section');
+  const waitlistSection = document.querySelector(".waitlist-section");
   if (waitlistSection) {
-    waitlistSection.scrollIntoView({ behavior: 'smooth' });
+    waitlistSection.scrollIntoView({ behavior: "smooth" });
   }
 };
 </script>
@@ -164,7 +173,7 @@ const scrollToWaitlist = () => {
   <!-- Vanta.js background -->
   <div id="vanta-background" class="vanta-container"></div>
 
-  <section class="sticky-navbar" :class="{ 'scrolled': isScrolled }">
+  <section class="sticky-navbar" :class="{ scrolled: isScrolled }">
     <div class="d-flex justify-content-between">
       <div class="d-flex align-items-center">
         <img class="logo" src="@/assets/logo.svg" />
@@ -172,7 +181,12 @@ const scrollToWaitlist = () => {
       </div>
 
       <div class="d-flex align-items-center">
-        <a href="https://calendly.com/veyyakulashabd/30min" target="_blank" class="book-demo-btn">Book a Demo</a>
+        <a
+          href="https://calendly.com/veyyakulashabd/30min"
+          target="_blank"
+          class="book-demo-btn"
+          >Book a Demo</a
+        >
         <Button
           variant="outlined"
           iconPos="right"
@@ -194,14 +208,20 @@ const scrollToWaitlist = () => {
     </div>
     <div class="d-flex justify-content-center">
       <p class="subtitle">
-        Streamline your research workflow with Luvon's AI-powered platform. From data collection to analysis,
-        we help scientists focus on what matters most - making discoveries.
+        Streamline your research workflow with Luvon's AI-powered platform. From
+        data collection to analysis, we help scientists focus on what matters
+        most - making discoveries.
       </p>
     </div>
 
     <div class="d-flex justify-content-center">
       <div class="d-flex align-items-center">
-        <a href="https://calendly.com/veyyakulashabd/30min" target="_blank" class="book-demo-btn">Book a Demo</a>
+        <a
+          href="https://calendly.com/veyyakulashabd/30min"
+          target="_blank"
+          class="book-demo-btn"
+          >Book a Demo</a
+        >
         <Button
           iconPos="right"
           label="Join Waitlist"
@@ -213,7 +233,7 @@ const scrollToWaitlist = () => {
     </div>
 
     <div class="d-flex justify-content-center">
-      <div class="header-image"></div>
+      <img class="header-image" src="../assets/luvon-screenshot.png" alt="Img"/>
     </div>
   </section>
 
@@ -228,24 +248,24 @@ const scrollToWaitlist = () => {
     <div class="d-flex justify-content-center section-2-cards">
       <div class="row gap-4 justify-content-center">
         <LandingPageInfoCard
-          title="Live Collaboration" 
+          title="Live Collaboration"
           description="Work together in real-time with your team using our integrated collaborative spreadsheets."
-          img="https://framerusercontent.com/images/yeqACn9LkszdOq5t3gWkxc7pdU.png?scale-down-to=1024"
+          img="src/assets\luvon-collaboration.png"
         />
         <LandingPageInfoCard
           title="AI-Powered Analysis"
           description="Let AI do the heavy lifting. Our intelligent assistant analyzes your data automatically."
-          img="https://framerusercontent.com/images/yeqACn9LkszdOq5t3gWkxc7pdU.png?scale-down-to=1024"
+          img="src/assets\luvon-ai-analysis.png"
         />
         <LandingPageInfoCard
           title="Smart Data Completion"
-          description="Never worry about incomplete datasets again. Our AI can detect and fill missing values intelligently while maintaining data integrity."
-          img="https://framerusercontent.com/images/yeqACn9LkszdOq5t3gWkxc7pdU.png?scale-down-to=1024"
+          description="Never worry about incomplete datasets again. Our AI can detect and fill missing values while maintaining data integrity."
+          img="src/assets\luvon-smart-complete.png"
         />
         <LandingPageInfoCard
           title="Instant Visualizations"
-          description="Transform your data into beautiful charts and graphs with a single prompt. No more wrestling with complex charting tools."
-          img="https://framerusercontent.com/images/yeqACn9LkszdOq5t3gWkxc7pdU.png?scale-down-to=1024"
+          description="Transform your data into beautiful charts/graphs with a single prompt. No more wrestling with complex charting tools."
+          img="src/assets\luvon-graph.png"
         />
       </div>
     </div>
@@ -271,10 +291,18 @@ const scrollToWaitlist = () => {
         research with <span class="meet-luvon-img-badge">AI</span>
       </h4>
       <p class="meet-luvon-img-subhead">
-        With Luvon's advanced AI capabilities, you can accelerate your research process by up to 3.14x while maintaining the highest quality standards. Our intelligent platform automates tedious tasks, provides real-time insights, and helps you uncover hidden patterns in your data. Experience seamless collaboration, powerful analytics, and breakthrough discoveries - all in one intuitive workspace.
+        With Luvon's advanced AI capabilities, you can accelerate your research
+        process by up to 3x while maintaining the highest quality standards. Our
+        intelligent platform automates tedious tasks, provides real-time
+        insights, and helps you uncover hidden patterns in your data.
       </p>
       <div class="meet-luvon-img-actions align-items-center">
-        <a href="https://calendly.com/veyyakulashabd/30min" target="_blank" class="book-demo-btn">Book a Demo</a>
+        <a
+          href="https://calendly.com/veyyakulashabd/30min"
+          target="_blank"
+          class="book-demo-btn"
+          >Book a Demo</a
+        >
         <Button
           iconPos="right"
           label="Join Waitlist"
@@ -296,11 +324,18 @@ const scrollToWaitlist = () => {
         research with <span class="meet-luvon-img-badge">AI</span>
       </h4>
       <p class="meet-luvon-img-subhead">
-        With luvon, you can accelerate your research time by 3.14x and achieve
-        great results so easily!
+        With Luvon's advanced AI capabilities, you can accelerate your research
+        process by up to 3x while maintaining the highest quality standards. Our
+        intelligent platform automates tedious tasks, provides real-time
+        insights, and helps you uncover hidden patterns in your data.
       </p>
       <div class="meet-luvon-img-actions align-items-center">
-        <a href="https://calendly.com/veyyakulashabd/30min" target="_blank" class="book-demo-btn">Book a Demo</a>
+        <a
+          href="https://calendly.com/veyyakulashabd/30min"
+          target="_blank"
+          class="book-demo-btn"
+          >Book a Demo</a
+        >
         <Button
           iconPos="right"
           label="Join Waitlist"
@@ -310,18 +345,17 @@ const scrollToWaitlist = () => {
         />
       </div>
     </div>
-
   </section>
 
   <section id="how-it-works" class="how-it-works-section">
     <div class="d-flex justify-content-center">
-      <h2 class="subheading">
-        How it works
-      </h2>
+      <h2 class="subheading">How it works</h2>
     </div>
     <div class="d-flex justify-content-center">
-      <p>
-        With Luvon, you can streamline your research workflow with powerful AI-assisted tools for data analysis, collaboration, and insight generation - all in one integrated platform.
+      <p class="subtitle">
+        With Luvon, you can streamline your research workflow with powerful
+        AI-assisted tools for data analysis, collaboration, and insight
+        generation - all in one integrated platform.
       </p>
     </div>
 
@@ -357,10 +391,26 @@ const scrollToWaitlist = () => {
     </section>
   </section>
 
-    <!-- Add Waitlist component here -->
-  <div class="waitlist-section">
-    <Waitlist />
-  </div>
+  <!-- Add Waitlist component here -->
+  <section class="waitlist-section">
+    <div class="d-flex justify-content-center">
+      <div class="row">
+        <div class="col">
+          <div class="waitlist-sidebar">
+            <h3 class="subheading">Join waitlist</h3>
+            <p class="subtitle">
+              Join our waitlist to get noitified when Luvon releases to the
+              public!
+            </p>
+          </div>
+        </div>
+
+        <div class="col waitlist-box">
+          <Waitlist />
+        </div>
+      </div>
+    </div>
+  </section>
 
   <section id="get-started-section" class="get-started-section">
     <div class="getting-started-card">
@@ -371,7 +421,12 @@ const scrollToWaitlist = () => {
           with Luvon today!
         </h2>
         <div class="getting-started-actions">
-          <a href="https://calendly.com/veyyakulashabd/30min" target="_blank" class="book-demo-btn">Book a Demo</a>
+          <a
+            href="https://calendly.com/veyyakulashabd/30min"
+            target="_blank"
+            class="book-demo-btn"
+            >Book a Demo</a
+          >
         </div>
       </div>
     </div>
@@ -507,12 +562,13 @@ const scrollToWaitlist = () => {
 }
 
 .header-image {
-  height: 70vh;
-  width: 70vw;
+  width: 80vw;
   margin-top: 6vh;
-  background-color: bisque;
   border-radius: 20px;
-}
+  border: 0.1px solid rgb(204, 204, 204);
+  padding: 1rem;
+  background-color: white;
+  box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;}
 
 .section-2 {
   margin-top: 10vh;
@@ -562,7 +618,6 @@ const scrollToWaitlist = () => {
 .mask-text {
   font-size: inherit;
   font-weight: bold;
-  
   /* Only the Luvon text gets the parallax background */
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -595,10 +650,10 @@ const scrollToWaitlist = () => {
 
 .meet-luvon-img-subhead {
   position: absolute;
-  top: 20vh;
+  top: 21vh;
   left: 20vw;
   font-size: 18px;
-  max-width: 30vw;
+  max-width: 40vw;
   margin-top: 0.1rem;
   font-weight: 300;
   color: #e4e4e4;
@@ -609,8 +664,8 @@ const scrollToWaitlist = () => {
     color: white;
   }
   position: absolute;
-  top: 30vh;
-  left: 22vw;
+  top: 37vh;
+  left: 20vw;
 }
 
 .meet-luvon-img-badge {
@@ -627,7 +682,7 @@ const scrollToWaitlist = () => {
 }
 
 .how-it-works-section {
-  margin-top: 20vh;
+  margin-top: 10vh;
 }
 
 .how-it-works {
@@ -777,16 +832,172 @@ const scrollToWaitlist = () => {
   margin-top: -3rem;
 }
 
+/* -------------- Clerk Sign‑In Override -------------- */
+/* button:focus {
+  outline: none;
+} */
+
+/* Option 1: Smooth CSS scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Option 2: Custom smooth scrolling with CSS transitions */
+* {
+  font-family: "DM Sans", sans-serif;
+}
+
+/* Add momentum scrolling for webkit browsers */
+body {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Smooth scroll with custom timing */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem; /* Account for fixed navbar */
+}
+
+/* Optional: Add a subtle scroll snap effect for sections */
+.landing-container {
+  /* Remove the old scroll-behavior: smooth; since we're setting it on html */
+}
+
+/* Add smooth transitions to elements that animate on scroll */
+.section-2,
+.meet-luvon-section,
+.how-it-works-section,
+.get-started-section {
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+/* Optional: Add scroll snap for a more polished feel */
+.title-section,
+.section-2,
+.meet-luvon-section,
+.how-it-works-section,
+.get-started-section {
+  scroll-snap-align: start;
+}
+
+.landing-container {
+  scroll-snap-type: y proximity; /* Use 'proximity' for subtle snapping */
+}
+
+/* Add Vanta background styles */
+.vanta-container {
+  position: absolute;
+  top: 0vh;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  z-index: 0;
+}
+
+/* Three.js sphere overlay */
+.three-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+/* Ensure content stays above both backgrounds */
+.sticky-navbar {
+  position: fixed;
+  top: 0;
+  height: 5rem;
+  width: 100vw;
+  background-color: rgba(255, 255, 255, 0.95);
+  z-index: 9999;
+}
+
+.title-section,
+.section-2 {
+  position: relative;
+  z-index: 2;
+  background: transparent;
+}
+
+/* Remove the gradient overlay that might be interfering */
+.section-2::after {
+  display: none;
+}
+
+/* Ensure the landing container doesn't cause shifting */
+.landing-container {
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Add styles for the new waitlist section */
+.waitlist-section {
+  margin: 4rem auto;
+}
+
+.waitlist-sidebar {
+  .subheading {
+    text-align: left;
+    color: black;
+    z-index: 9999;
+  }
+
+  .subtitle {
+    text-align: left;
+    max-width: 25vw;
+    color: black;
+    z-index: 99999;
+  }
+  margin-right: 5vw;
+  margin-top: 15vh;
+  text-align: left;
+  z-index: 99999;
+}
+
+/* Add AOS fade-up animation override for smoother animations */
+[data-aos="fade-up"] {
+  transform: translate3d(0, 30px, 0);
+}
+
+[data-aos="fade-right"] {
+  transform: translate3d(-30px, 0, 0);
+}
+
+[data-aos="fade-left"] {
+  transform: translate3d(30px, 0, 0);
+}
+
+/* Optional: Add custom animations */
+@keyframes floatAnimation {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.floating {
+  animation: floatAnimation 3s ease-in-out infinite;
+}
+
 /* Mobile Responsive Breakpoints */
 /* Extra small devices (phones, 600px and down) */
-@media only screen and (max-width: 600px) {
+@media only screen and (max-width: 800px) {
   .main-title {
     font-size: 45px;
     max-width: 80vw;
   }
 
   .subtitle {
-    width: 70vw;
+    width: 85vw;
     margin-top: 0.5rem;
     font-size: 18px;
   }
@@ -816,7 +1027,7 @@ const scrollToWaitlist = () => {
   }
 
   .meet-luvon-info-img {
-    width: 85vw;
+    width: 95vw;
     margin-left: auto;
     margin-right: auto;
   }
@@ -824,16 +1035,16 @@ const scrollToWaitlist = () => {
   .meet-luvon-img-title {
     position: absolute;
     top: 5vh;
-    left: 20vw;
+    left: 15vw;
     font-size: 25px;
   }
 
   .meet-luvon-img-subhead {
     position: absolute;
-    top: 15vh;
-    left: 20vw;
+    top: 13vh;
+    left: 15vw;
     font-size: 16px;
-    max-width: 60vw;
+    max-width: 70vw;
   }
 
   .meet-luvon-img-actions {
@@ -841,8 +1052,8 @@ const scrollToWaitlist = () => {
       color: white;
     }
     position: absolute;
-    top: 27vh;
-    left: 20vw;
+    top: 36vh;
+    left: 15vw;
   }
 
   .getting-started-card {
@@ -853,6 +1064,39 @@ const scrollToWaitlist = () => {
     font-size: 2.5rem;
     width: 80vw;
   }
+
+  .waitlist-section {
+    margin: 4rem auto;
+  }
+
+  .waitlist-box {
+    margin-left: 8%;
+    margin-right: auto;
+    width: 100%;
+  }
+
+  .waitlist-sidebar {
+    .subheading {
+      text-align: center;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .subtitle {
+      text-align: center;
+      margin-left: auto;
+      margin-right: auto;
+      max-width: 90vw;
+    }
+    margin-right: auto;
+    margin-left: auto;
+    margin-top: 15vh;
+    text-align: center;
+  }
+
+  .logo-title {
+  display: none;
+}
 }
 /*
 .login-signup {
@@ -984,339 +1228,4 @@ h1 {
   font-size: 0.875rem;
   font-weight: bold;
 } */
-
-/* -------------- Clerk Sign‑In Override -------------- */
-/* button:focus {
-  outline: none;
-} */
-
-/* Option 1: Smooth CSS scroll behavior */
-html {
-  scroll-behavior: smooth;
-}
-
-/* Option 2: Custom smooth scrolling with CSS transitions */
-* {
-  font-family: "DM Sans", sans-serif;
-}
-
-/* Add momentum scrolling for webkit browsers */
-body {
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Smooth scroll with custom timing */
-html {
-  scroll-behavior: smooth;
-  scroll-padding-top: 5rem; /* Account for fixed navbar */
-}
-
-/* Optional: Add a subtle scroll snap effect for sections */
-.landing-container {
-  /* Remove the old scroll-behavior: smooth; since we're setting it on html */
-}
-
-/* Add smooth transitions to elements that animate on scroll */
-.section-2,
-.meet-luvon-section,
-.how-it-works-section,
-.get-started-section {
-  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
-}
-
-/* Optional: Add scroll snap for a more polished feel */
-.title-section,
-.section-2,
-.meet-luvon-section,
-.how-it-works-section,
-.get-started-section {
-  scroll-snap-align: start;
-}
-
-.landing-container {
-  scroll-snap-type: y proximity; /* Use 'proximity' for subtle snapping */
-}
-
-/* Add Vanta background styles */
-.vanta-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 200vh;
-  z-index: 0;
-  pointer-events: none;
-}
-
-/* Three.js sphere overlay */
-.three-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100vh;
-  z-index: 1;
-  pointer-events: none;
-  opacity: 0.8;
-}
-
-/* Ensure content stays above both backgrounds */
-.sticky-navbar {
-  position: fixed;
-  top: 0;
-  height: 5rem;
-  width: 100vw;
-  background-color: rgba(255, 255, 255, 0.95);
-  z-index: 9999;
-}
-
-.title-section,
-.section-2 {
-  position: relative;
-  z-index: 2;
-  background: transparent;
-}
-
-/* Remove the gradient overlay that might be interfering */
-.section-2::after {
-  display: none;
-}
-
-/* Ensure the landing container doesn't cause shifting */
-.landing-container {
-  position: relative;
-  overflow-x: hidden;
-}
-
-/* Waitlist component styling */
-.waitlist-wrapper {
-  margin-left: 1rem;
-  margin-right: 1rem;
-}
-
-/* Style the waitlist cards to be inline */
-:deep(.waitlist-card-navbar),
-:deep(.waitlist-card-main),
-:deep(.waitlist-card-meet),
-:deep(.waitlist-card-final) {
-  display: inline-block;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-}
-
-/* Style the waitlist buttons to match your existing design */
-:deep(.waitlist-btn-navbar),
-:deep(.waitlist-btn-main),
-:deep(.waitlist-btn-meet),
-:deep(.waitlist-btn-final) {
-  background-color: #5158c7 !important;
-  color: white !important;
-  border: none !important;
-  padding: 0.75rem 1.5rem !important;
-  border-radius: 6px !important;
-  font-weight: 600 !important;
-  cursor: pointer !important;
-  transition: background-color 0.2s ease !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 0.5rem !important;
-}
-
-:deep(.waitlist-btn-navbar):hover,
-:deep(.waitlist-btn-main):hover,
-:deep(.waitlist-btn-meet):hover,
-:deep(.waitlist-btn-final):hover {
-  background-color: #7784ec !important;
-}
-
-/* For the outlined version in navbar */
-:deep(.waitlist-btn-navbar) {
-  background-color: transparent !important;
-  color: #5158c7 !important;
-  border: 1px solid #5158c7 !important;
-}
-
-:deep(.waitlist-btn-navbar):hover {
-  background-color: #5158c7 !important;
-  color: white !important;
-}
-
-/* Ensure the waitlist form appears as a modal/popup */
-:deep(.cl-waitlistForm) {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 10000;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  padding: 2rem;
-  max-width: 400px;
-  width: 90vw;
-}
-
-/* Add backdrop */
-:deep(.cl-waitlistForm)::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: -1;
-}
-
-/* Waitlist Modal Styling */
-:deep(.waitlist-modal .p-dialog) {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-}
-
-:deep(.waitlist-modal .p-dialog-content) {
-  padding: 0 !important;
-  background: transparent !important;
-  border: none !important;
-}
-
-:deep(.waitlist-modal .p-dialog-header) {
-  display: none !important;
-}
-
-:deep(.waitlist-modal .p-dialog-close-button) {
-  position: absolute !important;
-  top: 10px !important;
-  right: 10px !important;
-  z-index: 1000 !important;
-  background: rgba(0, 0, 0, 0.5) !important;
-  color: white !important;
-  border-radius: 50% !important;
-  width: 30px !important;
-  height: 30px !important;
-}
-
-:deep(.waitlist-card-modal) {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  padding: 0;
-}
-
-:deep(.waitlist-btn-modal) {
-  background-color: #5158c7 !important;
-  color: white !important;
-  border: none !important;
-  padding: 0.75rem 1.5rem !important;
-  border-radius: 6px !important;
-  font-weight: 600 !important;
-  cursor: pointer !important;
-  transition: background-color 0.2s ease !important;
-  width: 100% !important;
-}
-
-:deep(.waitlist-btn-modal):hover {
-  background-color: #7784ec !important;
-}
-
-/* Ensure no scrollbars appear */
-:deep(.waitlist-modal .p-dialog) {
-  overflow: hidden;
-}
-
-:deep(.waitlist-modal .cl-waitlistForm) {
-  overflow: hidden;
-}
-
-/* Keep your existing button styles */
-.join-waitlist-btn-outlined {
-  margin-left: 1rem;
-  margin-right: 1rem;
-  color: #5158c7;
-  border-color: #5158c7;
-}
-
-.join-waitlist-btn-outlined:hover {
-  background-color: #5158c7 !important;
-  color: white !important;
-}
-
-.join-waitlist-btn {
-  margin-left: 1rem;
-  margin-right: 1rem;
-  color: white;
-  background-color: #5158c7;
-  cursor: pointer;
-}
-
-.join-waitlist-btn:hover {
-  background-color: #7784ec !important;
-}
-
-/* Add styles for the new waitlist section */
-.waitlist-section {
-  max-width: 500px;
-  margin: 4rem auto;
-  padding: 2rem;
-}
-
-:deep(.waitlist-card-bottom) {
-  background: transparent;
-  border: none;
-  box-shadow: none !important;
-  padding: 0;
-}
-
-:deep(.cl-waitlistForm) {
-  box-shadow: none !important;
-}
-
-:deep(.cl-card) {
-  box-shadow: none !important;
-}
-
-:deep(.waitlist-btn-bottom) {
-  background-color: #5158c7 !important;
-  color: white !important;
-  border: none !important;
-  padding: 0.75rem 1.5rem !important;
-  border-radius: 6px !important;
-  font-weight: 600 !important;
-  cursor: pointer !important;
-  transition: background-color 0.2s ease !important;
-  width: 100% !important;
-  box-shadow: none !important;
-}
-
-/* Add AOS fade-up animation override for smoother animations */
-[data-aos="fade-up"] {
-  transform: translate3d(0, 30px, 0);
-}
-
-[data-aos="fade-right"] {
-  transform: translate3d(-30px, 0, 0);
-}
-
-[data-aos="fade-left"] {
-  transform: translate3d(30px, 0, 0);
-}
-
-/* Optional: Add custom animations */
-@keyframes floatAnimation {
-  0% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-  100% {
-    transform: translateY(0);
-  }
-}
-
-.floating {
-  animation: floatAnimation 3s ease-in-out infinite;
-}
 </style>

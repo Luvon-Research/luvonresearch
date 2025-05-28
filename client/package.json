@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev-mobile": "vite --host",
     "build": "vite build",
     "preview": "vite preview",
     "dev:all": "concurrently \"npm run dev\" \"cd ../server && uvicorn main:app --reload --port 8000\"",
