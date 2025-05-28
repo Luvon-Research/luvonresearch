@@ -246,17 +246,17 @@ const scrollToWaitlist = () => {
         <LandingPageInfoCard
           title="AI-Powered Analysis"
           description="Let AI do the heavy lifting. Our intelligent assistant analyzes your data automatically."
-          img="https://framerusercontent.com/images/yeqACn9LkszdOq5t3gWkxc7pdU.png?scale-down-to=1024"
+          img="src/assets\luvon-ai-analysis.png"
         />
         <LandingPageInfoCard
           title="Smart Data Completion"
-          description="Never worry about incomplete datasets again. Our AI can detect and fill missing values intelligently while maintaining data integrity."
-          img="https://framerusercontent.com/images/yeqACn9LkszdOq5t3gWkxc7pdU.png?scale-down-to=1024"
+          description="Never worry about incomplete datasets again. Our AI can detect and fill missing values while maintaining data integrity."
+          img="src/assets\luvon-smart-complete.png"
         />
         <LandingPageInfoCard
           title="Instant Visualizations"
-          description="Transform your data into beautiful charts and graphs with a single prompt. No more wrestling with complex charting tools."
-          img="https://framerusercontent.com/images/yeqACn9LkszdOq5t3gWkxc7pdU.png?scale-down-to=1024"
+          description="Transform your data into beautiful charts/graphs with a single prompt. No more wrestling with complex charting tools."
+          img="src/assets\luvon-graph.png"
         />
       </div>
     </div>
@@ -559,7 +559,7 @@ const scrollToWaitlist = () => {
   border: 0.1px solid rgb(204, 204, 204);
   padding: 1rem;
   background-color: white;
-}
+  box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;}
 
 .section-2 {
   margin-top: 10vh;

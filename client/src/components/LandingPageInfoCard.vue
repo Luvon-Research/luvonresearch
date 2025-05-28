@@ -24,7 +24,7 @@ const props = defineProps<{
   display: flex;
   flex-direction: column;
   /* push content-wrapper to bottom */
-  height: 23rem;
+  height: 25rem;
   width: 18rem;
   background-color: #f0f0f0;
   border-radius: 10px;
@@ -44,11 +44,11 @@ const props = defineProps<{
 /* this is what sits at the bottom */
 .content-wrapper {
   margin-top: auto;
-  padding: 1rem;
+  padding: 0.5rem;
 }
 
 .title {
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   text-align: left;
   margin: 0; /* reset default */
 }
