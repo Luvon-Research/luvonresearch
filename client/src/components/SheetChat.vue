@@ -472,49 +472,136 @@ async function send() {
     .json();
     
   // save its abort fn
-  abortFetch.value = fetcher.abort;
+  // abortFetch.value = fetcher.abort; // OLD useFetch abort
+
+  const controller = new AbortController();
+  abortFetch.value = () => controller.abort(); // Store the new abort function
+
+  let firstChunkProcessed = false;
 
   try {
-    // actually fire the request
-    let res = await fetcher.execute()
+    const response = await fetch(`${API_URL}/api/ai`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.value.id}`,
+        Accept: "application/x-ndjson",
+      },
+      body: JSON.stringify({
+        prompt: txt,
+        session_id: session.value.id, // session_id might not be needed if user_id is derived from token on backend
+        context_source: unref(props.sheetId),
+        selectedCells: props.selectedCells,
+      }),
+      signal: controller.signal,
+    });
 
-    if(res !== null){
-      messages.pop();
-      console.log(res);
-
-      if (res.ok) {
-        let data = await res.json();
-        console.log("GOT DATA")
-        console.log(data);
-        const elapsedSec = (Date.now() - start) / 1000;
-
-        let answers = data["answer"];
-
-        answers.forEach((val) => {
-          displayText(val["value"], "assistant", val["type"], elapsedSec);
-        });
-      } else {
-        const elapsedSec = (Date.now() - start) / 1000;
-        let body = await res.json();
-        let errMsg = body["detail"];
-        displayText(errMsg, "assistant", "message", elapsedSec);
-      }
-
+    if (!response.ok) {
+      // Handle HTTP errors (e.g., 4xx, 5xx)
+      messages.pop(); // Remove "Loading..."
+      const errorData = await response.json().catch(() => ({ detail: "An unknown error occurred" }));
+      displayText(errorData.detail || `Error: ${response.statusText}`, "assistant", "message", (Date.now() - start) / 1000);
       loading.value = false;
+      return;
     }
 
-    
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        if (buffer.trim()) { // Process any remaining data in buffer
+          try {
+            const chunk = JSON.parse(buffer.trim());
+            if (!firstChunkProcessed) {
+              if (messages.length > 0 && messages[messages.length - 1].type === "skeleton-text") {
+                messages.pop(); // Remove "Loading..." skeleton
+              }
+              firstChunkProcessed = true;
+            }
+            processStreamedChunk(chunk, start);
+          } catch (e) {
+            console.error("Error parsing final buffered JSON chunk:", e, "Buffer:", buffer);
+          }
+        }
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop(); // Keep the last (potentially incomplete) line in buffer
+
+      for (const line of lines) {
+        if (line.trim() === "") continue;
+        try {
+          const chunk = JSON.parse(line.trim());
+          if (!firstChunkProcessed) {
+            // Only remove skeleton if it's the last message and is a skeleton
+            if (messages.length > 0 && messages[messages.length - 1].type === "skeleton-text") {
+              messages.pop(); // Remove "Loading..." skeleton
+            }
+            firstChunkProcessed = true;
+          }
+          processStreamedChunk(chunk, start);
+        } catch (e) {
+          console.error("Error parsing streamed JSON line:", e, "Line:", line);
+          // Decide if an error message should be shown to the user for a single bad line
+        }
+      }
+    }
   } catch (e) {
-    console.log(e)
-    const elapsedSec = (Date.now() - start) / 1000;
-    displayText(e.toString(), "assistant", "message", elapsedSec);
-    messages.pop();
-    loading.value = false;
+    console.error("Fetch or streaming error:", e);
+    if (e.name === 'AbortError') {
+      console.log("Fetch aborted");
+      // The cancelPrompt function already handles popping the skeleton message
+    } else {
+      if (messages.length && messages[messages.length - 1].type === "skeleton-text") {
+        messages.pop(); // Remove "Loading..." if present and error wasn't an abort
+      }
+      const elapsedSec = (Date.now() - start) / 1000;
+      displayText(e.toString(), "assistant", "message", elapsedSec);
+    }
   } finally {
-    // loading.value = false;
-    // abortFetch.value = null;
-    // draft.value = "";
+    loading.value = false;
+    abortFetch.value = null; // Clear the abort controller reference
+    // draft.value = ""; // Clearing draft might be too aggressive if send failed early
   }
+}
+
+function processStreamedChunk(chunk, startTime) {
+  const elapsedSec = (Date.now() - startTime) / 1000;
+  const timestamp = formatDateMMDDhhmm();
+
+  if (chunk.type === "message") {
+    const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+    if (lastMessage && lastMessage.from === "assistant" && lastMessage.type === "message") {
+      lastMessage.text += chunk.value;
+      lastMessage.timestamp = timestamp; // Update timestamp to last activity
+      lastMessage.generationTime = elapsedSec.toFixed(2);
+    } else {
+      messages.push({
+        from: "assistant",
+        type: "message",
+        text: chunk.value,
+        timestamp: timestamp,
+        generationTime: elapsedSec.toFixed(2),
+      });
+    }
+  } else if (chunk.type === "image" || chunk.type === "code" || chunk.type === "data_table" || chunk.type === "action") {
+    // These types create new message blocks
+    messages.push({
+      from: "assistant",
+      type: chunk.type,
+      text: chunk.value, // 'text' here is used as the general content holder in the template
+      timestamp: timestamp,
+      generationTime: elapsedSec.toFixed(2), // This will be the time for this specific chunk
+    });
+  } else {
+    console.warn("Unknown chunk type received:", chunk.type, chunk);
+  }
+  scrollToBottom();
 }
 
 function close() {
